@@ -56,7 +56,7 @@ try {
   if (!(await page.getByLabel('首次认领码').inputValue()))
     throw new Error('Native sidecar bootstrap code missing');
   await page.screenshot({
-    path: path.join(root, 'artifacts/connection-desktop-native-0.1.8.png'),
+    path: path.join(root, 'artifacts/connection-desktop-native-0.1.9.png'),
     fullPage: true,
     animations: 'disabled',
   });
@@ -80,6 +80,10 @@ try {
     animations: 'disabled',
   });
   if (errors.length) throw new Error(errors.join('\n'));
+  // Tauri's invoke property is immutable; exercise the actual OS command directly.
+  await page.evaluate(() =>
+    window.__TAURI_INTERNALS__.invoke('plugin:panestra-bridge|open_github'),
+  );
   writeFileSync(
     path.join(root, 'artifacts/native-desktop-result.json'),
     JSON.stringify(
@@ -91,6 +95,7 @@ try {
         deviceStorage: 'Windows DPAPI',
         transport: 'native pinned TLS 1.3 + WSS',
         fingerprint,
+        systemBrowserProjectLink: true,
         errors,
       },
       null,

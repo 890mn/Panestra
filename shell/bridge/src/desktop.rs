@@ -23,6 +23,34 @@ use tokio_tungstenite::{tungstenite::Message, Connector};
 
 #[derive(Default)]
 pub struct Connections(Mutex<HashMap<String, oneshot::Sender<()>>>);
+
+#[tauri::command]
+pub fn open_github() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL};
+        let url: Vec<u16> = "https://github.com/890mn/Panestra"
+            .encode_utf16()
+            .chain(Some(0))
+            .collect();
+        let opened = unsafe {
+            ShellExecuteW(
+                std::ptr::null_mut(),
+                std::ptr::null(),
+                url.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+        if opened as isize <= 32 {
+            return Err("无法打开浏览器，请访问 github.com/890mn/Panestra".into());
+        }
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    Err("此平台暂不支持打开项目页面".into())
+}
 #[derive(Serialize, Deserialize)]
 struct StoredKey {
     device_id: String,

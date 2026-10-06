@@ -1,6 +1,6 @@
 # Panestra / 星序
 
-**one core, every device.**
+**ONE CORE, EVERY DEVICE.**
 
 中文名为星序，版本变更和提交约定见 [版本记录](docs/release-history.md)。开发前运行 `npm run format:check`，完整检查使用 `./scripts/verify.ps1`，每个小版本完成后创建本地提交。
 
@@ -65,7 +65,7 @@ Android 最低版本为 10 / API 29，传输强制 TLS 1.3。脚本兼容 Window
 - 有界实时订阅、样本合并、慢客户端断开，以及签名发行包验证／分阶段激活工具。
 - 离线发行签名、逐文件摘要、第一方插件健康检查后热切换、失败保留旧版本及重启后使用已批准版本。
 
-完整验证结果见 [验收记录](docs/acceptance.md)，逐项对应研究计划的结果见 [实施对照](docs/implementation-checklist.md)。当前为 0.1.8 开发版，不作为稳定版发布。
+完整验证结果见 [验收记录](docs/acceptance.md)，逐项对应研究计划的结果见 [实施对照](docs/implementation-checklist.md)。当前为 0.1.9 开发版，不作为稳定版发布。
 
 后续阶段、优先级、依赖与验收标准见 [长期发展规划](docs/roadmap.md)。优先优化底层、UI 与使用手感，仅开发 Windows / Android。按键与尺寸见[设计规范](docs/design-system.md)，网易云音乐、Codex、GLM Coding Plan、Clash Verge、ALAS 见[软件适配设计](docs/software-adapters.md)；本轮目录和详情已落地，适配 Worker 尚未实现。
 

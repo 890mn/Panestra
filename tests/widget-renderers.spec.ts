@@ -106,7 +106,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.8',
+        version: '0.1.9',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,

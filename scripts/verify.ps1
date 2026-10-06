@@ -20,6 +20,8 @@ if ($unformattedGo) { throw "Go formatting failed: $unformattedGo" }
 . "$PSScriptRoot/native-env.ps1"
 cargo fmt --manifest-path shell/desktop/Cargo.toml --check
 if ($LASTEXITCODE -ne 0) { throw 'Rust formatting failed' }
+cargo fmt --manifest-path shell/bridge/Cargo.toml --check
+if ($LASTEXITCODE -ne 0) { throw 'Native bridge Rust formatting failed' }
 & $goBinary vet ./core/... ./plugins/...
 if ($LASTEXITCODE -ne 0) { throw 'Go vet failed' }
 & $goBinary test ./core/... ./plugins/... -count=1

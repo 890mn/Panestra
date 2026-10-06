@@ -2,6 +2,8 @@ package dev.panestra.bridge
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
@@ -46,6 +48,14 @@ class PanestraBridgePlugin(private val activity: Activity) : Plugin(activity) {
     private lateinit var surface: WebView
     override fun load(webView: WebView) { surface = webView; if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true) }
     private val alias = "panestra.device.v1"
+    @Command fun openGithub(invoke: Invoke) {
+        activity.runOnUiThread {
+            try {
+                activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/890mn/Panestra")))
+                invoke.resolve(JSObject())
+            } catch (e: Exception) { invoke.reject("无法打开浏览器，请访问 github.com/890mn/Panestra") }
+        }
+    }
     @Command fun scanPairing(invoke: Invoke) {
         activity.runOnUiThread {
             try {

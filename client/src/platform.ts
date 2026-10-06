@@ -3,6 +3,9 @@ import type { Endpoint } from '../../packages/protocol/src';
 
 export const native = '__TAURI_INTERNALS__' in window;
 export const canScanPairing = native && /Android/i.test(navigator.userAgent);
+export async function openProjectGitHub(): Promise<void> {
+  await invoke('plugin:panestra-bridge|open_github');
+}
 export async function scanPairing(): Promise<string | null> {
   const result = await invoke<{ text: string | null }>('plugin:panestra-bridge|scan_pairing');
   return result.text;

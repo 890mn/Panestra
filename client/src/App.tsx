@@ -14,7 +14,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Check,
-  CircleHelp,
   Code2,
   Cpu,
   Maximize2,
@@ -81,9 +80,8 @@ import {
   widgetProfile,
   profileKey,
 } from '../../packages/widget-schema/src/presentation';
-import { version as appVersion } from '../package.json';
 import { LayoutCanvas, type EditorActions } from './LayoutCanvas';
-import { Brand, SLOGAN } from './Brand';
+import { Brand, ProjectLink, SLOGAN } from './Brand';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
@@ -440,11 +438,7 @@ export function App() {
             </div>
             <ShieldCheck size={17} />
           </div>
-          <Button className="nav-item help" onClick={() => setModal('about')}>
-            <CircleHelp size={17} />
-            <span>关于星序</span>
-            <span className="version">v{appVersion}</span>
-          </Button>
+          <ProjectLink onError={(error) => notify(errorText(error))} />
         </div>
       </aside>
       {sidebar ? (
@@ -840,16 +834,6 @@ export function App() {
               <Trash2 size={16} />
               删除此页面
             </Button>
-          </div>
-        </Modal>
-      ) : null}
-      {modal === 'about' ? (
-        <Modal title="Panestra / 星序" close={() => setModal('')}>
-          <div className="about">
-            <img src="/icon-origin.png" alt="Panestra 标志" />
-            <h3>{SLOGAN}</h3>
-            <p>电脑保存状态，各设备同步显示，插件提供所需功能</p>
-            <p className="subtle">MVP · {appVersion}</p>
           </div>
         </Modal>
       ) : null}

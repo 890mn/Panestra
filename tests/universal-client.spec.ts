@@ -120,18 +120,44 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
     ['tablet', tablet],
   ] as const) {
     await surface.goto(endpoint);
-    await expect(surface.locator('.brand-name')).toHaveText('Panestra/星序');
+    await expect(surface.locator('.brand-name')).toHaveText('Panestra');
     await expect(surface.locator('.connect-story h1')).toContainText('在每一块屏幕上。');
-    await expect(surface.locator('.connect-story .eyebrow')).toHaveText('one core, every device.');
+    await expect(surface.locator('.connect-story .eyebrow')).toHaveText('ONE CORE, EVERY DEVICE.');
     await expect(surface.locator('.connect-screen > footer')).toHaveCount(0);
     await expect(surface.getByRole('button', { name: '建立主机', exact: true })).toBeVisible();
     await expect(surface.getByRole('button', { name: '配对此设备', exact: true })).toBeVisible();
+    const card = await surface.locator('.connect-card').boundingBox();
+    if (label !== 'phone')
+      expect(
+        Math.abs(card!.y + card!.height / 2 - surface.viewportSize()!.height / 2),
+      ).toBeLessThan(20);
+    for (const mode of ['day', 'night'] as const) {
+      const badge = await surface.locator('.brand-version').evaluate((el) => {
+        const style = getComputedStyle(el);
+        return {
+          background: style.backgroundColor,
+          color: style.color,
+          radius: style.borderRadius,
+          text: getComputedStyle(document.body).color,
+          backdrop: getComputedStyle(document.body).backgroundColor,
+        };
+      });
+      expect(badge.background).toBe(badge.text);
+      expect(badge.color).toBe(badge.backdrop);
+      expect(badge.radius).toBe('6px');
+      await surface.screenshot({
+        path: `artifacts/connection-${label}-${mode}-0.1.9.png`,
+        fullPage: true,
+        animations: 'disabled',
+      });
+      await surface.getByRole('button', { name: '切换主题', exact: true }).click();
+    }
     expect(
       await surface.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.8.png`,
+      path: `artifacts/connection-${label}-0.1.9.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -314,7 +340,26 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
     };
     for (const theme of ['白昼', '黑夜'] as const) {
       await navigate('设置');
-      await expect(surface.locator('.brand-slogan')).toHaveText('one core, every device.');
+      await expect(surface.locator('.brand-slogan')).toHaveText('ONE CORE, EVERY DEVICE.');
+      const projectLink = surface.getByRole('link', { name: '关于 Panestra' });
+      await expect(projectLink).toHaveAttribute('href', 'https://github.com/890mn/Panestra');
+      await expect(projectLink).toHaveAttribute('target', '_blank');
+      await expect(projectLink.locator('.github-badge')).toHaveCount(1);
+      if (label === 'desktop' && theme === '白昼') {
+        await surface.context().route('https://github.com/890mn/Panestra', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'text/html',
+            body: '<title>Project navigation test</title>',
+          }),
+        );
+        const popup = surface.waitForEvent('popup');
+        await projectLink.click();
+        const projectPage = await popup;
+        await expect(projectPage).toHaveURL('https://github.com/890mn/Panestra');
+        await projectPage.close();
+        await surface.context().unroute('https://github.com/890mn/Panestra');
+      }
       await expect(
         surface.locator('.workspace-picker, .user-avatar, .heading-dot, .health-grid'),
       ).toHaveCount(0);

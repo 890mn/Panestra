@@ -16,7 +16,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         desktop::discover,
         desktop::request,
         desktop::connect,
-        desktop::disconnect
+        desktop::disconnect,
+        desktop::open_github
     ]);
     #[cfg(target_os = "android")]
     let builder = builder.invoke_handler(tauri::generate_handler![
@@ -26,7 +27,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         mobile::discover,
         mobile::request,
         mobile::connect,
-        mobile::disconnect
+        mobile::disconnect,
+        mobile::open_github
     ]);
     builder
         .setup(|app, api| {

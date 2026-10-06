@@ -3,8 +3,25 @@ use std::collections::HashMap;
 use tauri::{plugin::PluginHandle, AppHandle, Runtime, State};
 pub struct Bridge<R: Runtime>(pub PluginHandle<R>);
 #[tauri::command]
-pub async fn scan_pairing<R: Runtime>(_app: AppHandle<R>, bridge: State<'_, Bridge<R>>) -> Result<Value, String> {
-    bridge.0.run_mobile_plugin_async("scanPairing", ()).await.map_err(|e| e.to_string())
+pub fn open_github<R: Runtime>(
+    _app: AppHandle<R>,
+    bridge: State<'_, Bridge<R>>,
+) -> Result<Value, String> {
+    bridge
+        .0
+        .run_mobile_plugin("openGithub", ())
+        .map_err(|e| e.to_string())
+}
+#[tauri::command]
+pub async fn scan_pairing<R: Runtime>(
+    _app: AppHandle<R>,
+    bridge: State<'_, Bridge<R>>,
+) -> Result<Value, String> {
+    bridge
+        .0
+        .run_mobile_plugin_async("scanPairing", ())
+        .await
+        .map_err(|e| e.to_string())
 }
 #[tauri::command]
 pub fn identity<R: Runtime>(
