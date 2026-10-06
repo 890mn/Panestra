@@ -32,7 +32,13 @@ export interface WidgetProfile {
 export interface Widget {
   pageId: string;
   pluginId: string;
-  type: 'metric-card' | 'network-chart' | 'system-overview' | 'codex-usage' | 'account-usage';
+  type:
+    | 'metric-card'
+    | 'network-chart'
+    | 'system-overview'
+    | 'codex-usage'
+    | 'account-usage'
+    | 'proxy-status';
   title: string;
   source: string;
   unit?: string;
@@ -81,7 +87,7 @@ export interface Telemetry {
   topic: string;
   seq: number;
   ts: string;
-  value: number | SystemInfo | CodexStatus | AccountStatus;
+  value: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus;
 }
 export interface SystemInfo {
   hostname: string;
@@ -126,6 +132,25 @@ export interface Plugin {
 export const SYSTEM = 'dev.panestra.system';
 export const CODEX = 'dev.panestra.codex';
 export const CODEX_TOPIC = `${CODEX}/account.usage`;
+export const CLASH = 'dev.panestra.clash';
+export const CLASH_TOPIC = `${CLASH}/proxy.status`;
+export interface ClashStatus {
+  enabled: boolean;
+  allowControl: boolean;
+  autoDetect: boolean;
+  controller: string;
+  hasCredential: boolean;
+  state: string;
+  message: string;
+  updatedAt?: string;
+  stale: boolean;
+  refreshing: boolean;
+  mode: string;
+  version: string;
+  upload: number | null;
+  download: number | null;
+  groups: { name: string; current: string; options: string[]; selectable: boolean }[];
+}
 export const ACCOUNT_IDS = ['glm', 'deepseek'] as const;
 export const accountTopic = (id: string) => `dev.panestra.${id}/account.usage`;
 export interface AccountWindow {

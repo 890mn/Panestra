@@ -48,6 +48,7 @@ import type {
   APIError,
   CodexStatus,
   AccountStatus,
+  ClashStatus,
   Breakpoint,
   Device,
   Entity,
@@ -756,6 +757,13 @@ export function App() {
                 type: 'account-usage',
                 pluginId: 'dev.panestra.deepseek',
               },
+              {
+                source: 'proxy.status',
+                title: 'Clash 代理状态',
+                detail: '代理模式、策略组节点与收发流量',
+                type: 'proxy-status',
+                pluginId: 'dev.panestra.clash',
+              },
             ].map((item) => (
               <Button
                 className="library-item"
@@ -1165,7 +1173,7 @@ export const WidgetCard = memo(function WidgetCard(props: {
   layout: Layout;
   editor: EditorActions;
   editing: boolean;
-  data?: number | SystemInfo | CodexStatus | AccountStatus;
+  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus;
   download?: number;
   upload?: number;
   history: number[];

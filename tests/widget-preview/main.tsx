@@ -15,95 +15,120 @@ function renderPreview(query: string) {
     h = Number(params.get('h') || 3);
   const type = (params.get('type') as Widget['type']) || 'network-chart';
   const data =
-    type === 'account-usage'
+    type === 'proxy-status'
       ? {
-          id: params.get('account') || 'glm',
           enabled: true,
+          allowControl: false,
+          autoDetect: true,
+          controller: 'http://127.0.0.1:9097',
           hasCredential: true,
           state: 'ready',
-          message: '',
+          message: '已连接本机 Mihomo 控制器',
+          updatedAt: '2026-10-07T00:00:00Z',
           stale: false,
           refreshing: false,
-          pollIntervalSeconds: 300,
-          updatedAt: '2026-10-06T15:00:00Z',
-          available: true,
-          windows: [
+          mode: 'rule',
+          version: '1.19.2',
+          upload: 250000,
+          download: 1536821,
+          groups: [
             {
-              id: 'TOKENS_LIMIT-1',
-              name: '编程额度 · 5 小时',
-              usedPercent: 12.5,
-              remainingPercent: 87.5,
-              current: 500,
-              limit: 4000,
-              resetsAt: 1791285300,
+              name: 'GLOBAL',
+              current: '东京 · 低延迟节点名称可能很长，需要在详情完整显示',
+              options: ['东京 · 低延迟节点名称可能很长，需要在详情完整显示'],
+              selectable: true,
             },
-            {
-              id: 'TOKENS_LIMIT-2',
-              name: '编程额度 · 1 周',
-              usedPercent: 46.5,
-              remainingPercent: 53.5,
-              current: null,
-              limit: null,
-              resetsAt: null,
-            },
-            {
-              id: 'TIME_LIMIT-0',
-              name: 'MCP 工具额度 · 1 月',
-              usedPercent: null,
-              remainingPercent: null,
-              current: null,
-              limit: null,
-              resetsAt: null,
-            },
-          ],
-          balances: [
-            { currency: 'CNY' as const, total: '110.00', granted: '10.00', toppedUp: '100.00' },
-            { currency: 'USD' as const, total: '-1.00', granted: '0.00', toppedUp: '0.00' },
           ],
         }
-      : type === 'metric-card'
-        ? 99.9
-        : type === 'system-overview'
-          ? {
-              hostname: 'DESKTOP-WORKSTATION-123',
-              os: 'Microsoft Windows 11 Pro 10.0.26200',
-              cpu: 'Intel(R) Core(TM) Ultra 9 285K Processor @ 5.70GHz',
-              cores: 24,
-              memoryGB: 63.8,
-              uptime: 84637,
-            }
-          : {
-              enabled: true,
-              state: 'ready',
-              message: '',
-              planType: 'plus',
-              stale: false,
-              refreshing: false,
-              pollIntervalSeconds: 60,
-              buckets: [
-                {
-                  id: 'codex',
-                  name: 'Codex',
-                  windows: [
-                    {
-                      id: 'primary',
-                      usedPercent: 12.5,
-                      remainingPercent: 87.5,
-                      durationMinutes: 300,
-                      resetsAt: 1791285300,
-                    },
-                    {
-                      id: 'secondary',
-                      usedPercent: 46.5,
-                      remainingPercent: 53.5,
-                      durationMinutes: 10080,
-                      resetsAt: 1791285300,
-                    },
-                  ],
-                },
-              ],
-              resetCredits: { availableCount: 2, expiresAt: 1791285300 },
-            };
+      : type === 'account-usage'
+        ? {
+            id: params.get('account') || 'glm',
+            enabled: true,
+            hasCredential: true,
+            state: 'ready',
+            message: '',
+            stale: false,
+            refreshing: false,
+            pollIntervalSeconds: 300,
+            updatedAt: '2026-10-06T15:00:00Z',
+            available: true,
+            windows: [
+              {
+                id: 'TOKENS_LIMIT-1',
+                name: '编程额度 · 5 小时',
+                usedPercent: 12.5,
+                remainingPercent: 87.5,
+                current: 500,
+                limit: 4000,
+                resetsAt: 1791285300,
+              },
+              {
+                id: 'TOKENS_LIMIT-2',
+                name: '编程额度 · 1 周',
+                usedPercent: 46.5,
+                remainingPercent: 53.5,
+                current: null,
+                limit: null,
+                resetsAt: null,
+              },
+              {
+                id: 'TIME_LIMIT-0',
+                name: 'MCP 工具额度 · 1 月',
+                usedPercent: null,
+                remainingPercent: null,
+                current: null,
+                limit: null,
+                resetsAt: null,
+              },
+            ],
+            balances: [
+              { currency: 'CNY' as const, total: '110.00', granted: '10.00', toppedUp: '100.00' },
+              { currency: 'USD' as const, total: '-1.00', granted: '0.00', toppedUp: '0.00' },
+            ],
+          }
+        : type === 'metric-card'
+          ? 99.9
+          : type === 'system-overview'
+            ? {
+                hostname: 'DESKTOP-WORKSTATION-123',
+                os: 'Microsoft Windows 11 Pro 10.0.26200',
+                cpu: 'Intel(R) Core(TM) Ultra 9 285K Processor @ 5.70GHz',
+                cores: 24,
+                memoryGB: 63.8,
+                uptime: 84637,
+              }
+            : {
+                enabled: true,
+                state: 'ready',
+                message: '',
+                planType: 'plus',
+                stale: false,
+                refreshing: false,
+                pollIntervalSeconds: 60,
+                buckets: [
+                  {
+                    id: 'codex',
+                    name: 'Codex',
+                    windows: [
+                      {
+                        id: 'primary',
+                        usedPercent: 12.5,
+                        remainingPercent: 87.5,
+                        durationMinutes: 300,
+                        resetsAt: 1791285300,
+                      },
+                      {
+                        id: 'secondary',
+                        usedPercent: 46.5,
+                        remainingPercent: 53.5,
+                        durationMinutes: 10080,
+                        resetsAt: 1791285300,
+                      },
+                    ],
+                  },
+                ],
+                resetCredits: { availableCount: 2, expiresAt: 1791285300 },
+              };
   const modes = params.get('mode') ? [params.get('mode')!] : PRESENTATIONS[type].map((p) => p.id);
   const cols = { desktop: 12, tablet: 8, mobile: 4 }[bp];
   document.documentElement.dataset.theme = params.get('theme') || 'day';
@@ -123,13 +148,15 @@ function renderPreview(query: string) {
                 pluginId: 'dev.panestra.system',
                 type,
                 source:
-                  type === 'system-overview'
-                    ? 'system.info'
-                    : type === 'codex-usage' || type === 'account-usage'
-                      ? 'account.usage'
-                      : type === 'network-chart'
-                        ? 'network.rx'
-                        : 'cpu.usage',
+                  type === 'proxy-status'
+                    ? 'proxy.status'
+                    : type === 'system-overview'
+                      ? 'system.info'
+                      : type === 'codex-usage' || type === 'account-usage'
+                        ? 'account.usage'
+                        : type === 'network-chart'
+                          ? 'network.rx'
+                          : 'cpu.usage',
                 title: '网络流量与同步状态',
                 presentation: mode,
                 unit: '%',

@@ -3,9 +3,11 @@ module panestra.local/panestra
 go 1.27.0
 
 require (
+	github.com/Microsoft/go-winio v0.6.2
 	github.com/coder/websocket v1.8.14
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/shirou/gopsutil/v4 v4.26.9
+	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sys v0.48.0
 	modernc.org/sqlite v1.60.1
 )

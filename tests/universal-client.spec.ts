@@ -2,6 +2,7 @@ import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { createServer } from 'node:http';
 test.describe.configure({ mode: 'serial' });
 const root = process.cwd();
 const endpoint = 'https://localhost:19443';
@@ -113,6 +114,7 @@ test.afterAll(async () => {
   await tabletContext?.close();
   await desktop?.context().close();
 });
+
 test('真实 Core：三端配对、实时数据、独立布局、重启恢复与撤销', async () => {
   for (const [label, surface] of [
     ['desktop', desktop],
@@ -146,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.12.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.13.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -157,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.12.png`,
+      path: `artifacts/connection-${label}-0.1.13.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -344,7 +346,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.12');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.13');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -390,7 +392,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
         '未启用',
       );
       await expect(surface.locator('.adapter-card:not([data-testid]) .adapter-state')).toHaveText(
-        Array(3).fill('未接入'),
+        Array(2).fill('未接入'),
       );
       await surface.getByRole('button', { name: '控制', exact: true }).click();
       await expect(surface.locator('.adapter-card')).toHaveCount(2);
@@ -706,7 +708,96 @@ test('原位预览、内部排布与每个尺寸独立保存和取消', async ()
   expect(errors).toEqual([]);
 });
 
+test('Clash：真实控制器合同、跨设备控制与 Owner 撤销权限', async () => {
+  let mode = 'rule',
+    node = 'Tokyo',
+    writes = 0;
+  const controller = createServer(async (req, res) => {
+    if (req.headers.authorization !== 'Bearer fixture-controller-secret') {
+      res.writeHead(401).end();
+      return;
+    }
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(Buffer.from(chunk));
+    const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {};
+    res.setHeader('Content-Type', 'application/json');
+    if (req.method === 'PATCH' && req.url === '/configs') {
+      mode = body.mode;
+      writes++;
+      res.writeHead(204).end();
+    } else if (req.method === 'PUT' && req.url === '/proxies/Main') {
+      node = body.name;
+      writes++;
+      res.writeHead(204).end();
+    } else if (req.url === '/configs') res.end(JSON.stringify({ mode }));
+    else if (req.url === '/proxies')
+      res.end(
+        JSON.stringify({
+          proxies: {
+            Main: { type: 'Selector', now: node, all: ['Tokyo', 'Osaka'] },
+            Auto: { type: 'URLTest', now: 'Tokyo', all: ['Tokyo'] },
+          },
+        }),
+      );
+    else if (req.url === '/version') res.end(JSON.stringify({ version: 'fixture' }));
+    else if (req.url === '/traffic') res.end(JSON.stringify({ up: 1024, down: 4096 }) + '\n');
+    else res.writeHead(404).end();
+  });
+  await new Promise<void>((resolve) => controller.listen(0, '127.0.0.1', resolve));
+  const address = controller.address();
+  if (!address || typeof address === 'string') throw new Error('Fixture did not start');
+  const navigate = async (surface: Page) => {
+    const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
+    if (await menu.isVisible()) await menu.click();
+    await surface.getByRole('button', { name: '插件', exact: true }).click();
+    await surface.getByRole('button', { name: '查看Clash状态与设置' }).click();
+  };
+  try {
+    await navigate(desktop);
+    await desktop.getByLabel('自动发现本机 Clash Verge').uncheck();
+    await desktop.getByLabel('Mihomo 控制器地址').fill(`http://127.0.0.1:${address.port}`);
+    await desktop.getByLabel('Mihomo Secret').fill('fixture-controller-secret');
+    await desktop.getByLabel('允许切换模式与节点').check();
+    await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
+    await expect(desktop.getByTestId('clash-adapter')).toContainText('已接入');
+    await expect(desktop.getByLabel('Mihomo Secret')).toHaveValue('');
+    await expect(desktop.getByLabel('Auto节点')).toBeDisabled();
+    await navigate(tablet);
+    await expect(tablet.getByRole('button', { name: '保存并启用读取', exact: true })).toHaveCount(
+      0,
+    );
+    await tablet.locator('dialog[open]').getByRole('button', { name: '全局', exact: true }).click();
+    await expect(
+      desktop.locator('dialog[open]').getByRole('button', { name: '全局', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await tablet.getByLabel('Main节点').selectOption('Osaka');
+    await expect(desktop.getByLabel('Main节点')).toHaveValue('Osaka');
+    expect(writes).toBe(2);
+    await desktop.getByLabel('允许切换模式与节点').uncheck();
+    await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
+    await expect(
+      tablet.locator('dialog[open]').getByRole('button', { name: '规则', exact: true }),
+    ).toBeDisabled();
+    await expect(tablet.getByLabel('Main节点')).toBeDisabled();
+    await desktop.getByRole('button', { name: '停用读取', exact: true }).click();
+    await expect(tablet.getByTestId('clash-adapter')).toContainText('未启用');
+    expect(writes).toBe(2);
+    await desktop.getByRole('button', { name: '关闭', exact: true }).click();
+    await tablet.getByRole('button', { name: '关闭', exact: true }).click();
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      controller.close((err) => (err ? reject(err) : resolve())),
+    );
+  }
+  expect(errors).toEqual([]);
+});
+
 test('并发预设修改不覆盖较新的远端样式，冲突后仍可取消预览', async () => {
+  for (const surface of [desktop, tablet]) {
+    const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
+    if (await menu.isVisible()) await menu.click();
+    await surface.getByRole('button', { name: '总览', exact: true }).click();
+  }
   const cpu = tablet.getByTestId('widget-cpu');
   await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
   await cpu.locator('.layout-move').click();

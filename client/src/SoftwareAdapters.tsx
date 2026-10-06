@@ -3,6 +3,7 @@ import { ArrowRight, AudioLines, Bot, Code2, Gauge, Network, ShieldCheck } from 
 import { Button, Modal } from './components';
 import { CodexAdapterCard } from './CodexAdapter';
 import { AccountAdapterCard } from './AccountAdapter';
+import { ClashAdapterCard } from './ClashAdapter';
 
 const adapters = [
   {
@@ -117,7 +118,7 @@ export function SoftwareAdapters() {
           <h2 id="software-heading">软件适配</h2>
           <p>先接入常用软件，控制权限与状态读取分开</p>
         </div>
-        <span className="badge">3 项已实现 · 3 项设计</span>
+        <span className="badge">4 项已实现 · 2 项设计</span>
       </div>
       <div className="adapter-filter" aria-label="软件适配筛选">
         {[
@@ -141,6 +142,8 @@ export function SoftwareAdapters() {
           .map((item) =>
             item.id === 'codex' ? (
               <CodexAdapterCard key={item.id} />
+            ) : item.id === 'clash' ? (
+              <ClashAdapterCard key={item.id} />
             ) : item.id === 'glm' || item.id === 'deepseek' ? (
               <AccountAdapterCard id={item.id} key={item.id} />
             ) : (
@@ -179,7 +182,7 @@ export function SoftwareAdapters() {
       </div>
       <div className="quiet-note">
         <ShieldCheck size={18} />
-        <p>Codex、智谱中国区与 DeepSeek 支持账户读取，凭据保存在 Core 电脑，不下发到平板</p>
+        <p>账户凭据与本机控制器连接由 Core 管理，控制操作需要单独授权</p>
       </div>
       {detail ? (
         <Modal title={`${detail.name} · 接入设计`} close={() => setDetail(null)}>

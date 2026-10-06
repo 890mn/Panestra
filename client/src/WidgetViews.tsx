@@ -1,18 +1,20 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type {
   AccountStatus,
+  ClashStatus,
   CodexStatus,
   SystemInfo,
   Widget,
   WidgetProfile,
 } from '../../packages/protocol/src';
 import { accountContents } from './AccountAdapter';
+import { clashContents } from './ClashAdapter';
 import { ContentLayout, type ContentEditor } from './ContentLayout';
 import { windowLabel, CodexUsage, statusLabel } from './CodexAdapter';
 
 export type ViewProps = {
   widget: Widget;
-  data?: number | SystemInfo | CodexStatus | AccountStatus;
+  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus;
   download?: number;
   upload?: number;
   history: number[];
@@ -104,6 +106,15 @@ export function WidgetView(
   const metricTrend = chartAllowed && ['auto', 'trend'].includes(mode);
   const contents = (
     <>
+      {widget.type === 'proxy-status'
+        ? clashContents({
+            status: typeof data === 'object' && 'groups' in data ? data : undefined,
+            online,
+            compact: short,
+            summary: !expanded && (mode === 'summary' || size.h < 350),
+            showNode: !!expanded || size.h >= 200,
+          })
+        : null}
       {widget.type === 'account-usage'
         ? accountContents({
             status: typeof data === 'object' && 'balances' in data ? data : undefined,

@@ -1,4 +1,84 @@
 /* Card shells never inherit a renderer's margins or flex geometry. */
+.clash-mode {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.clash-mode strong {
+  font-size: 28px;
+  font-weight: 500;
+}
+.clash-rates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.clash-rates > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.clash-rates strong {
+  font-size: 18px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.clash-mode.is-small strong {
+  font-size: 17px;
+}
+.clash-rates.is-small {
+  grid-template-columns: 1fr;
+  gap: 3px;
+}
+.clash-rates.is-small > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+}
+.clash-rates.is-small strong {
+  font-size: 12px;
+}
+.clash-rates.is-small .view-muted {
+  font-size: 10px;
+}
+.clash-current-node {
+  display: grid;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
+.clash-current-node > span:last-child {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.widget-detail-view .clash-current-node > span:last-child {
+  display: block;
+  overflow: visible;
+}
+.clash-groups {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+}
+.clash-groups label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+.clash-groups label > span {
+  overflow-wrap: anywhere;
+}
+.clash-groups select {
+  width: 100%;
+  min-width: 0;
+}
+.account-configuration .permission-row {
+  display: flex;
+}
 .account-values {
   display: grid;
   gap: 16px;
@@ -56,35 +136,35 @@
   overflow-wrap: anywhere;
   line-height: 1.25;
 }
-.account-values.compact {
+.account-values.is-small {
   gap: 6px;
 }
-.account-values.compact .account-window-value {
+.account-values.is-small .account-window-value {
   font-size: 10px;
 }
-.account-values.compact .account-window-value strong {
+.account-values.is-small .account-window-value strong {
   font-size: 16px;
 }
-.account-values.compact .account-window-value small {
+.account-values.is-small .account-window-value small {
   font-size: 9px;
   margin-left: 3px;
 }
-.account-values.compact .account-amount {
+.account-values.is-small .account-amount {
   font-size: 20px;
 }
-.account-values.compact .account-balance > span {
+.account-values.is-small .account-balance > span {
   font-size: 10px;
 }
-.account-values.compact .account-balance {
+.account-values.is-small .account-balance {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 6px;
 }
-.account-values.compact .account-balance > span {
+.account-values.is-small .account-balance > span {
   font-size: 9px;
 }
-.account-values.compact .account-amount {
+.account-values.is-small .account-amount {
   font-size: 16px;
   min-width: 0;
   white-space: nowrap;
@@ -96,11 +176,11 @@
 .view-narrow .account-window-value strong {
   font-size: 16px;
 }
-.account-values.compact .account-window-value {
+.account-values.is-small .account-window-value {
   flex-wrap: nowrap;
   gap: 4px;
 }
-.account-values.compact .account-window-value small {
+.account-values.is-small .account-window-value small {
   display: none;
 }
 .account-details {
@@ -595,6 +675,20 @@
   container-type: inline-size;
 }
 @container (max-width:240px) {
+  .clash-rates {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .clash-rates > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .clash-rates strong {
+    font-size: 14px;
+    white-space: nowrap;
+  }
   .account-window-value {
     flex-wrap: wrap;
     gap: 3px 8px;
@@ -605,7 +699,7 @@
   .account-window-value small {
     display: none;
   }
-  .account-values.compact .account-window-value {
+  .account-values.is-small .account-window-value {
     flex-wrap: nowrap;
   }
   .view-block .view-chart-caption > span:last-child {

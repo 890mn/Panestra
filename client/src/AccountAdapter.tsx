@@ -51,7 +51,7 @@ export function accountContents({
   );
   return (
     <>
-      <div data-block="account" className={`account-values ${compact ? 'compact' : ''}`}>
+      <div data-block="account" className={`account-values ${compact ? 'is-small' : ''}`}>
         {status?.id === 'deepseek' ? (
           status.balances.length ? (
             status.balances.map((balance) => (

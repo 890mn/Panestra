@@ -6,6 +6,7 @@ import (
 	"github.com/coder/websocket"
 	"net/http"
 	"panestra.local/panestra/core/adapters/accounts"
+	"panestra.local/panestra/core/adapters/clash"
 	"panestra.local/panestra/core/adapters/codex"
 	"panestra.local/panestra/core/backplane"
 	"panestra.local/panestra/core/protocol"
@@ -170,7 +171,7 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 			}
 			topics := map[string]bool{}
 			for _, topic := range msg.Topics {
-				if topic == codex.Topic {
+				if topic == codex.Topic || topic == clash.Topic {
 					topics[topic] = true
 				}
 				for _, id := range accounts.IDs {

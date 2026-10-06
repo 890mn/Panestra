@@ -39,15 +39,22 @@ export const PRESENTATIONS: Record<Widget['type'], readonly { id: string; label:
     { id: 'summary', label: '额度与余额摘要' },
     { id: 'details', label: '完整账户信息' },
   ],
+  'proxy-status': [
+    { id: 'auto', label: '自动适配' },
+    { id: 'summary', label: '模式与流量' },
+    { id: 'details', label: '代理状态详情' },
+  ],
 };
 export const sourcesFor = (type: Widget['type']) =>
-  type === 'codex-usage' || type === 'account-usage'
-    ? ['account.usage']
-    : type === 'system-overview'
-      ? ['system.info']
-      : type === 'network-chart'
-        ? ['network.rx', 'network.tx']
-        : ['cpu.usage', 'memory.usage', 'disk.usage', 'network.rx', 'network.tx'];
+  type === 'proxy-status'
+    ? ['proxy.status']
+    : type === 'codex-usage' || type === 'account-usage'
+      ? ['account.usage']
+      : type === 'system-overview'
+        ? ['system.info']
+        : type === 'network-chart'
+          ? ['network.rx', 'network.tx']
+          : ['cpu.usage', 'memory.usage', 'disk.usage', 'network.rx', 'network.tx'];
 export const BLOCKS: Record<
   Widget['type'],
   readonly { id: string; label: string; required?: boolean }[]
@@ -79,6 +86,13 @@ export const BLOCKS: Record<
     { id: 'status', label: '账户状态' },
     { id: 'account', label: '额度与余额', required: true },
     { id: 'details', label: '金额与用量明细' },
+    { id: 'updated', label: '同步时间' },
+  ],
+  'proxy-status': [
+    { id: 'mode', label: '代理模式', required: true },
+    { id: 'traffic', label: '收发流量', required: true },
+    { id: 'node', label: '当前节点' },
+    { id: 'status', label: '连接状态' },
     { id: 'updated', label: '同步时间' },
   ],
 };

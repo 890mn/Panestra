@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"panestra.local/panestra/core/adapters/accounts"
+	"panestra.local/panestra/core/adapters/clash"
 	"panestra.local/panestra/core/adapters/codex"
 	"panestra.local/panestra/core/backplane"
 	"panestra.local/panestra/core/protocol"
@@ -33,6 +34,7 @@ type Server struct {
 	Plugin         *backplane.Runtime
 	Codex          *codex.Service
 	Accounts       map[string]*accounts.Service
+	Clash          *clash.Service
 	codexUpdateMu  sync.Mutex
 	Hub            *Hub
 	DataDir        string
@@ -55,6 +57,9 @@ func New(s *store.Store, a *security.Auth, p *backplane.Runtime, dir string, ctx
 		})
 	}
 	p.Publish = srv.Hub.Telemetry
+	srv.Clash = clash.NewService(ctx, filepath.Join(dir, "integrations"), func(status clash.Status, seq uint64) {
+		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: clash.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
+	})
 	srv.Codex = codex.NewService(ctx, func(status codex.Status, seq uint64) {
 		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: codex.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
 	})
@@ -252,6 +257,7 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 	}
 	mux.HandleFunc("GET /api/v1/me", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) { JSON(w, 200, d) }))
 	s.accountRoutes(mux, protect)
+	s.clashRoutes(mux, protect)
 	mux.HandleFunc("GET /api/v1/integrations/codex", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		JSON(w, 200, s.Codex.Snapshot())
 	}))

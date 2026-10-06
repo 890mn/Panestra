@@ -13,6 +13,7 @@ var profileModes = map[string]map[string]bool{
 	"system-overview": {"auto": true, "summary": true, "details": true},
 	"codex-usage":     {"auto": true, "remaining": true, "windows": true},
 	"account-usage":   {"auto": true, "summary": true, "details": true},
+	"proxy-status":    {"auto": true, "summary": true, "details": true},
 }
 
 // Values mark essential content which cannot be hidden.
@@ -22,6 +23,7 @@ var profileBlocks = map[string]map[string]bool{
 	"system-overview": {"hostname": true, "memory": true, "os": false, "hardware": false},
 	"codex-usage":     {"status": false, "windows": true, "credits": false, "updated": false},
 	"account-usage":   {"status": false, "account": true, "details": false, "updated": false},
+	"proxy-status":    {"mode": true, "traffic": true, "node": false, "status": false, "updated": false},
 }
 
 func validateProfiles(kind string, raw any) error {

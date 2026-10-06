@@ -11,13 +11,14 @@ Panestra（星序）把电脑的状态和控制放到你常用的屏幕上。Win
 - 查看 CPU、内存、磁盘、网络流量和电脑运行状态，支持实时趋势图
 - 查看本机 Codex 的订阅额度、剩余额度与重置时间，需先在电脑上授权
 - 查看智谱中国区 GLM Coding Plan 的额度窗口和工具用量，以及 DeepSeek 的人民币或美元 API 账户余额
+- 查看 Clash Verge 的代理模式与实时流量，在授权后切换模式和策略组节点
 - 创建页面、添加组件，直接在卡片上拖动和缩放，支持交换、自动对齐及撤销与重做
 - 为桌面、平板和手机分别保存布局，为每种卡片尺寸选择样式、调整内容顺序、列宽与对齐方式
 - 使用白昼、黑夜或跟随系统主题，自定义点缀色
 - 通过局域网发现或二维码配对设备，管理角色与权限，随时撤销设备访问
 - 在授权后锁定电脑会话，自动备份工作空间，离线时查看缓存
 
-插件在独立进程运行，能力需要明确授权。网易云音乐、Clash Verge 和 ALAS 目前提供适配设计与功能目录，尚不能实际控制或获取状态；Codex 当前接入的是订阅额度
+插件在独立进程运行，能力需要明确授权。网易云音乐和 ALAS 目前提供适配设计与功能目录，尚不能实际控制或获取状态；Codex 当前接入的是订阅额度
 
 ## 安装与连接
 
@@ -39,6 +40,10 @@ GLM 和 DeepSeek 可在「插件 → 对应软件 → 用量与设置」由 Owne
 凭据只在 Core 电脑上加密保存，不发送到其他设备，每 5 分钟读取一次，也可手动刷新。工作空间备份不包含这类本机凭据，更换电脑后需重新配置
 
 接口依据：[智谱官方用量查询插件](https://docs.bigmodel.cn/cn/coding-plan/extension/usage-query-plugin)、[DeepSeek 官方余额接口](https://api-docs.deepseek.com/api/get-user-balance/)
+
+Clash Verge 可在「插件 → Clash Verge → 状态与设置」由 Owner 启用自动发现，也可手动填写本机控制器地址和 Secret。支持 HTTP 控制器与 Windows 命名管道，凭据由 DPAPI 保护。切换模式和节点需单独授权，自动测速策略组保持只读；系统代理和 TUN 仍由 Clash Verge 管理
+
+接口依据：[Mihomo 官方控制接口](https://wiki.metacubex.one/api/)、[Clash Verge 本机连接实现](https://github.com/clash-verge-rev/clash-verge-rev/blob/main/src-tauri/src/utils/dirs.rs)
 
 ## 从源码构建
 

@@ -14,6 +14,7 @@ import {
   SOURCES,
   SYSTEM,
   CODEX_TOPIC,
+  CLASH_TOPIC,
   ACCOUNT_IDS,
   accountTopic,
 } from '../../packages/protocol/src';
@@ -403,7 +404,12 @@ export class CoreClient {
       ep.publicKeyHash,
       this.token,
       this.state.snapshot?.serverSeq || 0,
-      [...SOURCES.map((s) => `${SYSTEM}/${s}`), CODEX_TOPIC, ...ACCOUNT_IDS.map(accountTopic)],
+      [
+        ...SOURCES.map((s) => `${SYSTEM}/${s}`),
+        CODEX_TOPIC,
+        CLASH_TOPIC,
+        ...ACCOUNT_IDS.map(accountTopic),
+      ],
       (data) => {
         if (generation !== this.generation) return;
         const message = JSON.parse(data) as Snapshot | CanonicalEvent | Telemetry;

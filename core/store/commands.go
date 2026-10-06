@@ -185,7 +185,7 @@ func validate(tx *sql.Tx, kind, id string, d map[string]any) error {
 				return err
 			}
 		}
-		modes := map[string][]string{"metric-card": {"auto", "value", "trend", "gauge"}, "network-chart": {"auto", "rates", "trend", "split"}, "system-overview": {"auto", "summary", "details"}, "codex-usage": {"auto", "remaining", "windows"}, "account-usage": {"auto", "summary", "details"}}
+		modes := map[string][]string{"metric-card": {"auto", "value", "trend", "gauge"}, "network-chart": {"auto", "rates", "trend", "split"}, "system-overview": {"auto", "summary", "details"}, "codex-usage": {"auto", "remaining", "windows"}, "account-usage": {"auto", "summary", "details"}, "proxy-status": {"auto", "summary", "details"}}
 		if value, exists := d["presentation"]; exists {
 			mode, isText := value.(string)
 			valid := false
@@ -209,6 +209,12 @@ func validate(tx *sql.Tx, kind, id string, d map[string]any) error {
 			return parent("pages", text("pageId"))
 		}
 		if text("pluginId") != "dev.panestra.system" {
+			if text("pluginId") == "dev.panestra.clash" {
+				if text("type") != "proxy-status" || text("source") != "proxy.status" {
+					return errCode("INVALID_SOURCE", "Clash 仅支持代理状态组件")
+				}
+				return parent("pages", text("pageId"))
+			}
 			if text("pluginId") == "dev.panestra.glm" || text("pluginId") == "dev.panestra.deepseek" {
 				if text("type") != "account-usage" || text("source") != "account.usage" {
 					return errCode("INVALID_SOURCE", "账户适配仅支持额度与余额组件")
