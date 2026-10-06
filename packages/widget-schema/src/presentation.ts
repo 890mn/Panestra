@@ -34,9 +34,14 @@ export const PRESENTATIONS: Record<Widget['type'], readonly { id: string; label:
     { id: 'remaining', label: '剩余额度' },
     { id: 'windows', label: '额度与重置时间' },
   ],
+  'account-usage': [
+    { id: 'auto', label: '自动适配' },
+    { id: 'summary', label: '额度与余额摘要' },
+    { id: 'details', label: '完整账户信息' },
+  ],
 };
 export const sourcesFor = (type: Widget['type']) =>
-  type === 'codex-usage'
+  type === 'codex-usage' || type === 'account-usage'
     ? ['account.usage']
     : type === 'system-overview'
       ? ['system.info']
@@ -68,6 +73,12 @@ export const BLOCKS: Record<
     { id: 'status', label: '账号状态' },
     { id: 'windows', label: '额度窗口', required: true },
     { id: 'credits', label: '重置卡' },
+    { id: 'updated', label: '同步时间' },
+  ],
+  'account-usage': [
+    { id: 'status', label: '账户状态' },
+    { id: 'account', label: '额度与余额', required: true },
+    { id: 'details', label: '金额与用量明细' },
     { id: 'updated', label: '同步时间' },
   ],
 };

@@ -47,6 +47,7 @@ import QRCode from 'qrcode';
 import type {
   APIError,
   CodexStatus,
+  AccountStatus,
   Breakpoint,
   Device,
   Entity,
@@ -741,18 +742,36 @@ export function App() {
                 detail: '订阅窗口、剩余额度与重置卡',
                 type: 'codex-usage',
               },
+              {
+                source: 'account.usage',
+                title: 'GLM 编程额度',
+                detail: '智谱中国区编程套餐与 MCP 工具用量',
+                type: 'account-usage',
+                pluginId: 'dev.panestra.glm',
+              },
+              {
+                source: 'account.usage',
+                title: 'DeepSeek 余额',
+                detail: '可用余额、赠送余额与充值余额',
+                type: 'account-usage',
+                pluginId: 'dev.panestra.deepseek',
+              },
             ].map((item) => (
               <Button
                 className="library-item"
                 disabled={busy}
-                key={item.source}
+                key={item.title}
                 onClick={() =>
                   void perform(() =>
                     addWidget(
                       item.source,
                       item.type as Widget['type'],
                       item.title,
-                      item.type === 'codex-usage' ? CODEX : SYSTEM,
+                      'pluginId' in item && item.pluginId
+                        ? item.pluginId
+                        : item.type === 'codex-usage'
+                          ? CODEX
+                          : SYSTEM,
                     ),
                   )
                 }
@@ -1146,7 +1165,7 @@ export const WidgetCard = memo(function WidgetCard(props: {
   layout: Layout;
   editor: EditorActions;
   editing: boolean;
-  data?: number | SystemInfo | CodexStatus;
+  data?: number | SystemInfo | CodexStatus | AccountStatus;
   download?: number;
   upload?: number;
   history: number[];

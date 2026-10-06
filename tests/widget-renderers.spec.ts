@@ -106,7 +106,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.10',
+        version: '0.1.12',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,
@@ -160,6 +160,48 @@ test('所有组件空数据及 Codex 长错误信息的小卡摘要不会溢出'
       if (state === 'error') {
         await expect(page.locator('.widget-card').first()).toContainText('暂不可用');
       }
+    }
+  }
+});
+
+test('账户组件保留双窗口与双币种，详情显示明细，未知值与欠费不被改成零', async ({ page }) => {
+  for (const [bp, width] of [
+    ['desktop', 1000],
+    ['tablet', 650],
+    ['mobile', 326],
+  ] as const) {
+    for (const account of ['glm', 'deepseek']) {
+      for (const size of presetsFor(bp)) {
+        await page.goto(
+          `http://127.0.0.1:19519/?bp=${bp}&width=${width}&type=account-usage&account=${account}&w=${size.w}&h=${size.h}&theme=night&offline`,
+        );
+        const values = page.locator('.widget-card').first().locator('.account-values');
+        if (account === 'glm') {
+          await expect(values).toContainText('87.5%');
+          await expect(values).toContainText('53.5%');
+        } else {
+          await expect(values).toContainText('¥110.00');
+          await expect(values).toContainText('$-1.00');
+        }
+        const overflow = await page
+          .locator('.widget-content')
+          .evaluateAll((elements) =>
+            elements.some(
+              (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
+            ),
+          );
+        expect(overflow, `${bp}/${account}/${size.id}`).toBe(false);
+      }
+      await page.getByRole('button', { name: '查看网络流量与同步状态详情' }).first().click();
+      const detail = page.locator('dialog[open]');
+      if (account === 'glm') {
+        await expect(detail).toContainText('MCP 工具额度');
+        await expect(detail).toContainText('服务未提供重置时间');
+      } else {
+        await expect(detail).toContainText('CNY 赠送 / 充值');
+        await expect(detail).toContainText('$-1.00');
+      }
+      await expect(detail).toContainText('历史数据');
     }
   }
 });

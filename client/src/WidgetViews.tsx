@@ -1,11 +1,18 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { CodexStatus, SystemInfo, Widget, WidgetProfile } from '../../packages/protocol/src';
+import type {
+  AccountStatus,
+  CodexStatus,
+  SystemInfo,
+  Widget,
+  WidgetProfile,
+} from '../../packages/protocol/src';
+import { accountContents } from './AccountAdapter';
 import { ContentLayout, type ContentEditor } from './ContentLayout';
 import { windowLabel, CodexUsage, statusLabel } from './CodexAdapter';
 
 export type ViewProps = {
   widget: Widget;
-  data?: number | SystemInfo | CodexStatus;
+  data?: number | SystemInfo | CodexStatus | AccountStatus;
   download?: number;
   upload?: number;
   history: number[];
@@ -89,6 +96,7 @@ export function WidgetView(
   const main = codex?.buckets.find((b) => b.id === 'codex') || codex?.buckets[0];
   const chartAllowed = !!expanded || size.h >= 145;
   const networkTrend = chartAllowed && mode !== 'rates';
+  const accountWidth = size.w * ((props.profile?.blocks.account?.span || 12) / 12);
   const split = networkTrend && mode === 'split' && size.h >= 225;
   const metricText = widget.source.startsWith('network.')
     ? rate(metric)
@@ -96,6 +104,16 @@ export function WidgetView(
   const metricTrend = chartAllowed && ['auto', 'trend'].includes(mode);
   const contents = (
     <>
+      {widget.type === 'account-usage'
+        ? accountContents({
+            status: typeof data === 'object' && 'balances' in data ? data : undefined,
+            online,
+            compact: short,
+            summary: !expanded && (mode === 'summary' || size.h < 350 || accountWidth < 240),
+            details: !!expanded || size.h >= 520,
+            windowLimit: expanded ? undefined : Math.max(2, Math.floor((size.h - 120) / 100)),
+          })
+        : null}
       {widget.type === 'metric-card' ? (
         <>
           <div data-block="value" className="view-metric">

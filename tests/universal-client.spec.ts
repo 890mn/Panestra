@@ -146,7 +146,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.11.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.12.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -157,7 +157,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.11.png`,
+      path: `artifacts/connection-${label}-0.1.12.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -344,7 +344,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.11');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.12');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -385,17 +385,17 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       await expect(feedback).toBeDisabled();
       await expect(feedback).toBeEnabled();
       await navigate('插件');
-      await expect(surface.locator('.adapter-card')).toHaveCount(5);
+      await expect(surface.locator('.adapter-card')).toHaveCount(6);
       await expect(surface.getByTestId('codex-adapter').locator('.adapter-state')).toHaveText(
         '未启用',
       );
-      await expect(
-        surface.locator('.adapter-card:not([data-testid="codex-adapter"]) .adapter-state'),
-      ).toHaveText(Array(4).fill('未接入'));
+      await expect(surface.locator('.adapter-card:not([data-testid]) .adapter-state')).toHaveText(
+        Array(3).fill('未接入'),
+      );
       await surface.getByRole('button', { name: '控制', exact: true }).click();
       await expect(surface.locator('.adapter-card')).toHaveCount(2);
       await surface.getByRole('button', { name: '状态', exact: true }).click();
-      await expect(surface.locator('.adapter-card')).toHaveCount(3);
+      await expect(surface.locator('.adapter-card')).toHaveCount(4);
       await surface.getByRole('button', { name: '全部', exact: true }).click();
       await surface.getByRole('button', { name: '查看ALAS接入设计', exact: true }).click();
       await expect(surface.locator('dialog[open]')).toContainText('ProcessManager');

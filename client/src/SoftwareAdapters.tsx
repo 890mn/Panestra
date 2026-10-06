@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, AudioLines, Bot, Code2, Gauge, Network, ShieldCheck } from 'lucide-react';
 import { Button, Modal } from './components';
 import { CodexAdapterCard } from './CodexAdapter';
+import { AccountAdapterCard } from './AccountAdapter';
 
 const adapters = [
   {
@@ -48,13 +49,12 @@ const adapters = [
     description: '区分不同额度窗口，知道什么时候恢复',
     fields: ['额度已用 / 剩余', '窗口与重置时间', '最近成功同步时间'],
     actions: [],
-    route: 'Z.ai / 智谱账号用量适配',
-    setup:
-      '选择 Z.ai 或智谱中国区账号，再配置该服务支持的凭据，额度端点及字段需用实际账号核实后启用',
+    route: '智谱中国区官方用量查询',
+    setup: '由 Owner 配置智谱中国区个人 Coding Plan API Key，Core 通过官方接口读取额度窗口',
     boundary:
-      '官方已有 Coding Plan 用量视图，但公开稳定的监控 API 合同尚未确认，读取失败显示“暂不可用”，不显示 0% 或推算剩余额度',
+      '使用官方用量查询插件采用的监控接口，未知额度和重置时间保持未知，失败保留上次数据并标明过期',
     permissions: ['读取订阅额度'],
-    source: 'https://zcode.z.ai/en/docs/usage-stats',
+    source: 'https://docs.bigmodel.cn/cn/coding-plan/extension/usage-query-plugin',
   },
   {
     id: 'clash',
@@ -90,6 +90,21 @@ const adapters = [
     permissions: ['读取指定 ALAS 实例状态'],
     source: 'https://github.com/LmeSzinc/AzurLaneAutoScript/blob/master/module/webui/app.py',
   },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    category: 'status',
+    icon: Gauge,
+    subtitle: '账户余额',
+    description: '查看可用余额、赠送余额和充值余额',
+    fields: ['可用余额', '最近同步时间'],
+    actions: [],
+    route: 'DeepSeek 官方余额接口',
+    setup: '在设置中配置 API Key',
+    boundary: '仅查询余额，不发起模型调用',
+    permissions: ['读取账户余额'],
+    source: 'https://api-docs.deepseek.com/api/get-user-balance',
+  },
 ] as const;
 
 export function SoftwareAdapters() {
@@ -102,7 +117,7 @@ export function SoftwareAdapters() {
           <h2 id="software-heading">软件适配</h2>
           <p>先接入常用软件，控制权限与状态读取分开</p>
         </div>
-        <span className="badge">1 项已实现 · 4 项设计</span>
+        <span className="badge">3 项已实现 · 3 项设计</span>
       </div>
       <div className="adapter-filter" aria-label="软件适配筛选">
         {[
@@ -126,6 +141,8 @@ export function SoftwareAdapters() {
           .map((item) =>
             item.id === 'codex' ? (
               <CodexAdapterCard key={item.id} />
+            ) : item.id === 'glm' || item.id === 'deepseek' ? (
+              <AccountAdapterCard id={item.id} key={item.id} />
             ) : (
               <article className="adapter-card panel" key={item.id}>
                 <div className="adapter-card-heading">
@@ -162,7 +179,7 @@ export function SoftwareAdapters() {
       </div>
       <div className="quiet-note">
         <ShieldCheck size={18} />
-        <p>Codex 已支持真实订阅额度，其余适配仍是接入设计，凭据保存在 Core 电脑，不下发到平板</p>
+        <p>Codex、智谱中国区与 DeepSeek 支持账户读取，凭据保存在 Core 电脑，不下发到平板</p>
       </div>
       {detail ? (
         <Modal title={`${detail.name} · 接入设计`} close={() => setDetail(null)}>

@@ -10,7 +10,13 @@ import type {
   Snapshot,
   Telemetry,
 } from '../../packages/protocol/src';
-import { SOURCES, SYSTEM, CODEX_TOPIC } from '../../packages/protocol/src';
+import {
+  SOURCES,
+  SYSTEM,
+  CODEX_TOPIC,
+  ACCOUNT_IDS,
+  accountTopic,
+} from '../../packages/protocol/src';
 import { deviceKey, discover, native, realtime, sign, transport } from './platform';
 import { connectionErrorText, pairingRequired } from './connection-errors';
 
@@ -397,7 +403,7 @@ export class CoreClient {
       ep.publicKeyHash,
       this.token,
       this.state.snapshot?.serverSeq || 0,
-      [...SOURCES.map((s) => `${SYSTEM}/${s}`), CODEX_TOPIC],
+      [...SOURCES.map((s) => `${SYSTEM}/${s}`), CODEX_TOPIC, ...ACCOUNT_IDS.map(accountTopic)],
       (data) => {
         if (generation !== this.generation) return;
         const message = JSON.parse(data) as Snapshot | CanonicalEvent | Telemetry;

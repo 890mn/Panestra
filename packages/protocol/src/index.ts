@@ -32,7 +32,7 @@ export interface WidgetProfile {
 export interface Widget {
   pageId: string;
   pluginId: string;
-  type: 'metric-card' | 'network-chart' | 'system-overview' | 'codex-usage';
+  type: 'metric-card' | 'network-chart' | 'system-overview' | 'codex-usage' | 'account-usage';
   title: string;
   source: string;
   unit?: string;
@@ -81,7 +81,7 @@ export interface Telemetry {
   topic: string;
   seq: number;
   ts: string;
-  value: number | SystemInfo | CodexStatus;
+  value: number | SystemInfo | CodexStatus | AccountStatus;
 }
 export interface SystemInfo {
   hostname: string;
@@ -126,6 +126,37 @@ export interface Plugin {
 export const SYSTEM = 'dev.panestra.system';
 export const CODEX = 'dev.panestra.codex';
 export const CODEX_TOPIC = `${CODEX}/account.usage`;
+export const ACCOUNT_IDS = ['glm', 'deepseek'] as const;
+export const accountTopic = (id: string) => `dev.panestra.${id}/account.usage`;
+export interface AccountWindow {
+  id: string;
+  name: string;
+  usedPercent: number | null;
+  remainingPercent: number | null;
+  current: number | null;
+  limit: number | null;
+  resetsAt: number | null;
+}
+export interface AccountBalance {
+  currency: 'CNY' | 'USD';
+  total: string;
+  granted: string;
+  toppedUp: string;
+}
+export interface AccountStatus {
+  id: string;
+  enabled: boolean;
+  hasCredential: boolean;
+  state: string;
+  message: string;
+  updatedAt?: string;
+  stale: boolean;
+  refreshing: boolean;
+  pollIntervalSeconds: number;
+  windows: AccountWindow[];
+  balances: AccountBalance[];
+  available: boolean | null;
+}
 export interface CodexWindow {
   id: string;
   usedPercent: number | null;

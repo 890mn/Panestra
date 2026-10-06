@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"panestra.local/panestra/core/adapters/accounts"
 	"panestra.local/panestra/core/adapters/codex"
 	"panestra.local/panestra/core/backplane"
 	"panestra.local/panestra/core/protocol"
@@ -31,6 +32,7 @@ type Server struct {
 	Auth           *security.Auth
 	Plugin         *backplane.Runtime
 	Codex          *codex.Service
+	Accounts       map[string]*accounts.Service
 	codexUpdateMu  sync.Mutex
 	Hub            *Hub
 	DataDir        string
@@ -46,6 +48,12 @@ type Server struct {
 func New(s *store.Store, a *security.Auth, p *backplane.Runtime, dir string, ctx context.Context) *Server {
 	srv := &Server{Store: s, Auth: a, Plugin: p, Hub: NewHub(), DataDir: dir, Context: ctx, Origins: map[string]bool{}, rates: map[string]bucket{}, Started: time.Now()}
 	s.OnEvent = srv.Hub.Event
+	srv.Accounts = map[string]*accounts.Service{}
+	for _, id := range accounts.IDs {
+		srv.Accounts[id] = accounts.NewService(ctx, id, filepath.Join(dir, "integrations"), func(status accounts.Status, seq uint64) {
+			srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: accounts.Topic(id), Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
+		})
+	}
 	p.Publish = srv.Hub.Telemetry
 	srv.Codex = codex.NewService(ctx, func(status codex.Status, seq uint64) {
 		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: codex.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
@@ -243,6 +251,7 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 		}
 	}
 	mux.HandleFunc("GET /api/v1/me", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) { JSON(w, 200, d) }))
+	s.accountRoutes(mux, protect)
 	mux.HandleFunc("GET /api/v1/integrations/codex", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		JSON(w, 200, s.Codex.Snapshot())
 	}))

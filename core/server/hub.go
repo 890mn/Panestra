@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/coder/websocket"
 	"net/http"
+	"panestra.local/panestra/core/adapters/accounts"
 	"panestra.local/panestra/core/adapters/codex"
 	"panestra.local/panestra/core/backplane"
 	"panestra.local/panestra/core/protocol"
@@ -171,6 +172,11 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 			for _, topic := range msg.Topics {
 				if topic == codex.Topic {
 					topics[topic] = true
+				}
+				for _, id := range accounts.IDs {
+					if topic == accounts.Topic(id) {
+						topics[topic] = true
+					}
 				}
 				for _, source := range s.Plugin.Manifest.Sources {
 					if topic == s.Plugin.Manifest.ID+"/"+source.ID {
