@@ -11,6 +11,7 @@ import {
 } from 'react';
 import {
   Activity,
+  AudioLines,
   ArrowDownLeft,
   ArrowUpRight,
   Check,
@@ -49,6 +50,7 @@ import type {
   CodexStatus,
   AccountStatus,
   ClashStatus,
+  MediaStatus,
   Breakpoint,
   Device,
   Entity,
@@ -88,7 +90,9 @@ import { AppUpdates } from './AppUpdates';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
-  source === 'account.usage' ? (
+  source === 'media.status' ? (
+    <AudioLines size={size} />
+  ) : source === 'account.usage' ? (
     <Code2 size={size} />
   ) : source.startsWith('cpu') ? (
     <Cpu size={size} />
@@ -704,7 +708,7 @@ export function App() {
       </div>
       {modal === 'widget' ? (
         <Modal title="添加组件" close={() => setModal('')} wide>
-          <p className="modal-description">系统指标与软件额度，在每块屏幕同步呈现</p>
+          <p className="modal-description">系统状态、软件信息与常用控制，在每块屏幕同步呈现</p>
           <div className="widget-library">
             {[
               {
@@ -763,6 +767,13 @@ export function App() {
                 detail: '代理模式、策略组节点与收发流量',
                 type: 'proxy-status',
                 pluginId: 'dev.panestra.clash',
+              },
+              {
+                source: 'media.status',
+                title: '网易云播放',
+                detail: '歌曲、播放进度与远程播放控制',
+                type: 'media-control',
+                pluginId: 'dev.panestra.netease',
               },
             ].map((item) => (
               <Button
@@ -1173,7 +1184,7 @@ export const WidgetCard = memo(function WidgetCard(props: {
   layout: Layout;
   editor: EditorActions;
   editing: boolean;
-  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus;
+  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus;
   download?: number;
   upload?: number;
   history: number[];

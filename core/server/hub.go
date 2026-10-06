@@ -8,6 +8,7 @@ import (
 	"panestra.local/panestra/core/adapters/accounts"
 	"panestra.local/panestra/core/adapters/clash"
 	"panestra.local/panestra/core/adapters/codex"
+	"panestra.local/panestra/core/adapters/netease"
 	"panestra.local/panestra/core/backplane"
 	"panestra.local/panestra/core/protocol"
 	"sync"
@@ -171,7 +172,7 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 			}
 			topics := map[string]bool{}
 			for _, topic := range msg.Topics {
-				if topic == codex.Topic || topic == clash.Topic {
+				if topic == codex.Topic || topic == clash.Topic || topic == netease.Topic {
 					topics[topic] = true
 				}
 				for _, id := range accounts.IDs {

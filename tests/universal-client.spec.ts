@@ -148,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.13.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.14.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.13.png`,
+      path: `artifacts/connection-${label}-0.1.14.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -346,7 +346,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.13');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.14');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -392,7 +392,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
         '未启用',
       );
       await expect(surface.locator('.adapter-card:not([data-testid]) .adapter-state')).toHaveText(
-        Array(2).fill('未接入'),
+        Array(1).fill('未接入'),
       );
       await surface.getByRole('button', { name: '控制', exact: true }).click();
       await expect(surface.locator('.adapter-card')).toHaveCount(2);
@@ -817,5 +817,45 @@ test('并发预设修改不覆盖较新的远端样式，冲突后仍可取消�
   await expect(cpu.locator('.widget-view')).toHaveAttribute('data-presentation', 'value');
   await tablet.getByRole('button', { name: '浏览', exact: true }).click();
   await desktop.getByRole('button', { name: '浏览', exact: true }).click();
+  expect(errors).toEqual([]);
+});
+
+test('网易云：真实 Windows 会话读取、只读权限、组件同步与停用清理', async () => {
+  const navigate = async (surface: Page, name: string) => {
+    const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
+    if (await menu.isVisible()) await menu.click();
+    await surface.getByRole('button', { name, exact: true }).click();
+  };
+  await navigate(desktop, '插件');
+  await desktop.getByRole('button', { name: '查看网易云播放状态与设置' }).click();
+  await desktop.getByLabel('允许播放、切歌与调整进度').uncheck();
+  await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
+  await expect(desktop.getByTestId('netease-adapter').locator('.adapter-state')).toHaveText(
+    /未找到播放器|已接入/,
+    { timeout: 15000 },
+  );
+  for (const name of ['网易云上一首', '网易云下一首'])
+    await expect(desktop.getByRole('button', { name, exact: true })).toBeDisabled();
+  await navigate(tablet, '插件');
+  await tablet.getByRole('button', { name: '查看网易云播放状态与设置' }).click();
+  await expect(tablet.getByRole('button', { name: '保存并启用读取', exact: true })).toHaveCount(0);
+  await expect(tablet.getByRole('button', { name: '网易云下一首', exact: true })).toBeDisabled();
+  await tablet.getByRole('button', { name: '关闭', exact: true }).click();
+  await desktop.getByRole('button', { name: '关闭', exact: true }).click();
+  await navigate(desktop, '总览');
+  await desktop.getByRole('button', { name: '添加组件', exact: true }).click();
+  await desktop.getByRole('button', { name: /网易云播放.*添加/ }).click();
+  await desktop.getByRole('button', { name: '浏览', exact: true }).click();
+  await navigate(tablet, '总览');
+  await expect(tablet.locator('[data-widget-type="media-control"]')).toHaveCount(1);
+  await expect(
+    tablet.locator('[data-widget-type="media-control"] .music-buttons button').first(),
+  ).toBeDisabled();
+  await navigate(desktop, '插件');
+  await desktop.getByRole('button', { name: '查看网易云播放状态与设置' }).click();
+  await desktop.getByRole('button', { name: '停用读取', exact: true }).click();
+  await expect(tablet.locator('[data-widget-type="media-control"]')).toContainText('暂无歌曲');
+  await expect(desktop.getByTestId('netease-adapter')).toContainText('未启用');
+  await desktop.getByRole('button', { name: '关闭', exact: true }).click();
   expect(errors).toEqual([]);
 });

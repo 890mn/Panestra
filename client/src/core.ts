@@ -15,6 +15,7 @@ import {
   SYSTEM,
   CODEX_TOPIC,
   CLASH_TOPIC,
+  NETEASE_TOPIC,
   ACCOUNT_IDS,
   accountTopic,
 } from '../../packages/protocol/src';
@@ -408,6 +409,7 @@ export class CoreClient {
         ...SOURCES.map((s) => `${SYSTEM}/${s}`),
         CODEX_TOPIC,
         CLASH_TOPIC,
+        NETEASE_TOPIC,
         ...ACCOUNT_IDS.map(accountTopic),
       ],
       (data) => {

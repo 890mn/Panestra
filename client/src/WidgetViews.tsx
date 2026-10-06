@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type {
   AccountStatus,
   ClashStatus,
+  MediaStatus,
   CodexStatus,
   SystemInfo,
   Widget,
@@ -9,18 +10,20 @@ import type {
 } from '../../packages/protocol/src';
 import { accountContents } from './AccountAdapter';
 import { clashContents } from './ClashAdapter';
+import { musicContents } from './MusicAdapter';
 import { ContentLayout, type ContentEditor } from './ContentLayout';
 import { windowLabel, CodexUsage, statusLabel } from './CodexAdapter';
 
 export type ViewProps = {
   widget: Widget;
-  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus;
+  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus;
   download?: number;
   upload?: number;
   history: number[];
   rxHistory: number[];
   txHistory: number[];
   online: boolean;
+  editing?: boolean;
 };
 export function Sparkline({
   values,
@@ -106,6 +109,18 @@ export function WidgetView(
   const metricTrend = chartAllowed && ['auto', 'trend'].includes(mode);
   const contents = (
     <>
+      {widget.type === 'media-control'
+        ? musicContents({
+            status: typeof data === 'object' && 'playback' in data ? data : undefined,
+            online,
+            compact: short,
+            small: narrow,
+            height: size.h,
+            mode,
+            expanded,
+            editing: !!props.editing || !!props.contentEditor,
+          })
+        : null}
       {widget.type === 'proxy-status'
         ? clashContents({
             status: typeof data === 'object' && 'groups' in data ? data : undefined,
@@ -364,6 +379,7 @@ export function WidgetView(
       ref={ref}
       className={`widget-view ${short ? 'view-short' : ''} ${narrow ? 'view-narrow' : ''} ${roomy ? 'view-roomy' : ''}`}
       data-presentation={mode}
+      data-type={widget.type}
     >
       {!expanded && (props.contentEditor || Object.keys(profile.blocks).length) ? (
         <ContentLayout

@@ -4,6 +4,7 @@ import { Button, Modal } from './components';
 import { CodexAdapterCard } from './CodexAdapter';
 import { AccountAdapterCard } from './AccountAdapter';
 import { ClashAdapterCard } from './ClashAdapter';
+import { MusicAdapterCard } from './MusicAdapter';
 
 const adapters = [
   {
@@ -118,7 +119,7 @@ export function SoftwareAdapters() {
           <h2 id="software-heading">软件适配</h2>
           <p>先接入常用软件，控制权限与状态读取分开</p>
         </div>
-        <span className="badge">4 项已实现 · 2 项设计</span>
+        <span className="badge">5 项已实现 · 1 项设计</span>
       </div>
       <div className="adapter-filter" aria-label="软件适配筛选">
         {[
@@ -144,6 +145,8 @@ export function SoftwareAdapters() {
               <CodexAdapterCard key={item.id} />
             ) : item.id === 'clash' ? (
               <ClashAdapterCard key={item.id} />
+            ) : item.id === 'netease' ? (
+              <MusicAdapterCard key={item.id} />
             ) : item.id === 'glm' || item.id === 'deepseek' ? (
               <AccountAdapterCard id={item.id} key={item.id} />
             ) : (

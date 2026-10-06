@@ -38,7 +38,8 @@ export interface Widget {
     | 'system-overview'
     | 'codex-usage'
     | 'account-usage'
-    | 'proxy-status';
+    | 'proxy-status'
+    | 'media-control';
   title: string;
   source: string;
   unit?: string;
@@ -87,7 +88,7 @@ export interface Telemetry {
   topic: string;
   seq: number;
   ts: string;
-  value: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus;
+  value: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus;
 }
 export interface SystemInfo {
   hostname: string;
@@ -134,6 +135,24 @@ export const CODEX = 'dev.panestra.codex';
 export const CODEX_TOPIC = `${CODEX}/account.usage`;
 export const CLASH = 'dev.panestra.clash';
 export const CLASH_TOPIC = `${CLASH}/proxy.status`;
+export const NETEASE = 'dev.panestra.netease';
+export const NETEASE_TOPIC = `${NETEASE}/media.status`;
+export interface MediaStatus {
+  enabled: boolean;
+  allowControl: boolean;
+  state: string;
+  message: string;
+  title: string;
+  artist: string;
+  album: string;
+  playback: string;
+  positionSeconds: number | null;
+  durationSeconds: number | null;
+  controls: { toggle: boolean; previous: boolean; next: boolean; seek: boolean };
+  updatedAt?: string;
+  stale: boolean;
+  refreshing: boolean;
+}
 export interface ClashStatus {
   enabled: boolean;
   allowControl: boolean;

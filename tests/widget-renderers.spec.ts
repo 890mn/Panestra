@@ -106,7 +106,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.13',
+        version: '0.1.14',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,
@@ -244,4 +244,46 @@ test('自定义内部排布：常见尺寸和编辑态不重叠、不溢出', as
           );
           expect(broken.flat(), `${bp}/${type}/${size.id}/edit=${edit}`).toEqual([]);
         }
+});
+
+test('音乐小卡保留直接播放，详情支持切歌与进度，编辑、离线与 Viewer 禁止控制', async ({ page }) => {
+  const actions: Record<string, unknown>[] = [];
+  let reject = false;
+  await page.route('**/api/v1/integrations/netease/actions', async (route) => {
+    actions.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: reject ? 403 : 200,
+      contentType: 'application/json',
+      body: JSON.stringify(reject ? { code: 'FORBIDDEN', message: '播放权限已撤销' } : {}),
+    });
+  });
+  const query = 'type=media-control&mode=player&bp=tablet&w=2&h=2&control';
+  await page.goto('http://127.0.0.1:19519/?' + query);
+  await page.getByRole('button', { name: '网易云暂停', exact: true }).click();
+  await expect.poll(() => actions.length).toBe(1);
+  expect(actions[0]).toEqual({ action: 'toggle' });
+  await expect(page.getByRole('button', { name: '网易云下一首', exact: true })).toHaveCount(0);
+  reject = true;
+  await page.getByRole('button', { name: '网易云暂停', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('播放权限已撤销');
+  expect(
+    await page.locator('.widget-content').evaluate((el) => el.scrollHeight <= el.clientHeight + 1),
+  ).toBe(true);
+  await page.getByRole('button', { name: '关闭播放错误提示' }).click();
+  reject = false;
+  await page.getByRole('button', { name: '查看网络流量与同步状态详情' }).click();
+  await page.locator('dialog').getByRole('button', { name: '网易云下一首', exact: true }).click();
+  await expect.poll(() => actions.length).toBe(3);
+  expect(actions[2]).toEqual({ action: 'next' });
+  await page.locator('dialog').getByLabel('播放进度').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => actions.length).toBe(4);
+  expect(actions[3].action).toBe('seek');
+  expect(actions[3].positionSeconds).toBe(76);
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
+  for (const suffix of ['&edit', '&offline', '&role=viewer']) {
+    await page.evaluate((query) => (window as any).renderPreview(query), query + suffix);
+    await expect(page.getByRole('button', { name: '网易云暂停', exact: true })).toBeDisabled();
+  }
+  expect(actions).toHaveLength(4);
 });

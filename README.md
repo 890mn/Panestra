@@ -11,6 +11,7 @@ Panestra（星序）把电脑的状态和控制放到你常用的屏幕上。Win
 - 查看 CPU、内存、磁盘、网络流量和电脑运行状态，支持实时趋势图
 - 查看本机 Codex 的订阅额度、剩余额度与重置时间，需先在电脑上授权
 - 查看智谱中国区 GLM Coding Plan 的额度窗口和工具用量，以及 DeepSeek 的人民币或美元 API 账户余额
+- 查看网易云音乐正在播放的歌曲、歌手、专辑和进度，在授权后播放、暂停、切歌或调整进度
 - 查看 Clash Verge 的代理模式与实时流量，在授权后切换模式和策略组节点
 - 创建页面、添加组件，直接在卡片上拖动和缩放，支持交换、自动对齐及撤销与重做
 - 为桌面、平板和手机分别保存布局，为每种卡片尺寸选择样式、调整内容顺序、列宽与对齐方式
@@ -18,7 +19,7 @@ Panestra（星序）把电脑的状态和控制放到你常用的屏幕上。Win
 - 通过局域网发现或二维码配对设备，管理角色与权限，随时撤销设备访问
 - 在授权后锁定电脑会话，自动备份工作空间，离线时查看缓存
 
-插件在独立进程运行，能力需要明确授权。网易云音乐和 ALAS 目前提供适配设计与功能目录，尚不能实际控制或获取状态；Codex 当前接入的是订阅额度
+System Monitor 在独立进程运行，软件适配由 Core 统一连接，读取与控制分别授权。ALAS 尚未接入真实状态；Codex 当前接入的是订阅额度
 
 ## 安装与连接
 
@@ -44,6 +45,12 @@ GLM 和 DeepSeek 可在「插件 → 对应软件 → 用量与设置」由 Owne
 Clash Verge 可在「插件 → Clash Verge → 状态与设置」由 Owner 启用自动发现，也可手动填写本机控制器地址和 Secret。支持 HTTP 控制器与 Windows 命名管道，凭据由 DPAPI 保护。切换模式和节点需单独授权，自动测速策略组保持只读；系统代理和 TUN 仍由 Clash Verge 管理
 
 接口依据：[Mihomo 官方控制接口](https://wiki.metacubex.one/api/)、[Clash Verge 本机连接实现](https://github.com/clash-verge-rev/clash-verge-rev/blob/main/src-tauri/src/utils/dirs.rs)
+
+网易云音乐可在「插件 → 网易云音乐 → 状态与设置」启用读取，再添加音乐组件。电脑需要安装网易云音乐，并在播放器设置中开启系统媒体控制；仅识别网易云的媒体会话，不会控制其他播放器。客户端版本未提供系统媒体会话时显示「未找到播放器」，播放与切歌能力以播放器实际提供的接口为准
+
+控制播放需要 Owner 单独授权，Operator 可操作，Viewer 保持只读。小卡保留播放按键，完整详情提供切歌、播放进度和专辑信息；编辑布局和离线时禁用控制
+
+实现依据：[Windows 官方系统媒体会话接口](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager)
 
 ## 从源码构建
 

@@ -44,17 +44,24 @@ export const PRESENTATIONS: Record<Widget['type'], readonly { id: string; label:
     { id: 'summary', label: '模式与流量' },
     { id: 'details', label: '代理状态详情' },
   ],
+  'media-control': [
+    { id: 'auto', label: '自动适配' },
+    { id: 'player', label: '播放控制' },
+    { id: 'track', label: '歌曲信息' },
+  ],
 };
 export const sourcesFor = (type: Widget['type']) =>
-  type === 'proxy-status'
-    ? ['proxy.status']
-    : type === 'codex-usage' || type === 'account-usage'
-      ? ['account.usage']
-      : type === 'system-overview'
-        ? ['system.info']
-        : type === 'network-chart'
-          ? ['network.rx', 'network.tx']
-          : ['cpu.usage', 'memory.usage', 'disk.usage', 'network.rx', 'network.tx'];
+  type === 'media-control'
+    ? ['media.status']
+    : type === 'proxy-status'
+      ? ['proxy.status']
+      : type === 'codex-usage' || type === 'account-usage'
+        ? ['account.usage']
+        : type === 'system-overview'
+          ? ['system.info']
+          : type === 'network-chart'
+            ? ['network.rx', 'network.tx']
+            : ['cpu.usage', 'memory.usage', 'disk.usage', 'network.rx', 'network.tx'];
 export const BLOCKS: Record<
   Widget['type'],
   readonly { id: string; label: string; required?: boolean }[]
@@ -93,6 +100,14 @@ export const BLOCKS: Record<
     { id: 'traffic', label: '收发流量', required: true },
     { id: 'node', label: '当前节点' },
     { id: 'status', label: '连接状态' },
+    { id: 'updated', label: '同步时间' },
+  ],
+  'media-control': [
+    { id: 'track', label: '歌曲与歌手', required: true },
+    { id: 'controls', label: '播放按键' },
+    { id: 'progress', label: '播放进度' },
+    { id: 'album', label: '专辑信息' },
+    { id: 'status', label: '播放状态' },
     { id: 'updated', label: '同步时间' },
   ],
 };
