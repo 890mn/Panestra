@@ -12,6 +12,7 @@ import {
 import {
   Activity,
   AudioLines,
+  Bot,
   ArrowDownLeft,
   ArrowUpRight,
   Check,
@@ -51,6 +52,7 @@ import type {
   AccountStatus,
   ClashStatus,
   MediaStatus,
+  AlasStatus,
   Breakpoint,
   Device,
   Entity,
@@ -90,7 +92,9 @@ import { AppUpdates } from './AppUpdates';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
-  source === 'media.status' ? (
+  source === 'task.status' ? (
+    <Bot size={size} />
+  ) : source === 'media.status' ? (
     <AudioLines size={size} />
   ) : source === 'account.usage' ? (
     <Code2 size={size} />
@@ -769,6 +773,13 @@ export function App() {
                 pluginId: 'dev.panestra.clash',
               },
               {
+                source: 'task.status',
+                title: 'ALAS 任务状态',
+                detail: '实例状态、当前任务与下次执行',
+                type: 'task-status',
+                pluginId: 'dev.panestra.alas',
+              },
+              {
                 source: 'media.status',
                 title: '网易云播放',
                 detail: '歌曲、播放进度与远程播放控制',
@@ -1184,7 +1195,7 @@ export const WidgetCard = memo(function WidgetCard(props: {
   layout: Layout;
   editor: EditorActions;
   editing: boolean;
-  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus;
+  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus | AlasStatus;
   download?: number;
   upload?: number;
   history: number[];

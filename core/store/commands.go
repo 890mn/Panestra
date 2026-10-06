@@ -185,7 +185,7 @@ func validate(tx *sql.Tx, kind, id string, d map[string]any) error {
 				return err
 			}
 		}
-		modes := map[string][]string{"metric-card": {"auto", "value", "trend", "gauge"}, "network-chart": {"auto", "rates", "trend", "split"}, "system-overview": {"auto", "summary", "details"}, "codex-usage": {"auto", "remaining", "windows"}, "account-usage": {"auto", "summary", "details"}, "proxy-status": {"auto", "summary", "details"}, "media-control": {"auto", "player", "track"}}
+		modes := map[string][]string{"metric-card": {"auto", "value", "trend", "gauge"}, "network-chart": {"auto", "rates", "trend", "split"}, "system-overview": {"auto", "summary", "details"}, "codex-usage": {"auto", "remaining", "windows"}, "account-usage": {"auto", "summary", "details"}, "proxy-status": {"auto", "summary", "details"}, "media-control": {"auto", "player", "track"}, "task-status": {"auto", "summary", "tasks"}}
 		if value, exists := d["presentation"]; exists {
 			mode, isText := value.(string)
 			valid := false
@@ -209,6 +209,12 @@ func validate(tx *sql.Tx, kind, id string, d map[string]any) error {
 			return parent("pages", text("pageId"))
 		}
 		if text("pluginId") != "dev.panestra.system" {
+			if text("pluginId") == "dev.panestra.alas" {
+				if text("type") != "task-status" || text("source") != "task.status" {
+					return errCode("INVALID_SOURCE", "ALAS 仅支持任务状态组件")
+				}
+				return parent("pages", text("pageId"))
+			}
 			if text("pluginId") == "dev.panestra.netease" {
 				if text("type") != "media-control" || text("source") != "media.status" {
 					return errCode("INVALID_SOURCE", "网易云音乐仅支持媒体组件")

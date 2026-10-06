@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"panestra.local/panestra/core/adapters/accounts"
+	"panestra.local/panestra/core/adapters/alas"
 	"panestra.local/panestra/core/adapters/clash"
 	"panestra.local/panestra/core/adapters/codex"
 	"panestra.local/panestra/core/adapters/netease"
@@ -37,6 +38,7 @@ type Server struct {
 	Accounts       map[string]*accounts.Service
 	Clash          *clash.Service
 	Netease        *netease.Service
+	Alas           *alas.Service
 	codexUpdateMu  sync.Mutex
 	Hub            *Hub
 	DataDir        string
@@ -67,6 +69,9 @@ func New(s *store.Store, a *security.Auth, p *backplane.Runtime, dir string, ctx
 	})
 	srv.Netease = netease.NewService(ctx, filepath.Join(dir, "integrations"), func(status netease.Status, seq uint64) {
 		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: netease.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
+	})
+	srv.Alas = alas.NewService(ctx, filepath.Join(dir, "integrations"), func(status alas.Status, seq uint64) {
+		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: alas.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
 	})
 	var granted bool
 	_ = s.DB.QueryRow("SELECT granted FROM plugin_permissions WHERE plugin_id=? AND capability=?", codex.ID, codex.Permission).Scan(&granted)
@@ -264,6 +269,7 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 	s.accountRoutes(mux, protect)
 	s.clashRoutes(mux, protect)
 	s.neteaseRoutes(mux, protect)
+	s.alasRoutes(mux, protect)
 	mux.HandleFunc("GET /api/v1/integrations/codex", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		JSON(w, 200, s.Codex.Snapshot())
 	}))

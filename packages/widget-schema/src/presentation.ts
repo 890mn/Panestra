@@ -12,6 +12,11 @@ export const SIZE_PRESETS = [
 export const presetsFor = (breakpoint: Breakpoint) =>
   SIZE_PRESETS.filter((p) => p.w <= COLUMNS[breakpoint]);
 export const PRESENTATIONS: Record<Widget['type'], readonly { id: string; label: string }[]> = {
+  'task-status': [
+    { id: 'auto', label: '自动适配' },
+    { id: 'summary', label: '实例摘要' },
+    { id: 'tasks', label: '任务与调度' },
+  ],
   'metric-card': [
     { id: 'auto', label: '自动适配' },
     { id: 'value', label: '纯数值' },
@@ -51,21 +56,30 @@ export const PRESENTATIONS: Record<Widget['type'], readonly { id: string; label:
   ],
 };
 export const sourcesFor = (type: Widget['type']) =>
-  type === 'media-control'
-    ? ['media.status']
-    : type === 'proxy-status'
-      ? ['proxy.status']
-      : type === 'codex-usage' || type === 'account-usage'
-        ? ['account.usage']
-        : type === 'system-overview'
-          ? ['system.info']
-          : type === 'network-chart'
-            ? ['network.rx', 'network.tx']
-            : ['cpu.usage', 'memory.usage', 'disk.usage', 'network.rx', 'network.tx'];
+  type === 'task-status'
+    ? ['task.status']
+    : type === 'media-control'
+      ? ['media.status']
+      : type === 'proxy-status'
+        ? ['proxy.status']
+        : type === 'codex-usage' || type === 'account-usage'
+          ? ['account.usage']
+          : type === 'system-overview'
+            ? ['system.info']
+            : type === 'network-chart'
+              ? ['network.rx', 'network.tx']
+              : ['cpu.usage', 'memory.usage', 'disk.usage', 'network.rx', 'network.tx'];
 export const BLOCKS: Record<
   Widget['type'],
   readonly { id: string; label: string; required?: boolean }[]
 > = {
+  'task-status': [
+    { id: 'status', label: '实例状态', required: true },
+    { id: 'current', label: '当前任务' },
+    { id: 'next', label: '下次执行' },
+    { id: 'queue', label: '调度队列' },
+    { id: 'updated', label: '同步时间' },
+  ],
   'metric-card': [
     { id: 'value', label: '数值', required: true },
     { id: 'gauge', label: '用量进度' },

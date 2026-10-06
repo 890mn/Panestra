@@ -8,6 +8,7 @@ import (
 
 var profilePattern = regexp.MustCompile(`^(desktop|tablet|mobile):([0-9]+)x([0-9]+)$`)
 var profileModes = map[string]map[string]bool{
+	"task-status":     {"auto": true, "summary": true, "tasks": true},
 	"metric-card":     {"auto": true, "value": true, "trend": true, "gauge": true},
 	"network-chart":   {"auto": true, "rates": true, "trend": true, "split": true},
 	"system-overview": {"auto": true, "summary": true, "details": true},
@@ -19,6 +20,7 @@ var profileModes = map[string]map[string]bool{
 
 // Values mark essential content which cannot be hidden.
 var profileBlocks = map[string]map[string]bool{
+	"task-status":     {"status": true, "current": false, "next": false, "queue": false, "updated": false},
 	"metric-card":     {"value": true, "gauge": false, "trend": false, "stats": false},
 	"network-chart":   {"rates": true, "trend": false, "stats": false},
 	"system-overview": {"hostname": true, "memory": true, "os": false, "hardware": false},

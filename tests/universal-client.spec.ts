@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'node:http';
 test.describe.configure({ mode: 'serial' });
@@ -148,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.14.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.15.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.14.png`,
+      path: `artifacts/connection-${label}-0.1.15.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -346,7 +346,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.14');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.15');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -392,18 +392,18 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
         '未启用',
       );
       await expect(surface.locator('.adapter-card:not([data-testid]) .adapter-state')).toHaveText(
-        Array(1).fill('未接入'),
+        [],
       );
       await surface.getByRole('button', { name: '控制', exact: true }).click();
       await expect(surface.locator('.adapter-card')).toHaveCount(2);
       await surface.getByRole('button', { name: '状态', exact: true }).click();
       await expect(surface.locator('.adapter-card')).toHaveCount(4);
       await surface.getByRole('button', { name: '全部', exact: true }).click();
-      await surface.getByRole('button', { name: '查看ALAS接入设计', exact: true }).click();
+      await surface.getByRole('button', { name: '查看ALAS状态与设置', exact: true }).click();
       await expect(surface.locator('dialog[open]')).toContainText('ProcessManager');
       await surface.getByRole('button', { name: '关闭', exact: true }).click();
       await expect(
-        surface.getByRole('button', { name: '查看ALAS接入设计', exact: true }),
+        surface.getByRole('button', { name: '查看ALAS状态与设置', exact: true }),
       ).toBeFocused();
       const geometry = await surface.evaluate(() => ({
         overflow: document.documentElement.scrollWidth > innerWidth,
@@ -856,6 +856,47 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
   await desktop.getByRole('button', { name: '停用读取', exact: true }).click();
   await expect(tablet.locator('[data-widget-type="media-control"]')).toContainText('暂无歌曲');
   await expect(desktop.getByTestId('netease-adapter')).toContainText('未启用');
+  await desktop.getByRole('button', { name: '关闭', exact: true }).click();
+  expect(errors).toEqual([]);
+});
+
+test('ALAS：生成只读桥接、Owner 配置权限与跨设备状态组件', async () => {
+  const navigate = async (surface: Page, name: string) => {
+    const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
+    if (await menu.isVisible()) await menu.click();
+    await surface.getByRole('button', { name, exact: true }).click();
+  };
+  const install = path.join(coreData, 'alas-fixture');
+  for (const file of ['gui.py', 'module/webui/process_manager.py', 'toolkit/python.exe']) {
+    mkdirSync(path.dirname(path.join(install, file)), { recursive: true });
+    writeFileSync(path.join(install, file), 'Read-only fixture, never executed');
+  }
+  await navigate(desktop, '插件');
+  await desktop.getByRole('button', { name: '查看ALAS状态与设置' }).click();
+  await desktop.getByLabel('ALAS 安装目录').fill(install);
+  await desktop.getByLabel('WebUI 端口').fill('19999');
+  await desktop.getByLabel('实例名称').fill('alas');
+  await desktop.getByRole('button', { name: '生成桥接并启用读取' }).click();
+  await expect(desktop.locator('.alas-launcher code')).toContainText('start-alas.ps1');
+  await expect(desktop.locator('.alas-launcher')).toContainText('重启会中断当前任务');
+  await navigate(tablet, '插件');
+  await tablet.getByRole('button', { name: '查看ALAS状态与设置' }).click();
+  await expect(tablet.getByLabel('ALAS 安装目录')).toHaveCount(0);
+  await expect(tablet.locator('dialog[open]')).not.toContainText(install);
+  await expect(tablet.locator('.alas-status')).not.toContainText('运行中');
+  await tablet.getByRole('button', { name: '关闭', exact: true }).click();
+  await desktop.getByRole('button', { name: '关闭', exact: true }).click();
+  await navigate(desktop, '总览');
+  await desktop.getByRole('button', { name: '添加组件', exact: true }).click();
+  await desktop.getByRole('button', { name: /ALAS 任务状态.*添加/ }).click();
+  await desktop.getByRole('button', { name: '浏览', exact: true }).click();
+  await navigate(tablet, '总览');
+  await expect(tablet.locator('[data-widget-type="task-status"]')).toHaveCount(1);
+  await navigate(desktop, '插件');
+  await desktop.getByRole('button', { name: '查看ALAS状态与设置' }).click();
+  await desktop.getByRole('button', { name: '移除连接设置' }).click();
+  await expect(tablet.locator('[data-widget-type="task-status"]')).toContainText('未启用');
+  await expect(desktop.locator('.alas-launcher')).toHaveCount(0);
   await desktop.getByRole('button', { name: '关闭', exact: true }).click();
   expect(errors).toEqual([]);
 });

@@ -13,13 +13,14 @@ Panestra（星序）把电脑的状态和控制放到你常用的屏幕上。Win
 - 查看智谱中国区 GLM Coding Plan 的额度窗口和工具用量，以及 DeepSeek 的人民币或美元 API 账户余额
 - 查看网易云音乐正在播放的歌曲、歌手、专辑和进度，在授权后播放、暂停、切歌或调整进度
 - 查看 Clash Verge 的代理模式与实时流量，在授权后切换模式和策略组节点
+- 查看 ALAS 的实例状态、当前任务、等待任务与下次调度
 - 创建页面、添加组件，直接在卡片上拖动和缩放，支持交换、自动对齐及撤销与重做
 - 为桌面、平板和手机分别保存布局，为每种卡片尺寸选择样式、调整内容顺序、列宽与对齐方式
 - 使用白昼、黑夜或跟随系统主题，自定义点缀色
 - 通过局域网发现或二维码配对设备，管理角色与权限，随时撤销设备访问
 - 在授权后锁定电脑会话，自动备份工作空间，离线时查看缓存
 
-System Monitor 在独立进程运行，软件适配由 Core 统一连接，读取与控制分别授权。ALAS 尚未接入真实状态；Codex 当前接入的是订阅额度
+System Monitor 在独立进程运行，软件适配由 Core 统一连接，读取与控制分别授权。ALAS 通过本机只读桥接读取状态；Codex 当前接入的是订阅额度
 
 ## 安装与连接
 
@@ -51,6 +52,12 @@ Clash Verge 可在「插件 → Clash Verge → 状态与设置」由 Owner 启�
 控制播放需要 Owner 单独授权，Operator 可操作，Viewer 保持只读。小卡保留播放按键，完整详情提供切歌、播放进度和专辑信息；编辑布局和离线时禁用控制
 
 实现依据：[Windows 官方系统媒体会话接口](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager)
+
+ALAS 可在「插件 → ALAS → 状态与设置」填写电脑上的安装目录、WebUI 端口与实例名称，生成桥接启动文件后，先停止原有 ALAS，再使用生成的文件启动。启动方式保留 ALAS 原有的自动运行和重载设置，不修改安装目录；重启会中断当前任务
+
+桥接在真实 WebUI 进程内读取已载入实例的 ProcessManager 和调度配置，仅提供本机认证的只读状态接口。实例未载入、任务名称未知或桥接断开时会明确显示，不用进程存在推断任务正常运行。任务控制不在此插件的权限范围内
+
+实现依据：[ALAS 官方 WebUI 源码](https://github.com/LmeSzinc/AzurLaneAutoScript/blob/master/module/webui/app.py)
 
 ## 从源码构建
 

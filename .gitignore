@@ -37,6 +37,8 @@ shell/**/binaries/*.exe
 *.so
 *.class
 *.aar
+__pycache__/
+*.pyc
 
 # Local research and working instructions
 docs/

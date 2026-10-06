@@ -829,3 +829,52 @@
     display: none;
   }
 }
+.alas-status,
+.alas-task {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.alas-status strong {
+  font-size: clamp(16px, 2vw, 22px);
+  line-height: 1.3;
+}
+.alas-status.is-small strong {
+  font-size: 16px;
+  white-space: nowrap;
+}
+.alas-task strong,
+.alas-queue span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.alas-queue {
+  display: grid;
+  gap: 8px;
+}
+.alas-queue > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-height: 32px;
+  align-items: center;
+  font-size: 12px;
+}
+.alas-queue time {
+  color: var(--muted);
+}
+.alas-detail-content {
+  display: grid;
+  gap: 20px;
+}
+.alas-launcher {
+  display: grid;
+  gap: 12px;
+}
+.alas-launcher code {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}

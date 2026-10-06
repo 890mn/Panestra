@@ -16,6 +16,7 @@ import {
   CODEX_TOPIC,
   CLASH_TOPIC,
   NETEASE_TOPIC,
+  ALAS_TOPIC,
   ACCOUNT_IDS,
   accountTopic,
 } from '../../packages/protocol/src';
@@ -410,6 +411,7 @@ export class CoreClient {
         CODEX_TOPIC,
         CLASH_TOPIC,
         NETEASE_TOPIC,
+        ALAS_TOPIC,
         ...ACCOUNT_IDS.map(accountTopic),
       ],
       (data) => {

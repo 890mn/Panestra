@@ -39,7 +39,8 @@ export interface Widget {
     | 'codex-usage'
     | 'account-usage'
     | 'proxy-status'
-    | 'media-control';
+    | 'media-control'
+    | 'task-status';
   title: string;
   source: string;
   unit?: string;
@@ -88,7 +89,7 @@ export interface Telemetry {
   topic: string;
   seq: number;
   ts: string;
-  value: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus;
+  value: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus | AlasStatus;
 }
 export interface SystemInfo {
   hostname: string;
@@ -233,3 +234,29 @@ export const SOURCES = [
   'network.tx',
   'system.info',
 ];
+
+export const ALAS_TOPIC = 'dev.panestra.alas/task.status';
+export interface AlasTask {
+  name: string;
+  nextRun: string;
+}
+export interface AlasInstance {
+  name: string;
+  state: string;
+  currentTask: string;
+  waitingTask: string;
+  tasks: AlasTask[];
+}
+export interface AlasStatus {
+  enabled: boolean;
+  prepared: boolean;
+  hasConfiguration: boolean;
+  instance: string;
+  state: string;
+  message: string;
+  updatedAt?: string;
+  observedAt?: string;
+  stale: boolean;
+  refreshing: boolean;
+  instances: AlasInstance[];
+}

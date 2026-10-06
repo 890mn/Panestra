@@ -3,6 +3,7 @@ import type {
   AccountStatus,
   ClashStatus,
   MediaStatus,
+  AlasStatus,
   CodexStatus,
   SystemInfo,
   Widget,
@@ -11,12 +12,13 @@ import type {
 import { accountContents } from './AccountAdapter';
 import { clashContents } from './ClashAdapter';
 import { musicContents } from './MusicAdapter';
+import { alasContents } from './AlasAdapter';
 import { ContentLayout, type ContentEditor } from './ContentLayout';
 import { windowLabel, CodexUsage, statusLabel } from './CodexAdapter';
 
 export type ViewProps = {
   widget: Widget;
-  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus;
+  data?: number | SystemInfo | CodexStatus | AccountStatus | ClashStatus | MediaStatus | AlasStatus;
   download?: number;
   upload?: number;
   history: number[];
@@ -109,6 +111,16 @@ export function WidgetView(
   const metricTrend = chartAllowed && ['auto', 'trend'].includes(mode);
   const contents = (
     <>
+      {widget.type === 'task-status'
+        ? alasContents({
+            status: typeof data === 'object' && 'instances' in data ? data : undefined,
+            online,
+            compact: short,
+            height: size.h,
+            mode,
+            expanded,
+          })
+        : null}
       {widget.type === 'media-control'
         ? musicContents({
             status: typeof data === 'object' && 'playback' in data ? data : undefined,
