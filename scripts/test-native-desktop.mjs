@@ -56,7 +56,7 @@ try {
   if (!(await page.getByLabel('首次认领码').inputValue()))
     throw new Error('Native sidecar bootstrap code missing');
   await page.screenshot({
-    path: path.join(root, 'artifacts/connection-desktop-native-0.1.10.png'),
+    path: path.join(root, 'artifacts/connection-desktop-native-0.1.11.png'),
     fullPage: true,
     animations: 'disabled',
   });
@@ -84,7 +84,7 @@ try {
     const callback = window.__TAURI_INTERNALS__.transformCallback(() => {}, true);
     try {
       await window.__TAURI_INTERNALS__.invoke('install_app_update', {
-        expectedVersion: '0.1.10',
+        expectedVersion: '0.1.11',
         progress: `__CHANNEL__:${callback}`,
       });
     } catch (error) {
@@ -99,14 +99,19 @@ try {
   });
   const updateCheck = await page.locator('.update-status').innerText();
   await page.getByRole('button', { name: '更新日志', exact: true }).click();
-  await page.getByRole('button', { name: '查看 v0.1.10 更新说明', exact: true }).click();
-  await expect(page.locator('.release-detail')).toContainText('设置新增应用更新');
+  await page.getByRole('button', { name: '查看 v0.1.11 更新说明', exact: true }).click();
+  await expect(page.locator('.release-detail')).toContainText('恢复品牌与版本二级菜单');
   await page.screenshot({ path: path.join(root, 'artifacts/native-desktop-update-logs.png') });
   await page.getByRole('button', { name: '关闭', exact: true }).click();
-  // Tauri's invoke property is immutable; exercise the actual OS command directly.
-  await page.evaluate(() =>
-    window.__TAURI_INTERNALS__.invoke('plugin:panestra-bridge|open_github'),
-  );
+  await page.getByRole('button', { name: '关于 Panestra', exact: true }).click();
+  await expect(page.locator('.about-version')).toHaveText('v0.1.11');
+  await page.screenshot({ path: path.join(root, 'artifacts/native-desktop-about.png') });
+  await page.getByRole('button', { name: 'GitHub 项目', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'GitHub 项目', exact: true })).toBeEnabled({
+    timeout: 20000,
+  });
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
   writeFileSync(
     path.join(root, 'artifacts/native-desktop-result.json'),
     JSON.stringify(

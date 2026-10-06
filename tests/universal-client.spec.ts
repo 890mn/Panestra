@@ -146,7 +146,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.10.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.11.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -157,7 +157,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.10.png`,
+      path: `artifacts/connection-${label}-0.1.11.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -341,10 +341,12 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
     for (const theme of ['白昼', '黑夜'] as const) {
       await navigate('设置');
       await expect(surface.locator('.brand-slogan')).toHaveText('ONE CORE, EVERY DEVICE.');
-      const projectLink = surface.getByRole('link', { name: 'Panestra GitHub' });
-      await expect(projectLink).toHaveAttribute('href', 'https://github.com/890mn/Panestra');
-      await expect(projectLink).toHaveAttribute('target', '_blank');
-      await expect(projectLink.locator('.github-badge')).toHaveCount(1);
+      const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
+      if (await menu.isVisible()) await menu.click();
+      await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.11');
+      await expect(surface.locator('.about-content')).toContainText('星序');
+      const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
         await surface.context().route('https://github.com/890mn/Panestra', (route) =>
           route.fulfill({
@@ -360,6 +362,10 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
         await projectPage.close();
         await surface.context().unroute('https://github.com/890mn/Panestra');
       }
+      await surface.getByRole('button', { name: '关闭', exact: true }).click();
+      const closeMenu = surface.getByRole('button', { name: '关闭菜单', exact: true });
+      if (await closeMenu.isVisible())
+        await surface.getByRole('button', { name: '设置', exact: true }).click();
       await expect(
         surface.locator('.workspace-picker, .user-avatar, .heading-dot, .health-grid'),
       ).toHaveCount(0);
