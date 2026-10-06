@@ -24,6 +24,33 @@ await update('gradle/wrapper/gradle-wrapper.properties', (text) =>
 );
 await update('app/build.gradle.kts', (text) =>
   text
+    .replace(
+      '    buildTypes {',
+      text.includes('Optional publisher signing')
+        ? '    buildTypes {'
+        : `
+    // Optional publisher signing configuration, injected from environment only.
+    signingConfigs {
+        if (System.getenv("PANESTRA_ANDROID_KEYSTORE") != null) {
+            create("panestraRelease") {
+                storeFile = file(System.getenv("PANESTRA_ANDROID_KEYSTORE"))
+                storePassword = System.getenv("PANESTRA_ANDROID_STORE_PASSWORD")
+                keyAlias = System.getenv("PANESTRA_ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("PANESTRA_ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {`,
+    )
+    .replace(
+      '        getByName("release") {',
+      text.includes('signingConfig = signingConfigs')
+        ? '        getByName("release") {'
+        : `        getByName("release") {
+            if (signingConfigs.findByName("panestraRelease") != null) {
+                signingConfig = signingConfigs.getByName("panestraRelease")
+            }`,
+    )
     .replace(/compileSdk = \d+/, 'compileSdk = 36')
     .replace(/targetSdk = \d+/, 'targetSdk = 36')
     .replace(/minSdk = \d+/, 'minSdk = 29')

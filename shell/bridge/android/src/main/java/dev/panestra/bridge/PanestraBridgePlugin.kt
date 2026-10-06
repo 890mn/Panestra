@@ -48,6 +48,106 @@ class PanestraBridgePlugin(private val activity: Activity) : Plugin(activity) {
     private lateinit var surface: WebView
     override fun load(webView: WebView) { surface = webView; if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true) }
     private val alias = "panestra.device.v1"
+    private val updating = java.util.concurrent.atomic.AtomicBoolean(false)
+    private var pendingUpdate: java.io.File? = null
+    private val updateClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS).callTimeout(10, TimeUnit.MINUTES).build()
+
+    @Command fun installAppUpdate(invoke: Invoke) {
+        if (!updating.compareAndSet(false, true)) { invoke.reject("更新已在进行中"); return }
+        executor.execute {
+            var downloaded: java.io.File? = null
+            try {
+                val expected = invoke.getArgs().getString("expectedVersion")
+                require(expected.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+"))) { "更新版本格式不正确" }
+                @Suppress("DEPRECATION")
+                val currentVersion = activity.packageManager.getPackageInfo(activity.packageName, 0).versionName ?: "0.0.0"
+                require(UpdatePolicy.isNewer(expected, currentVersion)) { "当前没有可安装的更新" }
+                val request = Request.Builder().url("https://api.github.com/repos/890mn/Panestra/releases/latest")
+                    .header("Accept", "application/vnd.github+json").header("User-Agent", "Panestra-Android").build()
+                val release = updateClient.newCall(request).execute().use { response ->
+                    require(response.isSuccessful) { "无法读取发布信息，请重新检查更新" }
+                    val source = response.body?.source() ?: error("发布信息为空")
+                    require(!source.request(2L * 1024 * 1024 + 1)) { "发布信息过大" }
+                    JSONObject(source.readUtf8())
+                }
+                require(!release.optBoolean("prerelease") && !release.optBoolean("draft") &&
+                    release.getString("tag_name").removePrefix("v") == expected) { "发布版本已变化，请重新检查更新" }
+                val assets = release.getJSONArray("assets")
+                val asset = (0 until assets.length()).map { assets.getJSONObject(it) }
+                    .firstOrNull { it.getString("name") == "Panestra-$expected-android-arm64.apk" }
+                    ?: error("此平台的更新包尚未发布")
+                val uri = Uri.parse(asset.getString("browser_download_url"))
+                require(uri.scheme == "https" && uri.encodedAuthority == "github.com" &&
+                    uri.path?.startsWith("/890mn/Panestra/releases/download/") == true) { "更新地址不可信" }
+                val digest = asset.optString("digest")
+                require(digest.matches(Regex("sha256:[a-f0-9]{64}"))) { "此更新包未提供完整性校验" }
+                val size = asset.getLong("size")
+                require(size in 1..268435456L) { "更新包大小不正确" }
+                val directory = java.io.File(activity.cacheDir, "updates").apply { mkdirs() }
+                downloaded = java.io.File(directory, "pending.apk")
+                val hash = MessageDigest.getInstance("SHA-256")
+                var received = 0L
+                var lastPercent = -1
+                updateClient.newCall(Request.Builder().url(uri.toString()).build()).execute().use { response ->
+                    require(response.isSuccessful && response.request.url.isHttps) { "更新下载失败" }
+                    val input = response.body?.byteStream() ?: error("更新包为空")
+                    downloaded!!.outputStream().use { output ->
+                        val buffer = ByteArray(32768)
+                        while (true) {
+                            val count = input.read(buffer); if (count < 0) break
+                            received += count; require(received <= size) { "更新包大小不正确" }
+                            output.write(buffer, 0, count); hash.update(buffer, 0, count)
+                            val percent = (received * 100 / size).toInt()
+                            if (percent != lastPercent) { lastPercent = percent; emit("panestra:update-progress", JSONObject().put("percent", percent)) }
+                        }
+                    }
+                }
+                val actual = hash.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
+                UpdatePolicy.validateIntegrity(size, received, digest, actual)
+                verifyUpdate(downloaded!!, expected)
+                pendingUpdate = downloaded
+                activity.runOnUiThread {
+                    try {
+                        if (!activity.packageManager.canRequestPackageInstalls()) {
+                            startActivityForResult(invoke, Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:" + activity.packageName)), "updatePermissionResult")
+                        } else openUpdateInstaller(invoke)
+                    } catch (_: Exception) { downloaded?.delete(); updating.set(false); invoke.reject("无法打开系统安装窗口") }
+                }
+            } catch (e: Exception) { downloaded?.delete(); updating.set(false); invoke.reject(e.message ?: "更新下载失败，请稍后重试") }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun verifyUpdate(file: java.io.File, version: String) {
+        val manager = activity.packageManager
+        val flags = android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES
+        val installed = manager.getPackageInfo(activity.packageName, flags)
+        val candidate = manager.getPackageArchiveInfo(file.absolutePath, flags) ?: error("更新包无法读取")
+        val current = installed.signingInfo?.apkContentsSigners?.map { it.toCharsString() }?.toSet()
+        val next = candidate.signingInfo?.apkContentsSigners?.map { it.toCharsString() }?.toSet()
+        UpdatePolicy.validateIdentity(activity.packageName, candidate.packageName, version, candidate.versionName,
+            installed.longVersionCode, candidate.longVersionCode, current, next)
+    }
+
+    @ActivityCallback fun updatePermissionResult(invoke: Invoke, result: ActivityResult) {
+        if (!activity.packageManager.canRequestPackageInstalls()) {
+            pendingUpdate?.delete(); pendingUpdate = null; updating.set(false)
+            invoke.reject("未允许安装更新，可稍后再次点击下载并更新"); return
+        }
+        try { openUpdateInstaller(invoke) }
+        catch (_: Exception) { pendingUpdate?.delete(); pendingUpdate = null; updating.set(false); invoke.reject("无法打开系统安装窗口") }
+    }
+
+    private fun openUpdateInstaller(invoke: Invoke) {
+        val file = pendingUpdate ?: error("请重新下载更新")
+        val uri = androidx.core.content.FileProvider.getUriForFile(activity, activity.packageName + ".updates", file)
+        activity.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+        updating.set(false)
+        invoke.resolve(JSObject())
+    }
     @Command fun openGithub(invoke: Invoke) {
         activity.runOnUiThread {
             try {

@@ -1,99 +1,146 @@
-# Panestra / 星序
+# Panestra
 
 **ONE CORE, EVERY DEVICE.**
 
-中文名为星序，版本变更和提交约定见 [版本记录](docs/release-history.md)。开发前运行 `npm run format:check`，完整检查使用 `./scripts/verify.ps1`，每个小版本完成后创建本地提交。
+Panestra（星序）把电脑的状态和控制放到你常用的屏幕上。Windows 电脑运行 Core，保存工作空间、布局和设备权限；Android 手机与平板连接 Core，查看实时数据、操作组件，也能直接编辑自己的页面
 
-Panestra 是本地优先的个人控制面。Windows 上的 Panestra Core 保存工作空间与设备权限；电脑、Android 手机和平板通过同一套 Surface 界面查看状态、编辑页面和布局。Backplane 在独立进程中运行插件。
+目前支持 Windows x64 和 Android 10 及以上的 ARM64 设备，项目处于早期开发阶段
 
-本项目按 `Panestra-deep-research-report.md` 的 MVP 路线实现。界面以白昼、黑夜两种黑白主题为主，雾绿仅用于点缀；设置中可跟随系统，也可自定义点缀色。原有两个 icon 用于应用、安装包和连接页。
+## 可以做什么
 
-## 开始使用
+- 查看 CPU、内存、磁盘、网络流量和电脑运行状态，支持实时趋势图
+- 查看本机 Codex 的订阅额度、剩余额度与重置时间，需先在电脑上授权
+- 创建页面、添加组件，直接在卡片上拖动和缩放，支持交换、自动对齐及撤销与重做
+- 为桌面、平板和手机分别保存布局，为每种卡片尺寸选择样式、调整内容顺序、列宽与对齐方式
+- 使用白昼、黑夜或跟随系统主题，自定义点缀色
+- 通过局域网发现或二维码配对设备，管理角色与权限，随时撤销设备访问
+- 在授权后锁定电脑会话，自动备份工作空间，离线时查看缓存
 
-Windows 安装版或便携版启动 `Panestra.exe`，Core 会随应用启动。首次连接页自动填入本机地址、身份指纹和一次性认领码，点击“认领并进入工作空间”。进入“插件”，授权读取系统指标并启用 System Monitor，即可看到真实 CPU、内存、磁盘、网络和系统信息。
+插件在独立进程运行，能力需要明确授权。网易云音乐、GLM Coding Plan、Clash Verge 和 ALAS 目前提供适配设计与功能目录，尚不能实际控制或获取状态；Codex 当前接入的是订阅额度
 
-在“设备与连接”打开两分钟的配对窗口。Android Surface 会通过 NSD 列出局域网 Core；选择地址，填入电脑显示的身份指纹与配对码，再在电脑端核对并批准请求。发现结果只提供候选地址，身份由固定公钥和签名验证。
+## 安装与连接
 
-Android 连接页也可点击“扫描电脑配对二维码”，允许相机后扫描电脑上的二维码，地址、指纹与配对码会自动填入。二维码过期需要在电脑重新打开配对窗口。多网卡电脑可选择二维码中的局域网地址。已经连接的手机可在“设备与连接 → 连接其他 Core”使用扫码入口；新 Core 批准之前会保留当前连接。再次连接已配对的 Core 会验证身份并直接登录，无需重复注册设备。
+从 [GitHub Releases](https://github.com/890mn/Panestra/releases) 下载与你的设备对应的版本。尚未发布安装包时，可按下文从源码构建
 
-手机和平板也能添加、配置、删除组件及拖动、缩放布局。编辑器可切换桌面、平板、手机预览；三个断点分别保存。离线时显示缓存，编辑和操作暂时不可用；重连后自动恢复。
+1. 在 Windows 上安装并打开 Panestra，Core 会随应用启动。连接页自动填入本机信息，首次使用点击「建立并进入工作空间」
+2. 进入「插件」，授权并启用 System Monitor，再向工作空间添加需要的组件
+3. 电脑打开「设备与连接」中的配对窗口，Android 与电脑连接同一局域网，扫描电脑二维码或选择自动发现的 Core
+4. 在电脑上核对并批准请求，完成后 Android 会保存配对，下次打开可自动重连
 
-Codex 订阅额度已接入：在电脑「插件 → Codex → 额度与设置」授权读取，再通过「添加组件」将额度放入工作空间。复用本机 Codex 的 ChatGPT 登录，无需复制凭据。详情见 [Codex 适配说明](docs/codex-adapter.md)。
+扫码需要相机权限，二维码只在配对窗口开放期间有效。无法发现时检查防火墙是否允许 Panestra 的局域网连接，也可手动填写 HTTPS 地址、身份指纹和配对码
 
-布局编辑支持触摸拖动、网格吸附、卡片交换、自动对齐和整组撤销。平板默认 8 列，各屏幕布局分别保存。见 [布局编辑说明](docs/layout-editor.md)。
+连接其他 Core 可从「设备与连接」进入。编辑布局后，不同设备会同步工作空间数据，屏幕尺寸对应的布局各自保存。离线期间只读，重新连接后恢复编辑和控制
 
-卡片现支持六档预制尺寸与自由拉伸，可选择数值、趋势、进度或详情等呈现方式。小尺寸展示摘要，点击标题可看完整详情。Android 使用沉浸式全屏隐藏系统状态栏和导航栏。见 [尺寸与呈现规范](docs/widget-presentation.md)。
+Codex 额度需在 Windows 的「插件 → Codex → 额度与设置」授权读取，复用电脑上已有的 Codex ChatGPT 登录，无需复制凭据
 
-## 从源码运行
+## 从源码构建
 
-需要 Node.js 22+、Go 1.27+。首次构建会先生成共享界面，再将其嵌入 Core。
+### 依赖
+
+- Node.js 22.12+ 与 npm
+- Go 1.27+
+- Windows 原生应用：Rust stable 1.90+、MSVC C++ 工具链、Windows SDK、WebView2
+- Android：JDK 17、Android SDK 36、Build Tools 36、NDK 28.2.13676358，以及 Rust `aarch64-linux-android` target
+
+构建脚本使用 PowerShell，在项目根目录运行，需允许下载 npm、Go、Cargo 与 Gradle 依赖
 
 ```powershell
+git clone https://github.com/890mn/Panestra.git
+cd Panestra
 npm ci
+```
+
+### Core 与网页界面
+
+```powershell
 .\scripts\build.ps1
 .\scripts\start.ps1
 ```
 
-默认地址为 `https://localhost:9443`。终端输出本机首次认领码和 Core SHA-256 指纹。浏览器访问需要先确认本地证书；原生 Surface 使用固定公钥验证，无需关闭 TLS 校验。
+默认监听 `https://localhost:9443`，数据保存在 `.data`。首次认领码和身份指纹会在终端显示，浏览器需要确认本地证书；原生应用通过固定公钥校验 Core 身份
 
-Windows 原生构建另外需要 Rust、MSVC、Windows SDK 和 WebView2：
+开发界面可另开终端运行 `npm run dev`。生产界面会在构建时嵌入 Core
+
+### Windows 应用
 
 ```powershell
 .\scripts\build.ps1 -Desktop
 ```
 
-Android 构建需要 JDK 17、Android SDK 36、Build Tools 36、NDK 28.2.13676358，以及 Rust Android ARM64 target：
+安装包位于 `shell/desktop/target/release/bundle/nsis`。普通源码构建无需更新签名私钥；自行发行的版本需配置自己的更新公钥与签名密钥
+
+### Android 应用
+
+设置 `JAVA_HOME` 和 `ANDROID_HOME` 后安装 Rust target，再构建开发 APK
 
 ```powershell
+rustup target add aarch64-linux-android
 .\scripts\build-android.ps1 -Debug -OptimizedNative
 ```
 
-Android 最低版本为 10 / API 29，传输强制 TLS 1.3。脚本兼容 Windows 未开启 Developer Mode 的环境，用复制 JNI 库替代符号链接。发布 APK 的签名说明见 [运维说明](docs/operations.md)。
+APK 位于 `shell/desktop/gen/android/app/build/outputs/apk/arm64/debug`。首次构建会生成 Android 工程，Windows 未开启 Developer Mode 时脚本会用复制方式放置 JNI 库
 
-当前工作目录内的 `.tools` 保存本次构建使用的便携工具链，构建脚本优先使用它；常规开发机也可使用已安装的工具链。TLS 下载适配器仅用于本次环境的依赖下载，不属于 Panestra 运行依赖。
+发布 APK 需使用持续保留的签名密钥，设置以下环境变量后运行 `.\scripts\build-android.ps1`：`PANESTRA_ANDROID_KEYSTORE`、`PANESTRA_ANDROID_STORE_PASSWORD`、`PANESTRA_ANDROID_KEY_ALIAS`、`PANESTRA_ANDROID_KEY_PASSWORD`。密钥和密码不应写入仓库，正式 APK 与开发 APK 的签名不同，不能相互覆盖安装
 
-## 已实现
-
-- Go Core、SQLite WAL、逻辑单写者、迁移与在线备份／离线恢复。
-- HTTPS / WSS、P-256 身份、Windows DPAPI、Android Keystore、挑战认证、短会话与即时撤销。
-- 默认关闭的限时配对、设备角色、明确审批、限流与审计。
-- 页面和组件编辑、12 / 8 / 4 列布局、拖拽缩放、精确配置、撤销／重做与跨端同步。
-- `opId` 去重、实体 `rev`、全局 `serverSeq`、断线补齐、墓碑和明确冲突；安全的不同配置字段可自动重基。
-- 已知地址、手动 HTTPS 地址、mDNS 广播、Windows mDNS / Android NSD 候选发现。
-- 独立插件进程、framed JSON-RPC、握手、显式能力授权、心跳、崩溃恢复与 Windows Job Object。
-- 声明式系统组件、真实系统数据、经确认且单独授权的锁定会话操作。
-- 有界实时订阅、样本合并、慢客户端断开，以及签名发行包验证／分阶段激活工具。
-- 离线发行签名、逐文件摘要、第一方插件健康检查后热切换、失败保留旧版本及重启后使用已批准版本。
-
-完整验证结果见 [验收记录](docs/acceptance.md)，逐项对应研究计划的结果见 [实施对照](docs/implementation-checklist.md)。当前为 0.1.9 开发版，不作为稳定版发布。
-
-后续阶段、优先级、依赖与验收标准见 [长期发展规划](docs/roadmap.md)。优先优化底层、UI 与使用手感，仅开发 Windows / Android。按键与尺寸见[设计规范](docs/design-system.md)，网易云音乐、Codex、GLM Coding Plan、Clash Verge、ALAS 见[软件适配设计](docs/software-adapters.md)；本轮目录和详情已落地，适配 Worker 尚未实现。
-
-## 验证
+### 检查
 
 ```powershell
 .\scripts\verify.ps1
 ```
 
-包含 TypeScript 检查、Go vet、Go 单元／集成测试，以及真实 Core 的 Playwright 桌面、平板、手机三端测试与重启恢复。浏览器测试使用本机 Chrome；Windows DPAPI 测试须在真实用户配置下执行。规模测试覆盖 10 个 WS 客户端、300 个组件、200 个主题、同时重连、慢订阅者，以及 21 个 System Plugin 进程的隔离与恢复。原生壳测试脚本位于 scripts/test-native-desktop.mjs 和 scripts/test-native-android.mjs。Android 测试必须显式指定设备；完整配对／撤销测试用于专用测试设备，仅在显式设置 `PANESTRA_TEST_FRESH=1` 时清除本项目应用的数据。
+检查包括 TypeScript、Prettier、gofmt、rustfmt、Go vet 与测试，以及桌面、平板和手机尺寸的 Playwright 测试。浏览器测试需要本机 Chrome，Windows 身份与传输测试需要真实用户配置；原生 Android 验收需显式指定授权设备
 
-保留现有配对的 USB 实机检查使用 scripts/test-physical-connection.mjs，实际镜头识别使用 scripts/test-physical-scanner.mjs，均需设置 `PANESTRA_TEST_ANDROID` 为已授权的 USB 设备序列号。本次已在 M367FC 平板、Android API 37 上通过原生 NSD 发现、镜头扫码、取消扫码及已配对 Core 重连；没有清除平板数据。
+## 更新
 
-## 目录
+「设置 → 应用更新」显示当前版本，手动检查 GitHub Releases 的正式版本，可在「更新日志」查看本地记录和检查到的新版本说明
 
-| 目录             | 用途                                                        |
-| ---------------- | ----------------------------------------------------------- |
-| `core`           | 权威状态、认证、API、实时总线、Backplane、签名发行工具      |
-| `client`         | React / TypeScript 共享 Surface                             |
-| `shell/desktop`  | Windows Tauri 壳与共享原生入口                              |
-| `shell/android`  | Android 配置；生成的 Gradle 工程位于 desktop/gen/android    |
-| `shell/bridge`   | Windows TLS／DPAPI／mDNS 与 Android Keystore／NSD／TLS 桥接 |
-| `plugins/system` | 第一方 System Plugin 与 manifest                            |
-| `packages`       | API / Widget / Layout 类型契约                              |
-| `scripts`        | 构建、验证、运行与打包                                      |
-| `docs`           | 架构、协议、安全、运维与验收                                |
-| `artifacts`      | 本次构建产物、截图和测试记录，未纳入源码                    |
+Windows 通过 Tauri 官方更新器验证安装包签名，下载成功后安装并重启应用。Android 下载 APK 后校验 SHA-256、应用包名、版本和签名，再打开系统安装窗口；首次需要允许 Panestra 安装应用，最终安装由系统确认。更新保留已有布局与配对
 
-不包含公共插件市场、任意宿主 JS、云中继、CRDT、通用终端或厂商隧道 SDK。Tailscale、ZeroTier、FRP 等只改变到 Core 的网络可达性。
+尚无正式 Release、发布包不完整或网络不可用时，界面会显示相应状态，保留当前版本
 
-0.1.7 编辑布局保留实时卡片，可原位拖动和缩放。样式即时预览，内容块的顺序、列宽、对齐和显示按组件、屏幕、尺寸分别保存，窄屏设置使用底部面板。操作方式与插件要求见 [尺寸与呈现规范](docs/widget-presentation.md)。
+### 发行者
+
+Windows 自动更新采用 [Tauri 官方 updater](https://v2.tauri.app/plugin/updater/) 与 GitHub Releases 静态 `latest.json`，不需要维护更新服务器
+
+1. 用 `npm exec -- tauri signer generate -w <安全目录中的密钥文件>` 生成更新密钥，将公钥内容配置到 `shell/desktop/tauri.conf.json` 的 `plugins.updater.pubkey`。妥善备份私钥，已安装的客户端依赖此公钥
+2. 在构建环境设置 `TAURI_SIGNING_PRIVATE_KEY` 与可选的 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，构建 Windows 安装包。`requireSignedVersion` 要求签名绑定版本，防止重放旧包
+3. 在 `artifacts` 中准备 `Panestra-版本-windows-x64-setup.exe`，运行 `node scripts/create-update-manifest.mjs` 生成 `latest.json` 和安装包签名
+4. 创建标签为 `v版本` 的正式 GitHub Release，上传 Windows 安装包、对应 `.sig` 与 `latest.json`。Android 上传使用原发布签名的 `Panestra-版本-android-arm64.apk`，GitHub 的资源元数据提供下载摘要
+
+Release 正文用于新版本更新说明。推送源码、创建标签和公开发布都是独立操作，构建脚本不会自动上传
+
+## 源码结构
+
+| 目录              | 内容                                    |
+| ----------------- | --------------------------------------- |
+| `core`            | 数据、身份认证、API、实时同步与插件管理 |
+| `client`          | React / TypeScript 共享界面             |
+| `shell/desktop`   | Windows Tauri 壳与 Android 共享原生入口 |
+| `shell/android`   | Android 主 Activity 与平台配置          |
+| `shell/bridge`    | 原生发现、身份存储、网络与扫码桥接      |
+| `plugins/system`  | 系统监控插件                            |
+| `packages`        | 协议与布局类型                          |
+| `assets/branding` | 原始品牌图标                            |
+| `scripts`         | 构建、验证与打包脚本                    |
+
+Core 数据默认保留在本机，设备通过 HTTPS / WSS 通信。Windows 使用 DPAPI、Android 使用 Keystore 保存身份。配对需要电脑批准，插件操作受设备角色和授权范围限制
+
+## 更新说明
+
+### 0.1.10
+
+新增应用更新与分层更新日志，将 GitHub 入口移到品牌区，整理品牌素材和开源使用说明
+
+### 0.1.9
+
+恢复纯英文主品牌，统一全大写 slogan，调整连接页位置与版本标记
+
+### 0.1.8
+
+统一主题、控件和界面文案，简化工作空间导航与设置
+
+### 0.1.7
+
+原位动态编辑布局，增加尺寸与内容样式预设，完善触摸操作并接入 Codex 订阅额度
+
+更早记录与后续版本见 [CHANGELOG.md](CHANGELOG.md)

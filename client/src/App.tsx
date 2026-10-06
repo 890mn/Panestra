@@ -81,7 +81,8 @@ import {
   profileKey,
 } from '../../packages/widget-schema/src/presentation';
 import { LayoutCanvas, type EditorActions } from './LayoutCanvas';
-import { Brand, ProjectLink, SLOGAN } from './Brand';
+import { Brand, SLOGAN } from './Brand';
+import { AppUpdates } from './AppUpdates';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
@@ -366,15 +367,9 @@ export function App() {
   return (
     <div className="app-shell">
       <aside className={`sidebar ${sidebar ? 'open' : ''}`}>
-        <Button
-          className="brand"
-          onClick={() => {
-            setSection('workspace');
-            setSidebar(false);
-          }}
-        >
-          <Brand slogan />
-        </Button>
+        <div className="brand">
+          <Brand slogan onError={(error) => notify(errorText(error))} />
+        </div>
         <div className="nav-label">
           工作空间{' '}
           <Button
@@ -438,7 +433,6 @@ export function App() {
             </div>
             <ShieldCheck size={17} />
           </div>
-          <ProjectLink onError={(error) => notify(errorText(error))} />
         </div>
       </aside>
       {sidebar ? (
@@ -2126,6 +2120,7 @@ function SettingsPanel({
         </div>
         <ButtonPreview />
       </div>
+      <AppUpdates />
       <div className="panel">
         <div className="panel-title">
           <div>

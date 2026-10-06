@@ -3,6 +3,21 @@ use std::collections::HashMap;
 use tauri::{plugin::PluginHandle, AppHandle, Runtime, State};
 pub struct Bridge<R: Runtime>(pub PluginHandle<R>);
 #[tauri::command]
+pub async fn install_app_update<R: Runtime>(
+    _app: AppHandle<R>,
+    bridge: State<'_, Bridge<R>>,
+    expected_version: String,
+) -> Result<Value, String> {
+    bridge
+        .0
+        .run_mobile_plugin_async(
+            "installAppUpdate",
+            json!({"expectedVersion": expected_version}),
+        )
+        .await
+        .map_err(|e| e.to_string())
+}
+#[tauri::command]
 pub fn open_github<R: Runtime>(
     _app: AppHandle<R>,
     bridge: State<'_, Bridge<R>>,

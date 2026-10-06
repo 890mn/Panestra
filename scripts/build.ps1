@@ -22,6 +22,22 @@ if ($Desktop) {
     Copy-Item -LiteralPath 'artifacts/system-plugin.exe' -Destination 'shell/desktop/binaries/system-plugin-x86_64-pc-windows-msvc.exe'
     . "$PSScriptRoot/native-env.ps1"
     Set-Location -LiteralPath 'shell/desktop'
-    npm exec -- tauri build
-    if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
+    $localSigningKey = Join-Path $workspace '.tools/publisher/updater-key.protected'
+    $loadedLocalKey = $false
+    try {
+        if (-not $env:TAURI_SIGNING_PRIVATE_KEY -and (Test-Path -LiteralPath $localSigningKey)) {
+            Add-Type -AssemblyName System.Security
+            $env:TAURI_SIGNING_PRIVATE_KEY = [Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect(
+                [IO.File]::ReadAllBytes($localSigningKey), $null, [Security.Cryptography.DataProtectionScope]::CurrentUser))
+            $loadedLocalKey = $true
+        }
+        # Contributors can build locally without the publisher key. Public releases
+        # must retain createUpdaterArtifacts=true and provide their signing secret.
+        if ($env:TAURI_SIGNING_PRIVATE_KEY) { npm exec -- tauri build }
+        else { npm exec -- tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}' }
+        if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
+    } finally {
+        if ($loadedLocalKey) { Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY }
+    }
 }
+Set-Location -LiteralPath $workspace

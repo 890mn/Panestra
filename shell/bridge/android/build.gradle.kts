@@ -11,6 +11,7 @@ android {
     buildFeatures { buildConfig = true }
 }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     implementation(project(":tauri-android"))
     implementation("androidx.activity:activity:1.10.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

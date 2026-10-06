@@ -3,6 +3,11 @@ $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot/android-env.ps1"
 Set-Location -LiteralPath (Join-Path $workspace 'shell/desktop')
+if (-not $Debug) {
+    foreach ($name in @('PANESTRA_ANDROID_KEYSTORE', 'PANESTRA_ANDROID_STORE_PASSWORD', 'PANESTRA_ANDROID_KEY_ALIAS', 'PANESTRA_ANDROID_KEY_PASSWORD')) {
+        if (-not [Environment]::GetEnvironmentVariable($name)) { throw "Release Android builds require $name; use -Debug for development" }
+    }
+}
 if (-not (Test-Path -LiteralPath 'gen/android/gradlew.bat')) {
     npm exec -- tauri android init --config ../android/tauri.conf.json
     if ($LASTEXITCODE -ne 0) { throw 'Android project initialization failed' }
@@ -39,3 +44,4 @@ if ($tauriBuildFailed -or ($Debug -and $OptimizedNative)) {
     & .\gradlew.bat @gradleTasks -x ":app:rustBuildArm64$variant" --console=plain
     if ($LASTEXITCODE -ne 0) { throw 'Android Gradle build failed' }
 }
+Set-Location -LiteralPath $workspace

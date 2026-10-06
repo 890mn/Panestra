@@ -6,6 +6,9 @@ use std::{
 };
 use tauri::Manager;
 
+#[cfg(windows)]
+mod updates;
+
 #[derive(Clone, serde::Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct LocalCoreInfo {
@@ -45,11 +48,28 @@ impl Drop for CoreProcess {
     }
 }
 
+#[cfg(not(target_os = "android"))]
+fn shutdown_core(app: &tauri::AppHandle) {
+    if let Ok(mut child) = app.state::<CoreProcess>().0.lock() {
+        if let Some(child) = child.take() {
+            stop_core(child);
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_panestra_bridge::init())
-        .invoke_handler(tauri::generate_handler![local_core_info]);
+    let builder = tauri::Builder::default().plugin(tauri_plugin_panestra_bridge::init());
+    #[cfg(windows)]
+    let builder = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::UpdateLock::default())
+        .invoke_handler(tauri::generate_handler![
+            local_core_info,
+            updates::install_app_update
+        ]);
+    #[cfg(not(windows))]
+    let builder = builder.invoke_handler(tauri::generate_handler![local_core_info]);
 
     builder
         .setup(|app| {

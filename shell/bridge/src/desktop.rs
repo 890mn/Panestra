@@ -25,14 +25,37 @@ use tokio_tungstenite::{tungstenite::Message, Connector};
 pub struct Connections(Mutex<HashMap<String, oneshot::Sender<()>>>);
 
 #[tauri::command]
-pub fn open_github() -> Result<(), String> {
+pub async fn open_github() -> Result<(), String> {
+    // Browser activation may wait for another process. Never run it on the
+    // WebView UI thread, where ShellExecute can block message delivery.
+    tokio::time::timeout(
+        Duration::from_secs(15),
+        tauri::async_runtime::spawn_blocking(open_project_browser),
+    )
+    .await
+    .map_err(|_| "浏览器响应超时，请稍后重试".to_string())?
+    .map_err(|_| "无法打开浏览器，请稍后重试".to_string())?
+}
+
+fn open_project_browser() -> Result<(), String> {
     #[cfg(windows)]
     {
-        use windows_sys::Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL};
+        use windows_sys::Win32::{
+            System::Com::{
+                CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE,
+            },
+            UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL},
+        };
         let url: Vec<u16> = "https://github.com/890mn/Panestra"
             .encode_utf16()
             .chain(Some(0))
             .collect();
+        let initialized = unsafe {
+            CoInitializeEx(
+                std::ptr::null(),
+                (COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) as u32,
+            )
+        };
         let opened = unsafe {
             ShellExecuteW(
                 std::ptr::null_mut(),
@@ -43,6 +66,9 @@ pub fn open_github() -> Result<(), String> {
                 SW_SHOWNORMAL,
             )
         };
+        if initialized >= 0 {
+            unsafe { CoUninitialize() };
+        }
         if opened as isize <= 32 {
             return Err("无法打开浏览器，请访问 github.com/890mn/Panestra".into());
         }

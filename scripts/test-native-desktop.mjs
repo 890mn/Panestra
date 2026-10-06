@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -56,7 +56,7 @@ try {
   if (!(await page.getByLabel('首次认领码').inputValue()))
     throw new Error('Native sidecar bootstrap code missing');
   await page.screenshot({
-    path: path.join(root, 'artifacts/connection-desktop-native-0.1.9.png'),
+    path: path.join(root, 'artifacts/connection-desktop-native-0.1.10.png'),
     fullPage: true,
     animations: 'disabled',
   });
@@ -80,6 +80,29 @@ try {
     animations: 'disabled',
   });
   if (errors.length) throw new Error(errors.join('\n'));
+  const updateGuard = await page.evaluate(async () => {
+    const callback = window.__TAURI_INTERNALS__.transformCallback(() => {}, true);
+    try {
+      await window.__TAURI_INTERNALS__.invoke('install_app_update', {
+        expectedVersion: '0.1.10',
+        progress: `__CHANNEL__:${callback}`,
+      });
+    } catch (error) {
+      return String(error);
+    }
+  });
+  expect(updateGuard).toContain('当前没有可安装的更新');
+  await page.getByRole('button', { name: '设置', exact: true }).click();
+  await page.getByRole('button', { name: '检查更新', exact: true }).click();
+  await expect(page.getByRole('button', { name: '检查更新', exact: true })).toBeEnabled({
+    timeout: 20000,
+  });
+  const updateCheck = await page.locator('.update-status').innerText();
+  await page.getByRole('button', { name: '更新日志', exact: true }).click();
+  await page.getByRole('button', { name: '查看 v0.1.10 更新说明', exact: true }).click();
+  await expect(page.locator('.release-detail')).toContainText('设置新增应用更新');
+  await page.screenshot({ path: path.join(root, 'artifacts/native-desktop-update-logs.png') });
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
   // Tauri's invoke property is immutable; exercise the actual OS command directly.
   await page.evaluate(() =>
     window.__TAURI_INTERNALS__.invoke('plugin:panestra-bridge|open_github'),
@@ -96,6 +119,8 @@ try {
         transport: 'native pinned TLS 1.3 + WSS',
         fingerprint,
         systemBrowserProjectLink: true,
+        updateGuard,
+        updateCheck,
         errors,
       },
       null,

@@ -2070,20 +2070,23 @@ legend {
   }
 }
 
-.project-link {
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
   min-height: 44px;
   text-decoration: none;
+  color: var(--text);
+  border-radius: 8px;
 }
-.project-icon {
+.brand-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+}
+.brand-icon-wrap {
   position: relative;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
-}
-.project-icon > img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  display: inline-flex;
+  flex-shrink: 0;
 }
 .github-badge {
   position: absolute;
@@ -2098,4 +2101,86 @@ legend {
   align-items: center;
   justify-content: center;
   outline: 2px solid var(--sidebar);
+}
+:root:not([data-theme='night']) .github-badge {
+  background: transparent;
+  color: #111;
+  outline: none;
+}
+.update-heading,
+.update-actions,
+.update-install-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.update-actions {
+  margin-left: auto;
+}
+.update-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 25px 24px;
+}
+.update-status[data-error] {
+  color: var(--danger);
+}
+.update-status progress {
+  width: 160px;
+  height: 6px;
+  accent-color: var(--accent);
+}
+.update-install-row {
+  justify-content: space-between;
+  padding: 0 25px 24px;
+}
+.update-install-row p {
+  flex: 1 1 280px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.release-list {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+}
+.release-list .release-row {
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 14px;
+  background: var(--panel-soft);
+}
+.release-row small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.release-detail h3 {
+  margin-top: 24px;
+}
+.release-detail pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.9;
+}
+@media (max-width: 767px) {
+  .update-heading {
+    align-items: flex-start;
+  }
+  .update-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+  .update-actions > button {
+    flex: 1;
+  }
+  .brand-link {
+    gap: 7px;
+  }
 }

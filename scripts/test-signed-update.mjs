@@ -9,7 +9,7 @@ mkdirSync(path.join(root, '.tools/update-tests'), { recursive: true });
 const data = mkdtempSync(path.join(root, '.tools/update-tests/core-'));
 const key = path.join(data, 'publisher.protected');
 const metadata = path.join(data, 'release');
-const artifact = path.join(root, 'artifacts/Panestra-0.1.9-windows-x64.zip');
+const artifact = path.join(root, 'artifacts/Panestra-0.1.10-windows-x64.zip');
 const run = (exe, args) =>
   execFileSync(path.join(root, 'artifacts', exe), args, {
     cwd: root,
@@ -23,7 +23,7 @@ run('panestra-sign.exe', [
   '--artifact',
   artifact,
   '--version',
-  '0.1.9',
+  '0.1.10',
   '--sequence',
   '1',
   '--output',

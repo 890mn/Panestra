@@ -28,7 +28,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         mobile::request,
         mobile::connect,
         mobile::disconnect,
-        mobile::open_github
+        mobile::open_github,
+        mobile::install_app_update
     ]);
     builder
         .setup(|app, api| {

@@ -7,6 +7,7 @@ const COMMANDS: &[&str] = &[
     "connect",
     "disconnect",
     "open_github",
+    "install_app_update",
 ];
 fn main() {
     tauri_plugin::Builder::new(COMMANDS)
