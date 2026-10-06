@@ -626,7 +626,7 @@ export function App() {
               {editing ? (
                 <div className="editor-note">
                   <Grip size={15} />
-                  拖动卡片标题移动，拖动右下角缩放，点选卡片可实时调整样式和内部内容，网格自动吸附
+                  拖动标题或卡片内容移动，右下角缩放，点选后调整位置、大小与样式，网格自动吸附
                 </div>
               ) : null}
               <LayoutCanvas
@@ -1219,6 +1219,7 @@ export const WidgetCard = memo(function WidgetCard(props: {
   return (
     <>
       <article
+        {...(editing ? editor.surface : {})}
         className={`widget-card ${editing ? 'editable' : ''} ${editor.dragging ? 'dragging' : ''} ${editing && editor.selected ? 'layout-selected' : ''} ${editing && editor.target ? 'layout-target' : ''}`}
         data-widget-type={widget.data.type}
         style={{ left, top: l.y * 84, width, height: l.h * 84 - 16 }}
@@ -1255,6 +1256,7 @@ export const WidgetCard = memo(function WidgetCard(props: {
             <Button
               className="icon-button"
               aria-label={`配置${widget.data.title}`}
+              disabled={editing && !!editor.move.disabled}
               onClick={configure}
             >
               <MoreHorizontal size={18} />

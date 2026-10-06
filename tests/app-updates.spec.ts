@@ -19,7 +19,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await server?.close();
 });
-const release = (tag = '0.1.16') => ({
+const release = (tag = '0.1.17') => ({
   tag_name: `v${tag}`,
   body: '<script>unsafe()</script>\n- 新功能',
   draft: false,
@@ -66,12 +66,12 @@ test('版本检查区分空发布、当前版本、旧版本、错误与离线�
   await fixture(200, release());
   await expect(page.getByRole('button', { name: '下载并更新', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: '更新日志', exact: true }).click();
-  await page.getByRole('button', { name: '查看 v0.1.16 更新说明', exact: true }).click();
+  await page.getByRole('button', { name: '查看 v0.1.17 更新说明', exact: true }).click();
   await expect(page.locator('.release-detail pre')).toContainText('<script>unsafe()</script>');
   expect(await page.evaluate(() => 'unsafe' in window)).toBe(false);
   await page.getByRole('button', { name: '返回版本列表', exact: true }).click();
   await page.getByRole('button', { name: `查看 v${version} 更新说明`, exact: true }).click();
-  await expect(page.locator('.release-detail')).toContainText('接入 ALAS 实例状态与任务调度读取');
+  await expect(page.locator('.release-detail')).toContainText('优化小卡片触摸拖动与布局编辑预览');
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   await expect(page.getByRole('button', { name: '更新日志', exact: true })).toBeFocused();
   const compared = await page.evaluate(() => (window as any).compareVersions('0.1.10', '0.1.9'));
@@ -89,7 +89,7 @@ test('Windows 下载进度与失败可重试，不假报成功；三种尺寸的
   await expect(page.getByRole('status')).toContainText('签名校验失败');
   await expect(update).toBeEnabled();
   expect(await page.evaluate(() => (window as any).updateInvocations)).toEqual([
-    { command: 'install_app_update', version: '0.1.16' },
+    { command: 'install_app_update', version: '0.1.17' },
   ]);
   for (const width of [390, 900, 1440])
     for (const theme of ['day', 'night']) {
@@ -145,7 +145,7 @@ test('Android 缺少摘要时禁止更新，完整发布才调用系统安装入
   await page.getByRole('button', { name: '下载并更新', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('请在系统窗口确认安装');
   expect(await page.evaluate(() => (window as any).updateInvocations)).toEqual([
-    { command: 'plugin:panestra-bridge|install_app_update', version: '0.1.16' },
+    { command: 'plugin:panestra-bridge|install_app_update', version: '0.1.17' },
   ]);
   await context.close();
 });
@@ -174,7 +174,7 @@ test('品牌打开关于菜单，日志原位切换，关闭恢复焦点；窄�
       await expect(page.getByRole('dialog')).toHaveCount(1);
       await dialog.getByRole('button', { name: `查看 v${version} 更新说明`, exact: true }).click();
       await expect(dialog.locator('.release-detail')).toContainText(
-        '接入 ALAS 实例状态与任务调度读取',
+        '优化小卡片触摸拖动与布局编辑预览',
       );
       await dialog.getByRole('button', { name: '返回版本列表', exact: true }).click();
       await dialog.getByRole('button', { name: '返回关于', exact: true }).click();

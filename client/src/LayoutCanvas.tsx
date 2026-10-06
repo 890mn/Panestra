@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
   type ButtonHTMLAttributes,
+  type HTMLAttributes,
   type CSSProperties,
   type ReactNode,
   type PointerEvent,
@@ -16,6 +17,8 @@ import {
   ArrowLeftRight,
   Minus,
   Plus,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import type {
   Breakpoint,
@@ -36,6 +39,7 @@ import {
 } from '../../packages/widget-schema/src';
 import { Button, Modal } from './components';
 import { ProfileControls } from './ProfileControls';
+import { GeometryControls } from './GeometryControls';
 import { connectionErrorText } from './connection-errors';
 import type { ContentEditor } from './ContentLayout';
 import {
@@ -54,10 +58,11 @@ export type EditorActions = {
   select: () => void;
   move: ButtonHTMLAttributes<HTMLButtonElement>;
   resize: ButtonHTMLAttributes<HTMLButtonElement>;
+  surface?: HTMLAttributes<HTMLElement>;
 };
 type Drag = {
   pointerId: number;
-  button: HTMLButtonElement;
+  button: HTMLElement;
   x: number;
   y: number;
   scrollY: number;
@@ -65,6 +70,7 @@ type Drag = {
   clientX: number;
   clientY: number;
   width: number;
+  viewportBottom: number;
   moved: boolean;
   mode: 'move' | 'resize';
   original: Layout;
@@ -111,6 +117,10 @@ export function LayoutCanvas({
   const [profileError, setProfileError] = useState('');
   const [contentEditing, setContentEditing] = useState(false);
   const [selectedPart, setSelectedPart] = useState('');
+  const [collapsed, setCollapsed] = useState(false);
+  const [geometryPending, setGeometryPending] = useState(false);
+  const [geometryReset, setGeometryReset] = useState(0);
+  const geometryBase = useRef<LayoutRecord[] | null>(null);
   const selectedRecord = records.find((r) => r.layout.widgetId === selected);
   const selectedWidget = widgets.find((w) => w.id === selected);
   const layouts = draft || records.map((r) => r.layout);
@@ -127,8 +137,8 @@ export function LayoutCanvas({
       JSON.stringify(widgetProfile(selectedWidget.data, selectedLayout));
   const selectCard = (id: string) => {
     if (id === selected) return;
-    if (profileDirty || profileBusy) {
-      setHint('先保存或取消当前尺寸预设，再选择其他卡片');
+    if (profileDirty || profileBusy || geometryPending) {
+      setHint('先保存或取消当前预览，再选择其他卡片');
       return;
     }
     setSelected(id);
@@ -195,7 +205,7 @@ export function LayoutCanvas({
     };
   }, []);
   useEffect(() => {
-    if (!editing || saving) cancel();
+    if (!editing || (saving && drag.current)) cancel();
   }, [editing, saving]);
   const save = async (next: Layout[], baseline = records) => {
     if (saving || !editing) return;
@@ -206,6 +216,15 @@ export function LayoutCanvas({
       setHint('未保存，请检查最新布局后重试');
     }
   };
+  const cancelGeometry = () => {
+    geometryBase.current = null;
+    setGeometryPending(false);
+    setGeometryReset((value) => value + 1);
+    setDraft(null);
+  };
+  useEffect(() => {
+    if (!editing) cancelGeometry();
+  }, [editing]);
   const tick = () => {
     const d = drag.current;
     if (!d) return;
@@ -215,13 +234,14 @@ export function LayoutCanvas({
       return;
     }
     const edge = 64;
+    const bottom = d.viewportBottom;
     const dy =
       d.clientY < edge
         ? -Math.ceil((edge - d.clientY) / 4)
-        : d.clientY > innerHeight - edge
-          ? Math.ceil((d.clientY - innerHeight + edge) / 4)
+        : d.clientY > bottom - edge
+          ? Math.ceil((d.clientY - bottom + edge) / 4)
           : 0;
-    if (dy) window.scrollBy(0, Math.max(-20, Math.min(20, dy)));
+    if (dy && Math.abs(d.clientY - d.y) > 12) window.scrollBy(0, Math.max(-20, Math.min(20, dy)));
     const viewport = scroller.current!;
     const bounds = viewport.getBoundingClientRect();
     if (viewport.scrollWidth > viewport.clientWidth) {
@@ -265,11 +285,12 @@ export function LayoutCanvas({
     }
     frame.current = requestAnimationFrame(tick);
   };
-  const begin = (event: PointerEvent<HTMLButtonElement>, layout: Layout, mode: Drag['mode']) => {
+  const begin = (event: PointerEvent<HTMLElement>, layout: Layout, mode: Drag['mode']) => {
     if (
       !editing ||
       saving ||
       profileBusy ||
+      geometryPending ||
       drag.current ||
       (mode === 'resize' && (profileDirty || contentEditing)) ||
       (profileDirty && layout.widgetId !== selected) ||
@@ -279,6 +300,13 @@ export function LayoutCanvas({
       return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
+    const inspector = canvas.current
+      ?.closest('.layout-workbench')
+      ?.querySelector('.layout-inspector');
+    const viewportBottom =
+      inspector && getComputedStyle(inspector).position === 'fixed'
+        ? Math.min(innerHeight, inspector.getBoundingClientRect().top)
+        : innerHeight;
     drag.current = {
       pointerId: event.pointerId,
       button: event.currentTarget,
@@ -289,6 +317,7 @@ export function LayoutCanvas({
       scrollY: window.scrollY,
       scrollX: scroller.current!.scrollLeft,
       width: canvas.current!.clientWidth,
+      viewportBottom,
       moved: false,
       original: layout,
       baseline: records,
@@ -300,14 +329,14 @@ export function LayoutCanvas({
     planned.current = null;
     frame.current = requestAnimationFrame(tick);
   };
-  const move = (event: PointerEvent<HTMLButtonElement>) => {
+  const move = (event: PointerEvent<HTMLElement>) => {
     const d = drag.current;
     if (d?.pointerId === event.pointerId) {
       d.clientX = event.clientX;
       d.clientY = event.clientY;
     }
   };
-  const finish = (event: PointerEvent<HTMLButtonElement>) => {
+  const finish = (event: PointerEvent<HTMLElement>) => {
     const d = drag.current;
     if (!d || d.pointerId !== event.pointerId) return;
     d.clientX = event.clientX;
@@ -320,7 +349,13 @@ export function LayoutCanvas({
     if (next) void save(next, d.baseline);
   };
   const nudge = (x: number, y: number, dw = 0, dh = 0) => {
-    if (!selectedRecord || profileBusy || ((dw || dh) && (profileDirty || contentEditing))) return;
+    if (
+      !selectedRecord ||
+      profileBusy ||
+      geometryPending ||
+      ((dw || dh) && (profileDirty || contentEditing))
+    )
+      return;
     const l = selectedRecord.layout;
     const desired = clampLayout({
       ...l,
@@ -351,9 +386,14 @@ export function LayoutCanvas({
       if (drag.current) cancel();
     },
     onClick: () => selectCard(layout.widgetId),
-    disabled: saving || profileBusy || (mode === 'resize' && (profileDirty || contentEditing)),
+    disabled:
+      saving ||
+      profileBusy ||
+      geometryPending ||
+      (mode === 'resize' && (profileDirty || contentEditing)),
     onKeyDown: (event) => {
-      if (profileBusy || (mode === 'resize' && (profileDirty || contentEditing))) return;
+      if (profileBusy || geometryPending || (mode === 'resize' && (profileDirty || contentEditing)))
+        return;
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
       event.preventDefault();
       const dx = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
@@ -377,160 +417,206 @@ export function LayoutCanvas({
   });
   return (
     <>
-      <div className={`layout-workbench ${editing ? 'workbench-editing' : ''}`}>
+      <div
+        className={`layout-workbench ${editing ? 'workbench-editing' : ''} ${collapsed ? 'inspector-collapsed' : ''}`}
+      >
         {editing ? (
           <div className="layout-inspector">
             <div className="layout-inspector-title">
               <strong>{selectedWidget?.data.title || '选择一张卡片'}</strong>
               <span>
-                {selectedRecord
-                  ? `${selectedRecord.layout.w} 列 × ${selectedRecord.layout.h} 行`
+                {selectedLayout
+                  ? `${selectedLayout.w} 列 × ${selectedLayout.h} 行`
                   : '拖动移位，覆盖卡片时交换'}
               </span>
+              <Button
+                className="icon-button inspector-toggle"
+                aria-label={collapsed ? '展开编辑面板' : '收起编辑面板'}
+                aria-expanded={!collapsed}
+                onClick={() => setCollapsed(!collapsed)}
+              >
+                {collapsed ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </Button>
             </div>
-            <div className="layout-tools">
-              <select
-                className="layout-size-select"
-                aria-label="预制尺寸"
-                disabled={!selectedRecord || saving || profileDirty || profileBusy}
-                value={
-                  selectedRecord
-                    ? presetsFor(breakpoint).find(
-                        (p) => p.w === selectedRecord.layout.w && p.h === selectedRecord.layout.h,
-                      )?.id || ''
-                    : ''
-                }
-                onChange={(event) => {
-                  const preset = presetsFor(breakpoint).find((p) => p.id === event.target.value);
-                  if (preset && selectedRecord)
-                    void save(
+            <div className="layout-inspector-body" hidden={collapsed}>
+              <fieldset className="layout-tools-fieldset" disabled={geometryPending}>
+                <div className="layout-tools">
+                  <select
+                    className="layout-size-select"
+                    aria-label="预制尺寸"
+                    disabled={!selectedRecord || saving || profileDirty || profileBusy}
+                    value={
+                      selectedRecord
+                        ? presetsFor(breakpoint).find(
+                            (p) =>
+                              p.w === selectedRecord.layout.w && p.h === selectedRecord.layout.h,
+                          )?.id || ''
+                        : ''
+                    }
+                    onChange={(event) => {
+                      const preset = presetsFor(breakpoint).find(
+                        (p) => p.id === event.target.value,
+                      );
+                      if (preset && selectedRecord)
+                        void save(
+                          arrangeLayouts(
+                            records.map((r) => r.layout),
+                            clampLayout({
+                              ...selectedRecord.layout,
+                              w: preset.w,
+                              h: preset.h,
+                              x: Math.min(selectedRecord.layout.x, COLUMNS[breakpoint] - preset.w),
+                            }),
+                          ),
+                        );
+                    }}
+                  >
+                    <option value="">自定义尺寸</option>
+                    {presetsFor(breakpoint).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label} · {p.w} × {p.h}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="layout-tool-group" aria-label="逐格移动">
+                    {[
+                      { icon: ArrowLeft, x: -1, y: 0, label: '向左移动' },
+                      { icon: ArrowUp, x: 0, y: -1, label: '向上移动' },
+                      { icon: ArrowDown, x: 0, y: 1, label: '向下移动' },
+                      { icon: ArrowRight, x: 1, y: 0, label: '向右移动' },
+                    ].map((item) => (
+                      <Button
+                        key={item.label}
+                        className="icon-button"
+                        aria-label={item.label}
+                        disabled={!selectedRecord || saving || profileBusy}
+                        onClick={() => nudge(item.x, item.y)}
+                      >
+                        <item.icon size={18} />
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="layout-tool-group">
+                    <Button
+                      className="secondary"
+                      aria-label="减小卡片宽度"
+                      disabled={!selectedRecord || saving || profileDirty || profileBusy}
+                      onClick={() => nudge(0, 0, -1)}
+                    >
+                      <Minus size={16} />
+                      宽度
+                    </Button>
+                    <Button
+                      className="secondary"
+                      aria-label="增加卡片宽度"
+                      disabled={!selectedRecord || saving || profileDirty || profileBusy}
+                      onClick={() => nudge(0, 0, 1)}
+                    >
+                      <Plus size={16} />
+                      宽度
+                    </Button>
+                    <Button
+                      className="secondary"
+                      aria-label="减小卡片高度"
+                      disabled={!selectedRecord || saving || profileDirty || profileBusy}
+                      onClick={() => nudge(0, 0, 0, -1)}
+                    >
+                      <Minus size={16} />
+                      高度
+                    </Button>
+                    <Button
+                      className="secondary"
+                      aria-label="增加卡片高度"
+                      disabled={!selectedRecord || saving || profileDirty || profileBusy}
+                      onClick={() => nudge(0, 0, 0, 1)}
+                    >
+                      <Plus size={16} />
+                      高度
+                    </Button>
+                  </div>
+                  <div className="layout-tool-group">
+                    <Button
+                      className="secondary"
+                      disabled={!selectedRecord || widgets.length < 2 || saving || profileBusy}
+                      onClick={() => setSwap(true)}
+                    >
+                      <ArrowLeftRight size={16} />
+                      交换卡片
+                    </Button>
+                    <Button
+                      className="secondary"
+                      disabled={!widgets.length || saving || profileBusy}
+                      onClick={() => void save(compactLayouts(records.map((r) => r.layout)))}
+                    >
+                      <AlignStartVertical size={16} />
+                      自动对齐
+                    </Button>
+                  </div>
+                </div>
+              </fieldset>
+              {selectedRecord ? (
+                <GeometryControls
+                  layout={selectedRecord.layout}
+                  reset={geometryReset}
+                  disabled={saving || profileBusy || profileDirty || contentEditing}
+                  pending={geometryPending}
+                  preview={(next) => {
+                    geometryBase.current ??= records;
+                    setGeometryPending(true);
+                    setDraft(
                       arrangeLayouts(
-                        records.map((r) => r.layout),
-                        clampLayout({
-                          ...selectedRecord.layout,
-                          w: preset.w,
-                          h: preset.h,
-                          x: Math.min(selectedRecord.layout.x, COLUMNS[breakpoint] - preset.w),
-                        }),
+                        geometryBase.current.map((record) => record.layout),
+                        next,
                       ),
                     );
-                }}
-              >
-                <option value="">自定义尺寸</option>
-                {presetsFor(breakpoint).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label} · {p.w} × {p.h}
-                  </option>
-                ))}
-              </select>
-              <div className="layout-tool-group" aria-label="逐格移动">
-                {[
-                  { icon: ArrowLeft, x: -1, y: 0, label: '向左移动' },
-                  { icon: ArrowUp, x: 0, y: -1, label: '向上移动' },
-                  { icon: ArrowDown, x: 0, y: 1, label: '向下移动' },
-                  { icon: ArrowRight, x: 1, y: 0, label: '向右移动' },
-                ].map((item) => (
-                  <Button
-                    key={item.label}
-                    className="icon-button"
-                    aria-label={item.label}
-                    disabled={!selectedRecord || saving || profileBusy}
-                    onClick={() => nudge(item.x, item.y)}
-                  >
-                    <item.icon size={18} />
-                  </Button>
-                ))}
-              </div>
-              <div className="layout-tool-group">
-                <Button
-                  className="secondary"
-                  aria-label="减小卡片宽度"
-                  disabled={!selectedRecord || saving || profileDirty || profileBusy}
-                  onClick={() => nudge(0, 0, -1)}
-                >
-                  <Minus size={16} />
-                  宽度
-                </Button>
-                <Button
-                  className="secondary"
-                  aria-label="增加卡片宽度"
-                  disabled={!selectedRecord || saving || profileDirty || profileBusy}
-                  onClick={() => nudge(0, 0, 1)}
-                >
-                  <Plus size={16} />
-                  宽度
-                </Button>
-                <Button
-                  className="secondary"
-                  aria-label="减小卡片高度"
-                  disabled={!selectedRecord || saving || profileDirty || profileBusy}
-                  onClick={() => nudge(0, 0, 0, -1)}
-                >
-                  <Minus size={16} />
-                  高度
-                </Button>
-                <Button
-                  className="secondary"
-                  aria-label="增加卡片高度"
-                  disabled={!selectedRecord || saving || profileDirty || profileBusy}
-                  onClick={() => nudge(0, 0, 0, 1)}
-                >
-                  <Plus size={16} />
-                  高度
-                </Button>
-              </div>
-              <div className="layout-tool-group">
-                <Button
-                  className="secondary"
-                  disabled={!selectedRecord || widgets.length < 2 || saving || profileBusy}
-                  onClick={() => setSwap(true)}
-                >
-                  <ArrowLeftRight size={16} />
-                  交换卡片
-                </Button>
-                <Button
-                  className="secondary"
-                  disabled={!widgets.length || saving || profileBusy}
-                  onClick={() => void save(compactLayouts(records.map((r) => r.layout)))}
-                >
-                  <AlignStartVertical size={16} />
-                  自动对齐
-                </Button>
-              </div>
+                    setHint('位置与大小实时预览，应用后同步到其他设备');
+                  }}
+                  save={() => {
+                    if (!draft || !geometryBase.current) return;
+                    void commit(draft, geometryBase.current)
+                      .then(() => {
+                        cancelGeometry();
+                        setHint('位置与大小已保存');
+                      })
+                      .catch(() => setHint('未保存，布局可能已变更，请取消预览后重试'));
+                  }}
+                  cancel={cancelGeometry}
+                />
+              ) : null}
+              <p className="layout-feedback" role="status">
+                {active
+                  ? target
+                    ? '松手交换卡片，其他卡片自动让位'
+                    : '松手保存位置 · 滑到屏幕边缘可继续滚动 · Esc 取消'
+                  : saving
+                    ? '正在保存整组布局…'
+                    : hint || '拖动标题或卡片内容移动，右下角调整大小，点选卡片后可调整位置与样式'}
+              </p>
+              {!geometryPending && selectedWidget && selectedLayout && profile ? (
+                <ProfileControls
+                  widget={selectedWidget.data}
+                  layout={selectedLayout}
+                  profile={profile}
+                  change={changeProfile}
+                  contentEditing={contentEditing}
+                  toggleContent={() => {
+                    setContentEditing(!contentEditing);
+                    setSelectedPart(BLOCKS[selectedWidget.data.type][0].id);
+                  }}
+                  selectedPart={selectedPart}
+                  selectPart={setSelectedPart}
+                  dirty={profileDirty}
+                  busy={profileBusy}
+                  save={() => void persistProfile()}
+                  cancel={() => {
+                    setProfileDraft(null);
+                    profileBase.current = null;
+                    setProfileError('');
+                  }}
+                  error={profileError}
+                />
+              ) : null}
             </div>
-            <p className="layout-feedback" role="status">
-              {active
-                ? target
-                  ? '松手交换卡片，其他卡片自动让位'
-                  : '松手保存位置 · 滑到屏幕边缘可继续滚动 · Esc 取消'
-                : saving
-                  ? '正在保存整组布局…'
-                  : hint || '拖动卡片标题移动，右下角调整大小，点击标题选择卡片'}
-            </p>
-            {selectedWidget && selectedLayout && profile ? (
-              <ProfileControls
-                widget={selectedWidget.data}
-                layout={selectedLayout}
-                profile={profile}
-                change={changeProfile}
-                contentEditing={contentEditing}
-                toggleContent={() => {
-                  setContentEditing(!contentEditing);
-                  setSelectedPart(BLOCKS[selectedWidget.data.type][0].id);
-                }}
-                selectedPart={selectedPart}
-                selectPart={setSelectedPart}
-                dirty={profileDirty}
-                busy={profileBusy}
-                save={() => void persistProfile()}
-                cancel={() => {
-                  setProfileDraft(null);
-                  profileBase.current = null;
-                  setProfileError('');
-                }}
-                error={profileError}
-              />
-            ) : null}
           </div>
         ) : null}
         <div ref={scroller} className={`canvas-scroll preview-${previewMode}`}>
@@ -565,6 +651,38 @@ export function LayoutCanvas({
                     : undefined,
                 move: bindings(layout, 'move'),
                 resize: bindings(layout, 'resize'),
+                surface: editing
+                  ? {
+                      onPointerDown: (event) => {
+                        if (
+                          (event.target as HTMLElement).closest('button,a,input,select,textarea') ||
+                          contentEditing
+                        )
+                          return;
+                        begin(event, layout, 'move');
+                      },
+                      onPointerMove: move,
+                      onPointerUp: finish,
+                      onPointerCancel: () => {
+                        if (drag.current) {
+                          cancel();
+                          setHint('拖动已取消');
+                        }
+                      },
+                      onLostPointerCapture: () => {
+                        if (drag.current) cancel();
+                      },
+                      onClick: (event) => {
+                        if (
+                          !(event.target as HTMLElement).closest(
+                            'button,a,input,select,textarea',
+                          ) &&
+                          !contentEditing
+                        )
+                          selectCard(widget.id);
+                      },
+                    }
+                  : undefined,
               });
             })}
             {!widgets.length ? empty : null}

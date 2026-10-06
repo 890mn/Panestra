@@ -148,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.15.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.16.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.15.png`,
+      path: `artifacts/connection-${label}-0.1.16.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -346,7 +346,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.15');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.16');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -898,5 +898,101 @@ test('ALAS：生成只读桥接、Owner 配置权限与跨设备状态组件', a
   await expect(tablet.locator('[data-widget-type="task-status"]')).toContainText('未启用');
   await expect(desktop.locator('.alas-launcher')).toHaveCount(0);
   await desktop.getByRole('button', { name: '关闭', exact: true }).click();
+  expect(errors).toEqual([]);
+});
+
+test('自由编辑：尺寸位置实时预览、应用与取消、小卡整面触摸拖动及面板收起', async () => {
+  for (const surface of [desktop, tablet]) {
+    const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
+    if (await menu.isVisible()) await menu.click();
+    await surface.getByRole('button', { name: '总览', exact: true }).click();
+  }
+  const cpu = tablet.getByTestId('widget-cpu');
+  await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
+  await cpu.locator('.layout-move').click();
+  const initial = await cpu.evaluate((el) => ({
+    left: (el as HTMLElement).style.left,
+    top: (el as HTMLElement).style.top,
+    width: (el as HTMLElement).style.width,
+    height: (el as HTMLElement).style.height,
+  }));
+  await tablet.getByLabel('卡片左侧列', { exact: true }).fill('0');
+  await tablet.getByLabel('卡片宽度', { exact: true }).fill('3');
+  await tablet.getByLabel('卡片高度', { exact: true }).fill('2');
+  await expect(cpu).toHaveCSS('height', '152px');
+  await tablet.getByRole('button', { name: '取消位置预览', exact: true }).click();
+  await expect(cpu).toHaveCSS('height', initial.height);
+  await tablet.getByLabel('卡片左侧列', { exact: true }).fill('0');
+  await tablet.getByLabel('卡片宽度', { exact: true }).fill('3');
+  await tablet.getByLabel('卡片高度', { exact: true }).fill('2');
+  await tablet.getByRole('button', { name: '应用位置与大小', exact: true }).click();
+  await expect(tablet.getByRole('button', { name: '应用位置与大小', exact: true })).toHaveCount(0);
+  await expect(cpu).toHaveCSS('height', '152px');
+  await tablet.getByLabel('卡片高度', { exact: true }).fill('1');
+  await expect(tablet.locator('.geometry-controls [role=alert]')).toBeVisible();
+  await expect(cpu).toHaveCSS('height', '152px');
+  await tablet.getByLabel('卡片高度', { exact: true }).fill('2');
+  await tablet.getByRole('button', { name: '取消位置预览', exact: true }).click();
+  await tablet.getByRole('button', { name: '收起编辑面板', exact: true }).click();
+  await expect(tablet.locator('.layout-inspector-body')).toBeHidden();
+  await cpu.scrollIntoViewIfNeeded();
+  const before = await cpu.evaluate((el) => (el as HTMLElement).style.left);
+  const box = await cpu.locator('.widget-content').boundingBox();
+  const step = await tablet.locator('.widget-canvas').evaluate((el) => (el.clientWidth + 16) / 8);
+  const session = await tablet.context().newCDPSession(tablet);
+  try {
+    const start = { x: box!.x + Math.min(24, box!.width / 2), y: box!.y + 12 };
+    await session.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ ...start, id: 1 }],
+    });
+    for (let i = 1; i <= 8; i++) {
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: start.x + (step * i) / 8, y: start.y, id: 1 }],
+      });
+      await tablet.waitForTimeout(20);
+    }
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect.poll(() => cpu.evaluate((el) => (el as HTMLElement).style.left)).not.toBe(before);
+    await tablet.getByRole('button', { name: '撤销布局', exact: true }).click();
+    await expect.poll(() => cpu.evaluate((el) => (el as HTMLElement).style.left)).toBe(before);
+  } finally {
+    await session.detach();
+  }
+  await tablet.getByRole('button', { name: '展开编辑面板', exact: true }).click();
+  await expect(tablet.locator('.layout-inspector-body')).toBeVisible();
+  await tablet.getByRole('button', { name: '浏览', exact: true }).click();
+  await tablet.screenshot({
+    path: 'artifacts/layout-editor-free-preview-tablet.png',
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
+
+test('位置预览遇到远端修改时保留草稿，拒绝覆盖并可取消到最新布局', async () => {
+  await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
+  await tablet.getByTestId('widget-cpu').locator('.layout-move').click();
+  await tablet.getByLabel('卡片高度', { exact: true }).fill('4');
+  await expect(tablet.getByTestId('widget-cpu')).toHaveCSS('height', '320px');
+  await desktop.getByRole('button', { name: '编辑布局', exact: true }).click();
+  await desktop.getByLabel('布局断点').selectOption('tablet');
+  await desktop.getByTestId('widget-cpu').locator('.layout-move').click();
+  await desktop.getByLabel('卡片高度', { exact: true }).fill('5');
+  await desktop.getByRole('button', { name: '应用位置与大小', exact: true }).click();
+  await expect(desktop.getByRole('button', { name: '应用位置与大小', exact: true })).toHaveCount(0);
+  await tablet.getByRole('button', { name: '应用位置与大小', exact: true }).click();
+  await expect(tablet.locator('.layout-feedback')).toContainText('未保存');
+  await expect(tablet.getByLabel('卡片高度', { exact: true })).toHaveValue('4');
+  await expect(tablet.getByTestId('widget-cpu')).toHaveCSS('height', '320px');
+  await tablet.getByRole('button', { name: '取消位置预览', exact: true }).click();
+  await expect(tablet.getByTestId('widget-cpu')).toHaveCSS('height', '404px');
+  await expect(tablet.getByLabel('卡片高度', { exact: true })).toHaveValue('5');
+  await tablet.screenshot({
+    path: 'artifacts/layout-editor-free-controls-tablet.png',
+    fullPage: true,
+  });
+  await tablet.getByRole('button', { name: '浏览', exact: true }).click();
+  await desktop.getByRole('button', { name: '浏览', exact: true }).click();
   expect(errors).toEqual([]);
 });
