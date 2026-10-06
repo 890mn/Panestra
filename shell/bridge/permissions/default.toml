@@ -1,0 +1,3 @@
+[default]
+description = "Native discovery, OS-protected device identity and pinned Core transport."
+permissions = ["allow-identity", "allow-sign", "allow-discover", "allow-request", "allow-connect", "allow-disconnect", "allow-scan-pairing"]

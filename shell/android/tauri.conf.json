@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "externalBin": [],
+    "resources": {},
+    "targets": "all",
+    "android": { "minSdkVersion": 29 }
+  },
+  "app": { "windows": [{ "title": "Panestra / 星序" }] }
+}

@@ -1,0 +1,156 @@
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
+import { WidgetCard } from '../../client/src/App';
+import '../../client/src/styles.css';
+import '../../client/src/controls.css';
+import '../../client/src/layout-editor.css';
+import '../../client/src/widget-views.css';
+import { BLOCKS, defaultBlock, PRESENTATIONS } from '../../packages/widget-schema/src/presentation';
+import type { Breakpoint, Widget } from '../../packages/protocol/src';
+const previewRoot = createRoot(document.getElementById('root')!);
+function renderPreview(query: string) {
+  const params = new URLSearchParams(query);
+  const bp = (params.get('bp') as Breakpoint) || 'tablet';
+  const w = Number(params.get('w') || 4),
+    h = Number(params.get('h') || 3);
+  const type = (params.get('type') as Widget['type']) || 'network-chart';
+  const data =
+    type === 'metric-card'
+      ? 99.9
+      : type === 'system-overview'
+        ? {
+            hostname: 'DESKTOP-WORKSTATION-123',
+            os: 'Microsoft Windows 11 Pro 10.0.26200',
+            cpu: 'Intel(R) Core(TM) Ultra 9 285K Processor @ 5.70GHz',
+            cores: 24,
+            memoryGB: 63.8,
+            uptime: 84637,
+          }
+        : {
+            enabled: true,
+            state: 'ready',
+            message: '',
+            planType: 'plus',
+            stale: false,
+            refreshing: false,
+            pollIntervalSeconds: 60,
+            buckets: [
+              {
+                id: 'codex',
+                name: 'Codex',
+                windows: [
+                  {
+                    id: 'primary',
+                    usedPercent: 12.5,
+                    remainingPercent: 87.5,
+                    durationMinutes: 300,
+                    resetsAt: 1791285300,
+                  },
+                  {
+                    id: 'secondary',
+                    usedPercent: 46.5,
+                    remainingPercent: 53.5,
+                    durationMinutes: 10080,
+                    resetsAt: 1791285300,
+                  },
+                ],
+              },
+            ],
+            resetCredits: { availableCount: 2, expiresAt: 1791285300 },
+          };
+  const modes = params.get('mode') ? [params.get('mode')!] : PRESENTATIONS[type].map((p) => p.id);
+  const cols = { desktop: 12, tablet: 8, mobile: 4 }[bp];
+  document.documentElement.dataset.theme = params.get('theme') || 'day';
+  const canvasWidth = Number(params.get('width') || 900);
+  flushSync(() =>
+    previewRoot.render(
+      <div style={{ width: canvasWidth, position: 'relative', height: modes.length * h * 84 }}>
+        {modes.map((mode, i) => (
+          <WidgetCard
+            key={mode}
+            widget={{
+              id: mode,
+              kind: 'widget',
+              rev: 1,
+              data: {
+                pageId: 'page',
+                pluginId: 'dev.panestra.system',
+                type,
+                source:
+                  type === 'system-overview'
+                    ? 'system.info'
+                    : type === 'codex-usage'
+                      ? 'account.usage'
+                      : type === 'network-chart'
+                        ? 'network.rx'
+                        : 'cpu.usage',
+                title: '网络流量与同步状态',
+                presentation: mode,
+                unit: '%',
+              },
+            }}
+            layout={{ widgetId: mode, breakpoint: bp, x: 0, y: i * h, w: Math.min(w, cols), h }}
+            editor={{
+              contentEditor: params.has('inner')
+                ? {
+                    selected: params.get('inner') || BLOCKS[type][0].id,
+                    select: () => {},
+                    change: () => {},
+                  }
+                : undefined,
+              profile: params.has('custom')
+                ? {
+                    presentation: mode,
+                    chartStyle: 'area',
+                    blocks: Object.fromEntries(
+                      BLOCKS[type].map((b, i) => [
+                        b.id,
+                        {
+                          ...defaultBlock(i),
+                          order: BLOCKS[type].length - 1 - i,
+                          column: (i % 2) * 6,
+                          span: 6,
+                          align: i % 2 ? 'end' : 'center',
+                        },
+                      ]),
+                    ),
+                  }
+                : undefined,
+              selected: false,
+              dragging: false,
+              target: false,
+              select: () => {},
+              move: {},
+              resize: {},
+            }}
+            editing={params.has('edit')}
+            data={
+              params.has('empty')
+                ? undefined
+                : params.has('error')
+                  ? {
+                      ...(data as any),
+                      state: 'unavailable',
+                      message: '这是一段很长的真实错误信息。'.repeat(30),
+                      buckets: [],
+                    }
+                  : data
+            }
+            download={params.has('empty') ? undefined : 153682.1}
+            upload={params.has('empty') ? undefined : 9876.1}
+            history={params.has('empty') ? [] : [12, 43, 50, 42, 98, 40]}
+            rxHistory={[12, 45, 88, 55, 90, 150]}
+            txHistory={[60, 43, 40, 22, 18, 30]}
+            online={!params.has('offline')}
+            configure={() => {}}
+          />
+        ))}
+      </div>,
+    ),
+  );
+  return new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+}
+(window as any).renderPreview = renderPreview;
+void renderPreview(location.search);

@@ -1,0 +1,25 @@
+{
+  "name": "panestra",
+  "version": "0.1.8",
+  "private": true,
+  "workspaces": [
+    "client",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w client",
+    "build": "npm run build -w client",
+    "typecheck": "npm run typecheck -w client",
+    "test:ui": "playwright test",
+    "tauri": "tauri",
+    "desktop": "tauri build --config shell/desktop/tauri.conf.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@tauri-apps/cli": "^2.9.0",
+    "@tauri-apps/cli-win32-x64-msvc": "^2.12.1",
+    "prettier": "3.9.9"
+  }
+}

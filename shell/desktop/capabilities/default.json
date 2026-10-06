@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Universal Surface and native Core bridge",
+  "windows": ["main"],
+  "permissions": ["core:default", "core:window:allow-close", "panestra-bridge:default"]
+}

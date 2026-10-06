@@ -1,0 +1,474 @@
+/* One scale for every screen. Large theme/library tiles are content cards. */
+:root {
+  --control-height: 44px;
+  --control-radius: 8px;
+  --control-label: 13px;
+  --control-icon: 18px;
+  --control-border: #cfd3d7;
+  --control-idle: #a2a8ae;
+  --control-ink: #262a2e;
+  --card-radius: 12px;
+}
+:root[data-theme='night'] {
+  --control-border: #484d53;
+  --control-idle: #737a82;
+  --control-ink: #e5e7eb;
+}
+.control {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.control:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.signature-button,
+.signature-button.compact,
+.offline-banner .signature-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-sizing: border-box;
+  height: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0 16px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+  color: var(--control-ink);
+  font-size: var(--control-label);
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1;
+  position: relative;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    transform 100ms ease;
+}
+.signature-button > svg:not(.button-status) {
+  width: var(--control-icon);
+  height: var(--control-icon);
+}
+.signature-button.primary {
+  border-color: var(--control-ink);
+  font-weight: 600;
+}
+.signature-button.primary {
+  background: var(--control-ink);
+  color: var(--panel);
+}
+.signature-button.danger {
+  color: var(--danger);
+}
+.signature-button:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--control-ink);
+}
+.signature-button.primary:hover:not(:disabled) {
+  background: var(--control-ink);
+  color: var(--panel);
+  filter: brightness(0.9);
+}
+.button-status {
+  display: none;
+}
+.signature-button[data-selected='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel));
+  color: var(--text);
+}
+.signature-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.signature-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+.signature-button[aria-busy='true'] .button-status {
+  display: block;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: status-breathe 900ms ease-in-out infinite alternate;
+}
+@keyframes status-breathe {
+  to {
+    opacity: 0.3;
+  }
+}
+.icon-button.control,
+.icon-button.small.control {
+  box-sizing: border-box;
+  width: var(--control-height);
+  height: var(--control-height);
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0;
+  border-radius: 12px;
+}
+.icon-button.control > svg {
+  width: var(--control-icon);
+  height: var(--control-icon);
+}
+.nav-item.control {
+  min-height: var(--control-height);
+  font-size: var(--control-label);
+}
+.toolbar-tabs .control,
+.segmented .control {
+  min-height: var(--control-height);
+  padding: 0 14px;
+  font-size: var(--control-label);
+}
+.toolbar-tabs .control.selected,
+.segmented .control.selected {
+  color: var(--text);
+}
+.toolbar-tabs .control.selected {
+  box-shadow: inset 0 -2px var(--accent);
+}
+input:not([type='checkbox']):not([type='color']),
+select {
+  min-height: var(--control-height);
+  font-size: var(--control-label);
+}
+.workspace-toolbar select {
+  height: var(--control-height);
+}
+.resize-handle.control {
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+}
+.panel,
+.widget-card {
+  border-radius: var(--card-radius);
+}
+.panel h2,
+.adapter-section-heading h2 {
+  font-size: 18px;
+  line-height: 1.4;
+}
+.panel h3,
+.adapter-detail h3 {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.widget-heading {
+  min-height: 44px;
+}
+.modal-heading {
+  min-height: 44px;
+  align-items: center;
+}
+.modal {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.swatches .control,
+.custom-color {
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+}
+.theme-options {
+  align-items: stretch;
+}
+.theme-option.control {
+  border-radius: var(--card-radius);
+}
+.button-lab {
+  padding: 0 24px 24px;
+}
+.button-lab p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.button-lab .button-row {
+  flex-wrap: wrap;
+}
+.software-adapters {
+  margin-top: 36px;
+}
+.adapter-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.adapter-section-heading h2 {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.adapter-section-heading p {
+  color: var(--muted);
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.adapter-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.adapter-filter .signature-button {
+  min-width: 88px;
+}
+.adapter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.adapter-card.panel {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  margin: 0;
+  min-width: 0;
+}
+.adapter-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.adapter-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.adapter-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.adapter-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.adapter-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+}
+.adapter-card > p {
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 18px 0;
+  min-height: 47px;
+  color: var(--muted);
+}
+.adapter-fields {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  margin-top: auto;
+  margin-bottom: 18px;
+}
+.adapter-fields > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  line-height: 2;
+  gap: 12px;
+}
+.adapter-card > .signature-button {
+  width: 100%;
+}
+.adapter-detail {
+  font-size: 13px;
+  line-height: 1.9;
+}
+.adapter-detail h3 {
+  margin: 22px 0 8px;
+}
+.adapter-detail p {
+  color: var(--muted);
+}
+.adapter-detail ul {
+  padding-left: 20px;
+  margin: 0;
+}
+.adapter-boundary {
+  border-left: 2px solid var(--accent);
+  background: var(--panel-soft);
+  margin-top: 24px;
+  padding: 14px 16px;
+}
+.adapter-detail a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 1199px) {
+  .adapter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .adapter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .adapter-card.panel {
+    padding: 20px;
+  }
+  .adapter-card > p {
+    min-height: 0;
+  }
+  .adapter-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .workspace-toolbar {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar-actions {
+    flex-wrap: wrap;
+  }
+  .button-row {
+    flex-wrap: wrap;
+  }
+  .button-lab {
+    padding: 0 20px 20px;
+  }
+  .swatches {
+    flex-wrap: wrap;
+  }
+  .panel-title {
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .permission-row {
+    min-height: 68px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signature-button,
+  .button-status {
+    transition: none;
+    animation: none !important;
+  }
+}
+
+.codex-usage {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.codex-summary,
+.codex-window-heading,
+.codex-window-meta,
+.codex-credit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.codex-summary {
+  margin-bottom: 18px;
+}
+.codex-bucket {
+  margin-bottom: 20px;
+}
+.codex-bucket h3 {
+  font-size: 14px;
+  margin: 16px 0 12px;
+}
+.codex-window + .codex-window {
+  margin-top: 18px;
+}
+.codex-window-heading strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.codex-progress {
+  height: 4px;
+  overflow: hidden;
+  background: var(--line);
+  margin: 8px 0;
+  border-radius: 2px;
+}
+.codex-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.codex-window-meta {
+  font-size: 11px;
+  color: var(--muted);
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.codex-credit-row {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.codex-credit-row strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.codex-updated {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+.codex-empty {
+  color: var(--muted);
+  margin: 12px 0 20px;
+}
+.codex-actions {
+  margin: 20px 0 12px;
+  flex-wrap: wrap;
+}
+.codex-usage.compact {
+  overflow: auto;
+  min-height: 0;
+  padding: 8px 2px 2px;
+}
+.codex-usage.compact .codex-summary {
+  margin-bottom: 10px;
+}
+.codex-usage.compact .codex-bucket {
+  margin-bottom: 12px;
+}
+.codex-usage.compact .codex-window + .codex-window {
+  margin-top: 12px;
+}
+.codex-usage.compact .codex-credit-row {
+  padding-top: 8px;
+}
+.codex-usage.compact .codex-updated {
+  margin-top: 6px;
+}
+.codex-usage + .adapter-boundary {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.codex-usage + .adapter-boundary p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
