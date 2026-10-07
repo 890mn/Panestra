@@ -14,10 +14,13 @@ import {
   Download,
   Upload,
   Trash2,
+  Search,
+  X,
+  LayoutGrid,
 } from 'lucide-react';
 import type { Widget, ClashStatus } from '../../packages/protocol/src';
 import { core, type InstalledPlugin } from './core';
-import type { PluginManifest, SettingField } from './plugin-schema';
+import { widgetCatalog, type PluginManifest, type SettingField } from './plugin-schema';
 import { Button, Modal } from './components';
 import { connectionErrorText } from './connection-errors';
 import { WidgetView } from './WidgetViews';
@@ -56,6 +59,38 @@ const icons: Record<string, typeof Plug> = {
   network: Network,
   bot: Bot,
 };
+function pluginStatus(plugin: InstalledPlugin, value: unknown, online: boolean) {
+  const status = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  if (!online) return { label: 'Core 离线', tone: 'idle', status, live: false };
+  if (!plugin.enabled) return { label: '已停用', tone: 'idle', status, live: false };
+  if (plugin.status !== 'running')
+    return {
+      label: plugin.status === 'starting' ? '启动中' : '待授权或启动',
+      tone: 'idle',
+      status,
+      live: false,
+    };
+  if (status.enabled === false) return { label: '未启用', tone: 'idle', status, live: false };
+  if (status.stale) return { label: '数据过期', tone: 'attention', status, live: true };
+  if (typeof status.enabled !== 'boolean')
+    return { label: '运行中', tone: 'ready', status, live: true };
+  const label =
+    {
+      ready: '已接入',
+      connecting: '正在连接',
+      needs_login: '需要登录',
+      needs_credential: '需要凭据',
+      bridge_required: '等待桥接启动',
+      not_found: '未找到服务',
+    }[String(status.state)] || '暂不可用';
+  return {
+    label,
+    tone:
+      status.state === 'ready' ? 'ready' : status.state === 'unavailable' ? 'attention' : 'idle',
+    status,
+    live: status.state === 'ready',
+  };
+}
 function PluginPreview({
   plugin,
   expanded = false,
@@ -106,7 +141,11 @@ function PluginCard({
   const ui = plugin.manifest.ui || {};
   const Icon = icons[ui.icon || ''] || Plug;
   const topic = plugin.id + '/' + plugin.manifest.sources[0]?.id;
-  const status = (state.telemetry[topic]?.value || {}) as Record<string, unknown>;
+  const { status, label, tone, live } = pluginStatus(
+    plugin,
+    state.telemetry[topic]?.value,
+    state.online,
+  );
   const [detail, setDetail] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -202,64 +241,65 @@ function PluginCard({
       setBusy(false);
     }
   };
-  const label = !state.online
-    ? 'Core 离线'
-    : !plugin.enabled
-      ? '已停用'
-      : typeof status.enabled === 'boolean'
-        ? !status.enabled
-          ? '未启用'
-          : status.stale
-            ? '数据过期'
-            : (
-                {
-                  ready: '已接入',
-                  connecting: '正在连接',
-                  needs_login: '需要登录',
-                  needs_credential: '需要凭据',
-                  bridge_required: '等待桥接启动',
-                  not_found: '未找到服务',
-                } as Record<string, string>
-              )[String(status.state)] || '暂不可用'
-        : plugin.status === 'running'
-          ? '运行中'
-          : plugin.status === 'starting'
-            ? '启动中'
-            : '待授权';
   const configurable = plugin.manifest.routes?.some((route) => route.operation === 'configure');
   const refreshable = plugin.manifest.routes?.some((route) => route.operation === 'refresh');
   const roleCanControl = state.online && ['owner', 'operator'].includes(state.device?.role || '');
   return (
     <article
-      className={`adapter-card panel ${!configurable ? 'plugin-card' : ''}`}
+      className="adapter-card panel"
       data-testid={`${ui.key || plugin.id}-adapter`}
+      data-state={tone}
     >
       <div className="adapter-card-heading">
         <span className="adapter-icon">
           <Icon size={22} />
         </span>
-        <span className="adapter-state">
-          <span
-            className={`status-light ${plugin.enabled && plugin.status === 'running' ? '' : 'offline'}`}
-          />
+        <div className="plugin-card-title">
+          <h3>{plugin.name}</h3>
+          <span className="adapter-subtitle">{ui.subtitle || '本机插件'}</span>
+        </div>
+        <span className="adapter-state" data-tone={tone}>
+          <span className={`status-light ${tone === 'ready' ? '' : 'offline'}`} />
           {label}
         </span>
       </div>
-      <h3>{plugin.name}</h3>
-      <span className="adapter-subtitle">{ui.subtitle || plugin.version}</span>
-      <p>{ui.description}</p>
-      <PluginPreview plugin={plugin} />
-      <span className="mono subtle">
-        {plugin.version} · {plugin.manifest.widgets.length} 类组件
-      </span>
-      <Button
-        className="secondary"
-        aria-label={`查看${plugin.name}${ui.detailLabel || '状态与设置'}`}
-        onClick={() => void open()}
-      >
-        {ui.detailLabel || '状态与设置'}
-        <ArrowRight size={16} />
-      </Button>
+      <p className="plugin-card-description">{ui.description || '查看此插件的状态与设置'}</p>
+      <div className="plugin-card-preview">
+        {live || (!state.online && plugin.enabled && state.telemetry[topic]) ? (
+          <PluginPreview plugin={plugin} />
+        ) : (
+          <div className="plugin-preview-empty">
+            <Icon size={28} strokeWidth={1.5} aria-hidden="true" />
+            <strong>{label}</strong>
+            <p>
+              {!state.online
+                ? '连接 Core 后更新状态'
+                : !plugin.enabled || status.enabled === false
+                  ? '在状态与设置中启用读取'
+                  : typeof status.message === 'string' && status.message
+                    ? status.message
+                    : '在状态与设置中检查连接和权限'}
+            </p>
+          </div>
+        )}
+      </div>
+      <div className="plugin-card-footer">
+        <div className="plugin-card-meta">
+          <span className="mono">v{plugin.version}</span>
+          <span>
+            <LayoutGrid size={13} />
+            {widgetCatalog([plugin]).length} 个组件
+          </span>
+        </div>
+        <Button
+          className="secondary"
+          aria-label={`查看${plugin.name}${ui.detailLabel || '状态与设置'}`}
+          onClick={() => void open()}
+        >
+          {ui.detailLabel || '状态与设置'}
+          <ArrowRight size={16} />
+        </Button>
+      </div>
       {detail ? (
         <Modal
           title={`${plugin.name} · ${ui.subtitle || '插件设置'}`}
@@ -347,44 +387,50 @@ function PluginCard({
                 void request('configure', config(true));
               }}
             >
-              {(ui.settings || []).map((field) => (
-                <label key={field.key}>
-                  {field.label}
-                  <input
-                    aria-label={`${plugin.name} ${field.label}`}
-                    type={
-                      field.type === 'secret'
-                        ? 'password'
-                        : field.type === 'boolean'
-                          ? 'checkbox'
-                          : field.type === 'integer'
-                            ? 'number'
-                            : 'text'
-                    }
-                    autoComplete={field.type === 'secret' ? 'new-password' : 'off'}
-                    disabled={!state.online || busy}
-                    {...(field.type === 'boolean'
-                      ? { checked: Boolean(values[field.key]) }
-                      : { value: String(values[field.key] ?? '') })}
-                    min={field.min}
-                    max={field.max}
-                    maxLength={field.type === 'secret' ? 4096 : 1024}
-                    placeholder={
-                      field.placeholder ||
-                      (field.type === 'secret' && status.hasCredential
-                        ? '已保存，留空沿用当前凭据'
-                        : '')
-                    }
-                    onChange={(event) =>
-                      setValues((current) => ({
-                        ...current,
-                        [field.key]:
-                          field.type === 'boolean' ? event.target.checked : event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-              ))}
+              <h3>连接与读取</h3>
+              <div className="plugin-settings-fields">
+                {(ui.settings || []).map((field) => (
+                  <label
+                    key={field.key}
+                    className={field.type === 'boolean' ? 'plugin-setting-toggle' : ''}
+                  >
+                    {field.label}
+                    <input
+                      aria-label={`${plugin.name} ${field.label}`}
+                      type={
+                        field.type === 'secret'
+                          ? 'password'
+                          : field.type === 'boolean'
+                            ? 'checkbox'
+                            : field.type === 'integer'
+                              ? 'number'
+                              : 'text'
+                      }
+                      autoComplete={field.type === 'secret' ? 'new-password' : 'off'}
+                      disabled={!state.online || busy}
+                      {...(field.type === 'boolean'
+                        ? { checked: Boolean(values[field.key]) }
+                        : { value: String(values[field.key] ?? '') })}
+                      min={field.min}
+                      max={field.max}
+                      maxLength={field.type === 'secret' ? 4096 : 1024}
+                      placeholder={
+                        field.placeholder ||
+                        (field.type === 'secret' && status.hasCredential
+                          ? '已保存，留空沿用当前凭据'
+                          : '')
+                      }
+                      onChange={(event) =>
+                        setValues((current) => ({
+                          ...current,
+                          [field.key]:
+                            field.type === 'boolean' ? event.target.checked : event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
               <div className="button-row">
                 {ui.ownerActions?.map((action) => (
                   <Button
@@ -548,12 +594,15 @@ export function PluginsPanel({
 }) {
   const state = useSyncExternalStore(core.subscribe, core.getSnapshot);
   const [filter, setFilter] = useState('all'),
+    [query, setQuery] = useState(''),
+    [catalogOpen, setCatalogOpen] = useState(false),
     [catalog, setCatalog] = useState<Catalog | null>(null),
     [preview, setPreview] = useState<Preview | null>(null);
   const [consent, setConsent] = useState<string[]>([]),
     [busy, setBusy] = useState(false),
     [importing, setImporting] = useState(false);
   const files = useRef<HTMLInputElement>(null);
+  const catalogTrigger = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (online) void core.loadPlugins().catch((err) => notify(connectionErrorText(err)));
   }, [online]);
@@ -568,6 +617,7 @@ export function PluginsPanel({
     }
   };
   const openPreview = (next: Preview) => {
+    setCatalogOpen(false);
     setPreview(next);
     setConsent([]);
   };
@@ -614,120 +664,207 @@ export function PluginsPanel({
     );
     setImporting(false);
   };
+  const search = query.trim().toLocaleLowerCase();
+  const visible = state.plugins.filter(
+    (plugin) =>
+      (filter === 'all' || plugin.manifest.ui?.category === filter) &&
+      [plugin.name, plugin.manifest.ui?.subtitle, plugin.manifest.ui?.description]
+        .join(' ')
+        .toLocaleLowerCase()
+        .includes(search),
+  );
+  const categories = [
+    { id: 'all', label: '全部' },
+    { id: 'control', label: '控制' },
+    { id: 'status', label: '状态' },
+  ];
   return (
-    <>
-      <div className="section-heading">
-        <div className="eyebrow">PANESTRA BACKPLANE</div>
-        <h1>能力，随插即用</h1>
-        <p>下载到 Core 后在本机运行，每个插件独立管理</p>
-      </div>
-      <div className="plugin-market-toolbar panel">
-        <span className="badge">{state.plugins.length} 项已安装</span>
+    <div className="plugins-page">
+      <div className="plugins-page-heading">
+        <div>
+          <div className="eyebrow">YOUR INTEGRATIONS</div>
+          <h1>插件</h1>
+          <p>连接常用软件，把状态和控制带到每台设备</p>
+        </div>
         <div className="button-row">
           <Button
             className="secondary"
             pending={busy}
             disabled={!online}
-            onClick={() =>
+            onClick={(event) => {
+              catalogTrigger.current = event.currentTarget;
               void run(async () => {
                 setCatalog((await marketTask('catalog')).catalog!);
-              })
-            }
+                setCatalogOpen(true);
+              });
+            }}
           >
             <RefreshCw size={16} />
             检查插件更新
           </Button>
           <Button
-            className="secondary"
+            className="primary"
+            disabled={!online || busy}
+            onClick={(event) => {
+              catalogTrigger.current = event.currentTarget;
+              void run(async () => {
+                setCatalog(await core.api<Catalog>('/plugins/catalog'));
+                setCatalogOpen(true);
+              });
+            }}
+          >
+            <Download size={16} />
+            打开插件目录
+          </Button>
+          <Button
+            className="icon-button plugin-import-button"
+            aria-label="导入插件包"
             disabled={!owner || !online || busy}
             onClick={() => setImporting(true)}
           >
             <Upload size={16} />
-            导入插件包
           </Button>
         </div>
       </div>
-      <div className="adapter-filter" aria-label="软件适配筛选">
-        {[
-          { id: 'all', label: '全部' },
-          { id: 'control', label: '控制' },
-          { id: 'status', label: '状态' },
-        ].map((item) => (
-          <Button
-            key={item.id}
-            className="status-button"
-            selected={filter === item.id}
-            onClick={() => setFilter(item.id)}
-          >
-            {item.label}
-          </Button>
-        ))}
+      <div className="plugins-installed-heading">
+        <h2>
+          已安装 <span>{state.plugins.length}</span>
+        </h2>
+        <span className="subtle">
+          {state.plugins.filter((p) => p.enabled).length} 项启用 · 在电脑上运行
+        </span>
+      </div>
+      <div className="plugin-library-toolbar">
+        <div className="adapter-filter" role="group" aria-label="软件适配筛选">
+          {categories.map((item) => (
+            <Button
+              key={item.id}
+              className="status-button"
+              selected={filter === item.id}
+              onClick={() => setFilter(item.id)}
+            >
+              {item.label}
+              <span aria-hidden="true">
+                {
+                  state.plugins.filter(
+                    (p) => item.id === 'all' || p.manifest.ui?.category === item.id,
+                  ).length
+                }
+              </span>
+            </Button>
+          ))}
+        </div>
+        <div className="plugin-search">
+          <Search size={17} aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="搜索已安装插件"
+            placeholder="搜索插件"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query ? (
+            <Button className="icon-button" aria-label="清空插件搜索" onClick={() => setQuery('')}>
+              <X size={16} />
+            </Button>
+          ) : null}
+        </div>
       </div>
       <div className="adapter-grid">
-        {state.plugins
-          .filter((plugin) => filter === 'all' || plugin.manifest.ui?.category === filter)
-          .map((plugin) => (
-            <PluginCard key={plugin.id} plugin={plugin} notify={notify} />
-          ))}
+        {visible.map((plugin) => (
+          <PluginCard key={plugin.id} plugin={plugin} notify={notify} />
+        ))}
       </div>
       {!state.plugins.length ? (
-        <div className="panel panel-empty">尚未安装插件，打开插件目录或导入已签名的插件包</div>
+        <div className="plugin-library-empty panel">
+          <Plug size={28} />
+          <h3>添加第一个插件</h3>
+          <p>打开插件目录选择需要的软件，或导入已签名的插件包</p>
+        </div>
+      ) : !visible.length ? (
+        <div className="plugin-library-empty panel">
+          <Search size={28} />
+          <h3>没有匹配的插件</h3>
+          <p>尝试其他关键词，或切换分类</p>
+          <Button
+            className="secondary"
+            onClick={() => {
+              setQuery('');
+              setFilter('all');
+            }}
+          >
+            查看全部插件
+          </Button>
+        </div>
       ) : null}
-      {!catalog ? (
-        <Button
-          className="secondary"
-          disabled={!online || busy}
-          onClick={() =>
-            void run(async () => {
-              setCatalog(await core.api<Catalog>('/plugins/catalog'));
-            })
-          }
+      {catalogOpen && catalog ? (
+        <Modal
+          title="插件目录"
+          close={() => setCatalogOpen(false)}
+          returnFocus={catalogTrigger.current}
+          wide
         >
-          <Download size={16} />
-          打开插件目录
-        </Button>
-      ) : (
-        <section className="panel">
-          <div className="panel-title">
-            <h2>插件目录</h2>
-            <span className="subtle">
+          <div className="plugin-catalog-heading">
+            <p>选择插件安装到电脑，已安装的插件可独立更新</p>
+            <span className="badge">
               {catalog.source === 'local' ? '本地安装包' : 'GitHub 发布'}
             </span>
           </div>
-          {catalog.message ? <p role="status">{catalog.message}</p> : null}
-          {catalog.plugins.map((item) => {
-            const installed = state.plugins.find((plugin) => plugin.id === item.id);
-            return (
-              <div className="backup-row" key={item.id}>
-                <div>
-                  <strong>{item.name}</strong>
-                  <span className="mono subtle"> {item.version}</span>
-                  <p>{item.description}</p>
+          {catalog.message ? (
+            <p className="plugin-catalog-notice" role="status">
+              {catalog.message}
+            </p>
+          ) : null}
+          <div className="plugin-catalog-list">
+            {catalog.plugins.map((item) => {
+              const installed = state.plugins.find((plugin) => plugin.id === item.id);
+              const Icon = icons[installed?.manifest.ui?.icon || ''] || Plug;
+              return (
+                <div className="backup-row plugin-catalog-row" key={item.id}>
+                  <span className="adapter-icon">
+                    <Icon size={22} />
+                  </span>
+                  <div className="plugin-catalog-copy">
+                    <strong>{item.name}</strong>
+                    <span className="mono subtle"> v{item.version}</span>
+                    {item.description ? <p>{item.description}</p> : null}
+                  </div>
+                  <Button
+                    className="secondary"
+                    pending={busy}
+                    disabled={!owner || !online || installed?.version === item.version}
+                    onClick={() =>
+                      void run(async () => {
+                        openPreview((await marketTask('download', item.id)).preview!);
+                      })
+                    }
+                  >
+                    {installed
+                      ? installed.version === item.version
+                        ? '已安装'
+                        : '下载更新'
+                      : '下载安装'}
+                  </Button>
                 </div>
-                <Button
-                  className="secondary"
-                  pending={busy}
-                  disabled={!owner || !online || installed?.version === item.version}
-                  onClick={() =>
-                    void run(async () => {
-                      openPreview((await marketTask('download', item.id)).preview!);
-                    })
-                  }
-                >
-                  {installed
-                    ? installed.version === item.version
-                      ? '已安装'
-                      : '下载更新'
-                    : '下载安装'}
-                </Button>
-              </div>
-            );
-          })}
-        </section>
-      )}
+              );
+            })}
+          </div>
+          {!catalog.plugins.length ? (
+            <div className="plugin-library-empty">
+              <Plug size={28} />
+              <h3>暂无可下载的插件</h3>
+              <p>稍后检查更新，或导入已签名的插件包</p>
+            </div>
+          ) : null}
+          <div className="quiet-note">
+            <ShieldCheck size={18} />
+            <p>安装前验证签名与权限，更新失败保留当前版本</p>
+          </div>
+        </Modal>
+      ) : null}
       <div className="quiet-note">
         <ShieldCheck size={18} />
-        <p>安装前校验发布者签名与兼容性，更新失败保留当前版本，运行时无需访问插件仓库</p>
+        <p>状态与控制分别授权，凭据留在电脑上，已安装的插件可离线运行</p>
       </div>
       {importing ? (
         <Modal title="导入插件包" close={() => setImporting(false)}>
@@ -805,6 +942,6 @@ export function PluginsPanel({
           </Button>
         </Modal>
       ) : null}
-    </>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-param([string]$Version = '0.1.26')
+param([string]$Version = '0.1.27')
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $workspace

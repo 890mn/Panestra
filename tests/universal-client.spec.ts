@@ -146,7 +146,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.26.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.27.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -157,7 +157,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.26.png`,
+      path: `artifacts/connection-${label}-0.1.27.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -425,7 +425,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.26');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.27');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -478,6 +478,23 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       await surface.getByRole('button', { name: '状态', exact: true }).click();
       await expect(surface.locator('.adapter-card')).toHaveCount(5);
       await surface.getByRole('button', { name: '全部', exact: true }).click();
+      await surface.getByRole('searchbox', { name: '搜索已安装插件' }).fill('cOdEx');
+      await expect(surface.locator('.adapter-card')).toHaveCount(1);
+      await expect(surface.getByTestId('codex-adapter')).toBeVisible();
+      await surface.getByRole('searchbox', { name: '搜索已安装插件' }).fill('未安装的软件');
+      await expect(surface.locator('.adapter-card')).toHaveCount(0);
+      await expect(surface.getByRole('heading', { name: '没有匹配的插件' })).toBeVisible();
+      await surface.getByRole('button', { name: '查看全部插件', exact: true }).click();
+      await expect(surface.locator('.adapter-card')).toHaveCount(7);
+      const grid = await surface.locator('.adapter-grid').boundingBox();
+      await surface.getByRole('button', { name: '打开插件目录', exact: true }).click();
+      await expect(surface.getByRole('dialog')).toContainText('本地安装包');
+      await expect(surface.getByRole('dialog').locator('.plugin-catalog-row')).toHaveCount(7);
+      expect(await surface.locator('.adapter-grid').boundingBox()).toEqual(grid);
+      await surface.getByRole('button', { name: '关闭', exact: true }).click();
+      await expect(
+        surface.getByRole('button', { name: '打开插件目录', exact: true }),
+      ).toBeFocused();
       await surface.getByRole('button', { name: '查看ALAS状态与设置', exact: true }).click();
       await expect(surface.locator('dialog[open]')).toContainText('只读桥接，不提供任务控制');
       await surface.getByRole('button', { name: '关闭', exact: true }).click();

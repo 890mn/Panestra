@@ -48,15 +48,17 @@ export function Modal({
   children,
   close,
   wide = false,
+  returnFocus,
 }: {
   title: string;
   children: ReactNode;
   close: () => void;
   wide?: boolean;
+  returnFocus?: HTMLElement | null;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement;
+    const previous = returnFocus || (document.activeElement as HTMLElement);
     ref.current?.showModal();
     return () => {
       if (previous?.isConnected) previous.focus();
