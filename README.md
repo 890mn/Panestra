@@ -119,162 +119,6 @@ Android 与 PC 位于同一局域网时，可以通过 mDNS 自动发现 <code>_
 
 手机、平板和桌面都可以编辑 Workspace。数据与 Widget 实例共享，但各 breakpoint 的布局分别保存。
 
-## 架构
-
-下面这张图按当前代码组织生成，而不是未来规划图：
-
-```mermaid
-flowchart TB
-    subgraph Surface["Surfaces"]
-        Win["Windows · Tauri"]
-        Android["Android · Tauri"]
-        UI["Universal Client<br/>React + TypeScript"]
-        Bridge["Native Bridge<br/>identity · signing · discovery · transport"]
-        Win --> UI
-        Android --> UI
-        UI --> Bridge
-    end
-
-    MDNS["mDNS / DNS-SD<br/>_panestra._tcp"] -. discovery .-> Bridge
-
-    subgraph Core["Panestra Core · Go"]
-        API["HTTPS API<br/>TLS 1.3"]
-        Auth["Identity & Auth<br/>pairing · roles · sessions"]
-        Hub["Realtime Hub<br/>snapshot · events · telemetry"]
-        Store["State / Command Service<br/>revision · opId · arrange"]
-        DB[("SQLite")]
-        Backplane["Backplane Runtime<br/>manifest · capabilities · supervision"]
-        Adapters["Core Adapters<br/>Codex · GLM · DeepSeek<br/>Clash · NetEase · ALAS"]
-
-        API --> Auth
-        API --> Store
-        API --> Hub
-        Store --> DB
-        Auth --> DB
-        Backplane --> Hub
-        Adapters --> Hub
-    end
-
-    Bridge <-->|HTTPS / WSS| API
-
-    Worker["System Monitor Worker<br/>native process · stdio IPC"]
-    Backplane <--> Worker
-```
-
-### 数据同步
-
-Core 是唯一写入权威节点。
-
-持久化修改走 **Command → revision check → SQLite transaction → canonical event**。客户端提交 <code>baseRev</code>，冲突时 Core 返回当前 revision 与状态。
-
-WebSocket 连接首先认证，然后依据客户端的 <code>lastServerSeq</code> 补发事件并发送最新 snapshot。Telemetry 使用独立队列和 topic subscription；队列过慢时优先丢弃旧 telemetry，而不是拖住全局状态事件。
-
-### Backplane
-
-当前 System Monitor 的执行链路已经与 Core 主进程隔离：
-
-```text
-manifest.json
-     ↓
-Backplane Runtime
-     ↓ stdio framed IPC
-System Monitor Worker
-     ↓
-Sources / Actions
-```
-
-Runtime 会校验 plugin ID、版本、协议和 manifest digest；只有 manifest 声明且被用户授权的 capability 才会授予 Worker。Worker 失去健康响应或崩溃后会被停止并按退避策略重启。
-
-## 安全
-
-Panestra 未来可能拥有读取系统状态、控制软件甚至执行高风险 Action 的能力，所以安全边界从第一版就存在。
-
-当前代码包括：
-
-- **TLS 1.3**：Core 只通过 HTTPS / WSS 提供主接口
-- **Core 身份固定**：Core 使用 P-256 身份密钥，客户端验证公钥指纹和签名证明
-- **设备挑战认证**：设备以自己的公钥完成 challenge-response，不用永久 bearer token 代替设备身份
-- **短期 Session**：登录后会话有过期时间；设备被撤销后已有连接也会失效
-- **配对批准**：新设备必须进入 Pairing Window，并由 Owner 批准角色
-- **Local bootstrap**：首次认领只能从 Core 本机完成
-- **Role + Capability**：设备角色与插件 capability 是两层权限
-- **Origin / rate limit / request limits**：Core 对 Web Origin、请求速率和消息尺寸做限制
-- **OS Secret Storage**：Windows 使用 DPAPI；Android 原生端使用 Keystore
-- **发现不等于信任**：mDNS 只负责找到候选 Endpoint，身份仍由 TLS、公钥指纹和应用层认证确认
-
-LAN、Tailscale、ZeroTier、FRP 或其他端口映射只改变 **Connectivity**；它们不会绕过 Panestra 自己的身份与授权。
-
-## Windows 后台模式
-
-在 **设置 → 后台服务** 可以让桌面窗口退出，而 Core 与已启用的能力继续运行。系统托盘可以恢复界面或停止 Panestra。
-
-也可以单次使用：
-
-<pre><code>panestra-desktop.exe --background</code></pre>
-
-当前后台模式仍要求 Windows 用户保持登录。
-
-## 特殊适配说明
-
-<details>
-<summary><b>Codex</b></summary>
-
-在 Windows 的 **插件 → Codex → 额度与设置** 授权读取。当前读取本机已有的 Codex ChatGPT 登录状态，不需要把凭据复制到移动端。
-
-</details>
-
-<details>
-<summary><b>GLM Coding Plan / DeepSeek</b></summary>
-
-由 Owner 在对应适配器中配置 API Key。凭据只在 Core 电脑上加密保存，不进入工作空间同步，也不会包含在普通 Workspace 备份中。
-
-GLM 当前使用智谱中国区个人 Coding Plan 用量接口；DeepSeek 查询 API 账户余额。
-
-</details>
-
-<details>
-<summary><b>Clash Verge</b></summary>
-
-可以自动发现本机控制器，也可以手工配置控制器地址和 Secret。读取状态与执行模式 / 节点切换是独立授权。
-
-</details>
-
-<details>
-<summary><b>网易云音乐</b></summary>
-
-默认通过 Windows 系统媒体会话读取和控制播放器。部分客户端版本不提供完整时间轴时，可以启用可选的本机进度通道。
-
-该通道默认只监听本机；若启用，需要以远程调试参数启动网易云播放器。具体兼容性仍取决于客户端版本。
-
-</details>
-
-<details>
-<summary><b>ALAS</b></summary>
-
-ALAS 通过本机只读桥接读取已载入实例、当前任务与调度信息。当前不会通过 Panestra 控制 ALAS 任务执行。
-
-</details>
-
-## 技术栈
-
-<div align="center">
-
-**Go** · **React** · **TypeScript** · **Tauri v2** · **SQLite** · **WebSocket**
-
-</div>
-
-| Layer | Implementation |
-| --- | --- |
-| Core | Go |
-| Universal Client | React + TypeScript |
-| Windows / Android shell | Tauri v2 |
-| Native bridge | Rust + Kotlin |
-| Persistence | SQLite |
-| Realtime | HTTPS + WebSocket |
-| Discovery | mDNS / DNS-SD |
-| Plugin runtime | Out-of-process native worker |
-| Layout | 12 / 8 / 4-column responsive grid |
-
 ## 源码构建
 
 ### Requirements
@@ -321,22 +165,6 @@ APK 输出到 <code>shell/desktop/gen/android/app/build/outputs/apk/arm64/debug<
 
 验证脚本覆盖 TypeScript、Prettier、gofmt、rustfmt、Go vet、Go tests，以及桌面 / 平板 / 手机尺寸的 Playwright 测试。
 
-## Repository
-
-```text
-Panestra/
-├── core/              Go Core、认证、Store、Realtime、Backplane 与 adapters
-├── client/            React / TypeScript Universal Client
-├── plugins/system/    System Monitor Backplane Plugin
-├── packages/          协议与 Widget / Layout 公共类型
-├── shell/desktop/     Tauri Windows / Android shell
-├── shell/android/     Android platform entry
-├── shell/bridge/      Identity / discovery / native transport bridge
-├── assets/branding/   Branding assets
-├── scripts/           Build / verify / release scripts
-└── tests/             Integration tests
-```
-
 ## 更新
 
 应用内可以查看版本与更新日志。
@@ -360,7 +188,5 @@ Panestra 目前仍以快速迭代为主。
 ### Panestra
 
 **ONE CORE, EVERY DEVICE.**
-
-Built around one idea: **everything can be a plugin.**
 
 </div>
