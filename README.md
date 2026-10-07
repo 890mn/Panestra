@@ -1,263 +1,390 @@
+<div align="center">
+
+<img src="./assets/branding/icon.png" width="112" alt="Panestra icon" />
+
 # Panestra
 
-**ONE CORE, EVERY DEVICE.**
+### ONE CORE, EVERY DEVICE.
 
-Panestra（星序）把电脑的状态和控制放到你常用的屏幕上。Windows 电脑运行 Core，保存工作空间、布局和设备权限；Android 手机与平板连接 Core，查看实时数据、操作组件，也能直接编辑自己的页面
+**A local-first personal control plane for the screens you already use.**  
+让 Windows 成为核心，把状态、工具、媒体与自动化能力带到电脑、手机和平板。
 
-目前支持 Windows x64 和 Android 10 及以上的 ARM64 设备，项目处于早期开发阶段
+<br />
 
-## 可以做什么
+[快速开始](#快速开始) ·
+[功能](#功能) ·
+[接入能力](#接入能力) ·
+[架构](#架构) ·
+[安全](#安全) ·
+[源码构建](#源码构建) ·
+[更新日志](./CHANGELOG.md) ·
+[Releases](https://github.com/890mn/Panestra/releases) ·
+[Issues](https://github.com/890mn/Panestra/issues)
 
-- 查看 CPU、内存、磁盘、网络流量和电脑运行状态，支持实时趋势图
-- 查看本机 Codex 的订阅额度、剩余额度与重置时间，需先在电脑上授权
-- 查看智谱中国区 GLM Coding Plan 的额度窗口和工具用量，以及 DeepSeek 的人民币或美元 API 账户余额
-- 查看网易云音乐正在播放的歌曲、歌手、专辑和进度，在授权后播放、暂停、切歌或调整进度
-- 查看 Clash Verge 的代理模式与实时流量，在授权后切换模式和策略组节点
-- 查看 ALAS 的实例状态、当前任务、等待任务与下次调度
-- 创建页面、添加组件，通过圆点手柄移动卡片、右下角调整大小，也可填写网格位置与自由尺寸并实时预览，支持交换、自动对齐及撤销与重做
-- 为桌面、平板和手机分别保存布局，为每种卡片尺寸选择样式、调整内容顺序、列宽与对齐方式
-- 使用白昼、黑夜或跟随系统主题，自定义点缀色
-- Windows 可切换为后台服务模式，通过系统托盘恢复界面或退出
-- 通过局域网发现或二维码配对设备，管理角色与权限，随时撤销设备访问
-- 在授权后锁定电脑会话，自动备份工作空间，离线时查看缓存
+<br />
 
-System Monitor 在独立进程运行，软件适配由 Core 统一连接，读取与控制分别授权。ALAS 通过本机只读桥接读取状态；Codex 当前接入的是订阅额度
+<img src="https://img.shields.io/badge/status-early%20development-789887?style=flat-square" alt="early development" />
+<img src="https://img.shields.io/badge/Windows-x64-789887?style=flat-square&logo=windows11&logoColor=white" alt="Windows x64" />
+<img src="https://img.shields.io/badge/Android-10%2B-789887?style=flat-square&logo=android&logoColor=white" alt="Android 10+" />
+<img src="https://img.shields.io/badge/local--first-yes-789887?style=flat-square" alt="local-first" />
+<img src="https://img.shields.io/badge/Tauri-v2-789887?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" />
 
-## 安装与连接
+</div>
 
-从 [GitHub Releases](https://github.com/890mn/Panestra/releases) 下载与你的设备对应的版本。尚未发布安装包时，可按下文从源码构建
+> [!NOTE]
+> Panestra 仍处于早期开发阶段。当前主要面向 **Windows x64** 与 **Android 10+ ARM64**，接口、插件能力与 UI 仍可能快速变化。
 
-1. 在 Windows 上安装并打开 Panestra，Core 会随应用启动。连接页自动填入本机信息，首次使用点击「建立并进入工作空间」
-2. 进入「插件」，授权并启用 System Monitor，再向工作空间添加需要的组件
-3. 电脑打开「设备与连接」中的配对窗口，Android 与电脑连接同一局域网，扫描电脑二维码或选择自动发现的 Core
-4. 在电脑上核对并批准请求，完成后 Android 会保存配对，下次打开可自动重连
+## Panestra 是什么？
 
-扫码需要相机权限，二维码只在配对窗口开放期间有效。无法发现时检查防火墙是否允许 Panestra 的局域网连接，也可手动填写 HTTPS 地址、身份指纹和配对码
+Panestra 不是远程桌面，也不只是系统监控面板。
 
-触屏编辑时，滑动卡片内容或标题可滚动页面，拖动圆点手柄移动卡片，右下角线条手柄调整大小。点击卡片打开浮动编辑面板，内部内容的小块也可通过面板调整位置、宽度和顺序
+它把一台 Windows PC 作为 **Panestra Core**：工作空间、布局、设备身份、权限和实时状态都由 Core 统一管理；桌面、手机和平板则作为不同的 **Surface**，使用同一套 React / TypeScript 界面连接它。
 
-在编辑面板或组件配置中展开「预设样式」，可选择半环仪表、分段刻度、柱状采样、双向流量表、额度分栏、主机信息块、唱片与大封面播放器、连接路径及任务看板。切换后即时预览，保存只影响当前屏幕与卡片尺寸，原有内部排布保留；小尺寸优先显示核心信息，完整内容可打开卡片详情查看
+你可以把系统指标、Codex 用量、模型账户、音乐播放器、代理状态、自动化任务，以及之后更多本机软件或硬件能力，组织成同一套可编辑的 Workspace。
 
-在左侧导航区域向左滑动可收起侧栏，点击左上角菜单图标展开；宽屏会记住收起偏好，手机仍使用抽屉导航
+**同一个 Core，不同的屏幕，不同的布局。**
 
-连接其他 Core 可从「设备与连接」进入。编辑布局后，不同设备会同步工作空间数据，屏幕尺寸对应的布局各自保存。离线期间只读，重新连接后恢复编辑和控制
+## 功能
 
-### Windows 后台服务
+<table>
+<tr>
+<td width="50%" valign="top">
 
-在「设置 → 后台服务」点击「切换为后台模式」，桌面窗口会释放，Core 和插件继续运行，已连接的 Android 设备可以继续使用。点击系统托盘图标，或再次打开 Panestra 快捷方式，即可恢复界面；托盘菜单中的「退出 Panestra」会停止服务
+### 自由编排的 Workspace
 
-可选「启动时进入后台」和「关闭窗口时转入后台」，两项默认关闭。也可使用 `panestra-desktop.exe --background` 单次启动后台模式。后台模式仍需要 Windows 用户保持登录，不会自动设置开机启动
+卡片可以移动、缩放、交换和自动整理，并支持 Undo / Redo。
 
-Codex 额度需在 Windows 的「插件 → Codex → 额度与设置」授权读取，复用电脑上已有的 Codex ChatGPT 登录，无需复制凭据
+Desktop、Tablet、Mobile 分别使用 **12 / 8 / 4 列布局**。同一个 Widget 可以共享数据与配置，同时在不同 Surface 保存独立位置和尺寸。
 
-GLM 和 DeepSeek 可在「插件 → 对应软件 → 用量与设置」由 Owner 配置 API Key，再添加账户组件。GLM 使用智谱中国区个人 Coding Plan 的官方用量接口，不支持用普通 API 余额替代订阅额度；DeepSeek 查询 API 账户余额，分别保留人民币与美元金额
+</td>
+<td width="50%" valign="top">
 
-凭据只在 Core 电脑上加密保存，不发送到其他设备，每 5 分钟读取一次，也可手动刷新。工作空间备份不包含这类本机凭据，更换电脑后需重新配置
+### 实时状态与跨端同步
 
-接口依据：[智谱官方用量查询插件](https://docs.bigmodel.cn/cn/coding-plan/extension/usage-query-plugin)、[DeepSeek 官方余额接口](https://api-docs.deepseek.com/api/get-user-balance/)
+Core 维护权威状态，客户端通过 HTTPS / WebSocket 同步。
 
-Clash Verge 可在「插件 → Clash Verge → 状态与设置」由 Owner 启用自动发现，也可手动填写本机控制器地址和 Secret。支持 HTTP 控制器与 Windows 命名管道，凭据由 DPAPI 保护。切换模式和节点需单独授权，自动测速策略组保持只读；系统代理和 TUN 仍由 Clash Verge 管理
+配置修改使用 revision 与 operation ID 做冲突控制和幂等；实时指标按 topic 订阅，慢客户端不会阻塞 Core。
 
-接口依据：[Mihomo 官方控制接口](https://wiki.metacubex.one/api/)、[Clash Verge 本机连接实现](https://github.com/clash-verge-rev/clash-verge-rev/blob/main/src-tauri/src/utils/dirs.rs)
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
-网易云音乐可在「插件 → 网易云音乐 → 状态与设置」启用读取，再添加音乐组件。读取只显示歌曲信息，Owner 点击「开启播放控制」后，操作设备才能播放、暂停和切歌。电脑需要安装网易云音乐，并在播放器设置中开启系统媒体控制；仅识别网易云的媒体会话，不会控制其他播放器。封面与状态同步给已配对设备，未提供播放时长时显示「播放器未提供进度」。客户端版本未提供系统媒体会话时显示「未找到播放器」，控制能力以播放器实际提供的接口为准
+### 插件与本机适配
 
-控制播放需要 Owner 单独授权，Operator 可操作，Viewer 保持只读。小卡保留播放按键，完整详情提供切歌、播放进度和专辑信息；编辑布局和离线时禁用控制
+System Monitor 已通过 Panestra Backplane 作为独立 Worker 运行，使用 manifest、capability 授权、健康检查与崩溃重启。
 
-部分网易云版本不向 Windows 提供时间轴，可在状态与设置中启用「使用本机进度通道」，默认端口为 19228。关闭网易云后，在电脑上用以下参数启动播放器，再保存 Panestra 设置
+Codex、账户额度、Clash、网易云音乐和 ALAS 目前由 Core adapters 接入。
 
-```powershell
-& 'C:\实际安装目录\cloudmusic.exe' --remote-debugging-address=127.0.0.1 --remote-debugging-port=19228
+</td>
+<td width="50%" valign="top">
+
+### Local-first 与设备身份
+
+数据默认留在自己的 Core 上。
+
+首次连接需要配对；客户端固定 Core 公钥指纹，设备使用独立密钥身份，Owner 可以批准、分配角色或撤销设备。
+
+</td>
+</tr>
+</table>
+
+## 接入能力
+
+| 能力 | 当前实现 | 可做什么 |
+| --- | --- | --- |
+| **System Monitor** | Backplane Plugin | CPU、内存、磁盘、网络、主机信息；授权后锁定 Windows 会话 |
+| **Codex** | Core Adapter | 读取本机 Codex ChatGPT 订阅额度、剩余额度与重置时间 |
+| **GLM Coding Plan** | Core Adapter | 查询智谱中国区 Coding Plan 用量窗口与工具用量 |
+| **DeepSeek** | Core Adapter | 查询 API 账户人民币 / 美元余额 |
+| **网易云音乐** | Core Adapter | 当前歌曲、歌手、封面与播放状态；授权后播放、暂停、切歌与调整进度 |
+| **Clash Verge** | Core Adapter | 代理模式、实时流量、策略组状态；授权后切换模式与节点 |
+| **ALAS** | Core Adapter | 查看实例状态、当前任务、等待任务与下一次调度 |
+
+读取能力和控制能力分开授权。设备也有独立角色：Viewer 只读，Operator 可以编辑和执行允许的操作，Owner 负责设备、权限与高风险设置。
+
+## Dashboard
+
+Panestra 的 Dashboard 不是固定模板，而是可编排页面。
+
+- 创建页面并添加 Widget
+- 拖动、Resize、交换、自动对齐
+- 网格位置与自由尺寸实时预览
+- Widget 内部内容可以调整顺序、列宽和对齐
+- 不同尺寸可使用不同 presentation
+- Desktop / Tablet / Mobile 保存独立布局
+- 白昼、黑夜或跟随系统主题
+- 自定义点缀色
+- 离线保留最近快照，重新连接后恢复实时状态
+
+布局编辑只在手势结束时提交持久化变更；拖动过程保持本地预览，从而避免把每一帧移动都写入数据库。
+
+## 快速开始
+
+### 1. 在 Windows 启动 Core
+
+优先从 [GitHub Releases](https://github.com/890mn/Panestra/releases) 下载对应版本。尚未提供安装包时，可以按下方的源码构建流程运行。
+
+首次启动时，Windows 应用会同时启动 Panestra Core。
+
+### 2. 启用 System Monitor
+
+进入 **插件 → System Monitor**，授予读取系统指标的能力，然后把需要的 Widget 添加到工作空间。
+
+### 3. 配对 Android
+
+在 Windows 打开 **设备与连接 → 添加设备**。
+
+Android 与 PC 位于同一局域网时，可以通过 mDNS 自动发现 <code>_panestra._tcp</code> 服务，也可以扫描配对二维码或手工填写 HTTPS Endpoint。
+
+客户端会先验证 Core 身份指纹，再提交设备公钥和签名挑战；Windows 端批准后完成配对。
+
+### 4. 从任意 Surface 编辑
+
+手机、平板和桌面都可以编辑 Workspace。数据与 Widget 实例共享，但各 breakpoint 的布局分别保存。
+
+## 架构
+
+下面这张图按当前代码组织生成，而不是未来规划图：
+
+```mermaid
+flowchart TB
+    subgraph Surface["Surfaces"]
+        Win["Windows · Tauri"]
+        Android["Android · Tauri"]
+        UI["Universal Client<br/>React + TypeScript"]
+        Bridge["Native Bridge<br/>identity · signing · discovery · transport"]
+        Win --> UI
+        Android --> UI
+        UI --> Bridge
+    end
+
+    MDNS["mDNS / DNS-SD<br/>_panestra._tcp"] -. discovery .-> Bridge
+
+    subgraph Core["Panestra Core · Go"]
+        API["HTTPS API<br/>TLS 1.3"]
+        Auth["Identity & Auth<br/>pairing · roles · sessions"]
+        Hub["Realtime Hub<br/>snapshot · events · telemetry"]
+        Store["State / Command Service<br/>revision · opId · arrange"]
+        DB[("SQLite")]
+        Backplane["Backplane Runtime<br/>manifest · capabilities · supervision"]
+        Adapters["Core Adapters<br/>Codex · GLM · DeepSeek<br/>Clash · NetEase · ALAS"]
+
+        API --> Auth
+        API --> Store
+        API --> Hub
+        Store --> DB
+        Auth --> DB
+        Backplane --> Hub
+        Adapters --> Hub
+    end
+
+    Bridge <-->|HTTPS / WSS| API
+
+    Worker["System Monitor Worker<br/>native process · stdio IPC"]
+    Backplane <--> Worker
 ```
 
-通道只监听本机，通过原生播放事件同步当前位置，松手后调用播放器的跳转并回读确认。此方式依赖网易云内部接口，目前实测版本为 3.1.33.205244；版本不兼容时会禁用进度控制，播放与切歌继续使用系统媒体接口。启动参数需要在每次启动网易云时保留，Panestra 不会自动重启播放器或改写其快捷方式
+### 数据同步
 
-接口参考：[BetterNCM 播放器适配源码](https://github.com/BetterNCM/BetterNCM-Plugins/blob/master/plugins-data/LibFrontendPlay/index.js)、[CloudMusic Desktop MCP 本机通道方案](https://github.com/Seraph310/cloudmusic-desktop-mcp)
+Core 是唯一写入权威节点。
 
-实现依据：[Windows 官方系统媒体会话接口](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager)
+持久化修改走 **Command → revision check → SQLite transaction → canonical event**。客户端提交 <code>baseRev</code>，冲突时 Core 返回当前 revision 与状态。
 
-ALAS 可在「插件 → ALAS → 状态与设置」填写电脑上的安装目录、WebUI 端口与实例名称，生成桥接启动文件后，先停止原有 ALAS，再使用生成的文件启动。启动方式保留 ALAS 原有的自动运行和重载设置，不修改安装目录；重启会中断当前任务
+WebSocket 连接首先认证，然后依据客户端的 <code>lastServerSeq</code> 补发事件并发送最新 snapshot。Telemetry 使用独立队列和 topic subscription；队列过慢时优先丢弃旧 telemetry，而不是拖住全局状态事件。
 
-桥接在真实 WebUI 进程内读取已载入实例的 ProcessManager 和调度配置，仅提供本机认证的只读状态接口。实例未载入、任务名称未知或桥接断开时会明确显示，不用进程存在推断任务正常运行。任务控制不在此插件的权限范围内
+### Backplane
 
-实现依据：[ALAS 官方 WebUI 源码](https://github.com/LmeSzinc/AzurLaneAutoScript/blob/master/module/webui/app.py)
+当前 System Monitor 的执行链路已经与 Core 主进程隔离：
 
-## 从源码构建
+```text
+manifest.json
+     ↓
+Backplane Runtime
+     ↓ stdio framed IPC
+System Monitor Worker
+     ↓
+Sources / Actions
+```
 
-### 依赖
+Runtime 会校验 plugin ID、版本、协议和 manifest digest；只有 manifest 声明且被用户授权的 capability 才会授予 Worker。Worker 失去健康响应或崩溃后会被停止并按退避策略重启。
 
-- Node.js 22.12+ 与 npm
+## 安全
+
+Panestra 未来可能拥有读取系统状态、控制软件甚至执行高风险 Action 的能力，所以安全边界从第一版就存在。
+
+当前代码包括：
+
+- **TLS 1.3**：Core 只通过 HTTPS / WSS 提供主接口
+- **Core 身份固定**：Core 使用 P-256 身份密钥，客户端验证公钥指纹和签名证明
+- **设备挑战认证**：设备以自己的公钥完成 challenge-response，不用永久 bearer token 代替设备身份
+- **短期 Session**：登录后会话有过期时间；设备被撤销后已有连接也会失效
+- **配对批准**：新设备必须进入 Pairing Window，并由 Owner 批准角色
+- **Local bootstrap**：首次认领只能从 Core 本机完成
+- **Role + Capability**：设备角色与插件 capability 是两层权限
+- **Origin / rate limit / request limits**：Core 对 Web Origin、请求速率和消息尺寸做限制
+- **OS Secret Storage**：Windows 使用 DPAPI；Android 原生端使用 Keystore
+- **发现不等于信任**：mDNS 只负责找到候选 Endpoint，身份仍由 TLS、公钥指纹和应用层认证确认
+
+LAN、Tailscale、ZeroTier、FRP 或其他端口映射只改变 **Connectivity**；它们不会绕过 Panestra 自己的身份与授权。
+
+## Windows 后台模式
+
+在 **设置 → 后台服务** 可以让桌面窗口退出，而 Core 与已启用的能力继续运行。系统托盘可以恢复界面或停止 Panestra。
+
+也可以单次使用：
+
+<pre><code>panestra-desktop.exe --background</code></pre>
+
+当前后台模式仍要求 Windows 用户保持登录。
+
+## 特殊适配说明
+
+<details>
+<summary><b>Codex</b></summary>
+
+在 Windows 的 **插件 → Codex → 额度与设置** 授权读取。当前读取本机已有的 Codex ChatGPT 登录状态，不需要把凭据复制到移动端。
+
+</details>
+
+<details>
+<summary><b>GLM Coding Plan / DeepSeek</b></summary>
+
+由 Owner 在对应适配器中配置 API Key。凭据只在 Core 电脑上加密保存，不进入工作空间同步，也不会包含在普通 Workspace 备份中。
+
+GLM 当前使用智谱中国区个人 Coding Plan 用量接口；DeepSeek 查询 API 账户余额。
+
+</details>
+
+<details>
+<summary><b>Clash Verge</b></summary>
+
+可以自动发现本机控制器，也可以手工配置控制器地址和 Secret。读取状态与执行模式 / 节点切换是独立授权。
+
+</details>
+
+<details>
+<summary><b>网易云音乐</b></summary>
+
+默认通过 Windows 系统媒体会话读取和控制播放器。部分客户端版本不提供完整时间轴时，可以启用可选的本机进度通道。
+
+该通道默认只监听本机；若启用，需要以远程调试参数启动网易云播放器。具体兼容性仍取决于客户端版本。
+
+</details>
+
+<details>
+<summary><b>ALAS</b></summary>
+
+ALAS 通过本机只读桥接读取已载入实例、当前任务与调度信息。当前不会通过 Panestra 控制 ALAS 任务执行。
+
+</details>
+
+## 技术栈
+
+<div align="center">
+
+**Go** · **React** · **TypeScript** · **Tauri v2** · **SQLite** · **WebSocket**
+
+</div>
+
+| Layer | Implementation |
+| --- | --- |
+| Core | Go |
+| Universal Client | React + TypeScript |
+| Windows / Android shell | Tauri v2 |
+| Native bridge | Rust + Kotlin |
+| Persistence | SQLite |
+| Realtime | HTTPS + WebSocket |
+| Discovery | mDNS / DNS-SD |
+| Plugin runtime | Out-of-process native worker |
+| Layout | 12 / 8 / 4-column responsive grid |
+
+## 源码构建
+
+### Requirements
+
+- Node.js 22.12+
+- npm
 - Go 1.27+
-- Windows 原生应用：Rust stable 1.90+、MSVC C++ 工具链、Windows SDK、WebView2
-- Android：JDK 17、Android SDK 36、Build Tools 36、NDK 28.2.13676358，以及 Rust `aarch64-linux-android` target
+- Rust stable 1.90+
+- MSVC C++ Toolchain
+- Windows SDK
+- WebView2
 
-构建脚本使用 PowerShell，在项目根目录运行，需允许下载 npm、Go、Cargo 与 Gradle 依赖
+Android 额外需要 JDK 17、Android SDK 36、Build Tools 36、NDK 28.2.13676358，以及 Rust <code>aarch64-linux-android</code> target。
 
-```powershell
-git clone https://github.com/890mn/Panestra.git
+### Clone
+
+<pre><code>git clone https://github.com/890mn/Panestra.git
 cd Panestra
-npm ci
-```
+npm ci</code></pre>
 
-### Core 与网页界面
+### Core + Web
 
-```powershell
-.\scripts\build.ps1
-.\scripts\start.ps1
-```
+<pre><code>.\scripts\build.ps1
+.\scripts\start.ps1</code></pre>
 
-默认监听 `https://localhost:9443`，数据保存在 `.data`。首次认领码和身份指纹会在终端显示，浏览器需要确认本地证书；原生应用通过固定公钥校验 Core 身份
+默认 Core Endpoint 为 <code>https://localhost:9443</code>，本地数据存放在 <code>.data</code>。
 
-开发界面可另开终端运行 `npm run dev`。生产界面会在构建时嵌入 Core
+### Windows
 
-### Windows 应用
+<pre><code>.\scripts\build.ps1 -Desktop</code></pre>
 
-```powershell
-.\scripts\build.ps1 -Desktop
-```
+安装包输出到 <code>shell/desktop/target/release/bundle/nsis</code>。
 
-安装包位于 `shell/desktop/target/release/bundle/nsis`。普通源码构建无需更新签名私钥；自行发行的版本需配置自己的更新公钥与签名密钥
+### Android
 
-### Android 应用
+<pre><code>rustup target add aarch64-linux-android
+.\scripts\build-android.ps1 -Debug -OptimizedNative</code></pre>
 
-设置 `JAVA_HOME` 和 `ANDROID_HOME` 后安装 Rust target，再构建开发 APK
+APK 输出到 <code>shell/desktop/gen/android/app/build/outputs/apk/arm64/debug</code>。
 
-```powershell
-rustup target add aarch64-linux-android
-.\scripts\build-android.ps1 -Debug -OptimizedNative
-```
+### Verify
 
-APK 位于 `shell/desktop/gen/android/app/build/outputs/apk/arm64/debug`。首次构建会生成 Android 工程，Windows 未开启 Developer Mode 时脚本会用复制方式放置 JNI 库
+<pre><code>.\scripts\verify.ps1</code></pre>
 
-发布 APK 需使用持续保留的签名密钥，设置以下环境变量后运行 `.\scripts\build-android.ps1`：`PANESTRA_ANDROID_KEYSTORE`、`PANESTRA_ANDROID_STORE_PASSWORD`、`PANESTRA_ANDROID_KEY_ALIAS`、`PANESTRA_ANDROID_KEY_PASSWORD`。密钥和密码不应写入仓库，正式 APK 与开发 APK 的签名不同，不能相互覆盖安装
+验证脚本覆盖 TypeScript、Prettier、gofmt、rustfmt、Go vet、Go tests，以及桌面 / 平板 / 手机尺寸的 Playwright 测试。
 
-### 检查
+## Repository
 
-```powershell
-.\scripts\verify.ps1
-```
-
-检查包括 TypeScript、Prettier、gofmt、rustfmt、Go vet 与测试，以及桌面、平板和手机尺寸的 Playwright 测试。浏览器测试需要本机 Chrome，Windows 身份与传输测试需要真实用户配置；原生 Android 验收需显式指定授权设备
-
-ALAS 桥接的独立测试只依赖 Python 标准库，可用 Python 3.7 及以上版本运行：
-
-```powershell
-python tests/test-alas-bridge.py
+```text
+Panestra/
+├── core/              Go Core、认证、Store、Realtime、Backplane 与 adapters
+├── client/            React / TypeScript Universal Client
+├── plugins/system/    System Monitor Backplane Plugin
+├── packages/          协议与 Widget / Layout 公共类型
+├── shell/desktop/     Tauri Windows / Android shell
+├── shell/android/     Android platform entry
+├── shell/bridge/      Identity / discovery / native transport bridge
+├── assets/branding/   Branding assets
+├── scripts/           Build / verify / release scripts
+└── tests/             Integration tests
 ```
 
 ## 更新
 
-点击左上角品牌可查看软件简介、当前版本与更新日志，通过「GitHub 项目」打开源码仓库和问题反馈页面
+应用内可以查看版本与更新日志。
 
-「设置 → 应用更新」显示当前版本，手动检查 GitHub Releases 的正式版本，可在「更新日志」查看本地记录和检查到的新版本说明
+Windows 使用 Tauri Updater 对安装包签名进行验证；Android 在安装前校验下载摘要、包名、版本和应用签名。更新过程保留现有布局与设备配对。
 
-Windows 通过 Tauri 官方更新器验证安装包签名，下载成功后安装并重启应用。Android 下载 APK 后校验 SHA-256、应用包名、版本和签名，再打开系统安装窗口；首次需要允许 Panestra 安装应用，最终安装由系统确认。更新保留已有布局与配对
+完整开发记录见 **[CHANGELOG.md](./CHANGELOG.md)**。
 
-尚无正式 Release、发布包不完整或网络不可用时，界面会显示相应状态，保留当前版本
+## Contributing
 
-### 发行者
+Panestra 目前仍以快速迭代为主。
 
-Windows 自动更新采用 [Tauri 官方 updater](https://v2.tauri.app/plugin/updater/) 与 GitHub Releases 静态 `latest.json`，不需要维护更新服务器
+如果你发现 Bug、希望接入新的本机软件 / Agent / 硬件，或者对跨设备 Dashboard 有新的交互想法，欢迎提交 [Issue](https://github.com/890mn/Panestra/issues)。
 
-1. 用 `npm exec -- tauri signer generate -w <安全目录中的密钥文件>` 生成更新密钥，将公钥内容配置到 `shell/desktop/tauri.conf.json` 的 `plugins.updater.pubkey`。妥善备份私钥，已安装的客户端依赖此公钥
-2. 在构建环境设置 `TAURI_SIGNING_PRIVATE_KEY` 与可选的 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，构建 Windows 安装包。`requireSignedVersion` 要求签名绑定版本，防止重放旧包
-3. 在 `artifacts` 中准备 `Panestra-版本-windows-x64-setup.exe`，运行 `node scripts/create-update-manifest.mjs` 生成 `latest.json` 和安装包签名
-4. 创建标签为 `v版本` 的正式 GitHub Release，上传 Windows 安装包、对应 `.sig` 与 `latest.json`。Android 上传使用原发布签名的 `Panestra-版本-android-arm64.apk`，GitHub 的资源元数据提供下载摘要
+---
 
-Release 正文用于新版本更新说明。推送源码、创建标签和公开发布都是独立操作，构建脚本不会自动上传
+<div align="center">
 
-## 源码结构
+<img src="./assets/branding/icon.png" width="44" alt="Panestra" />
 
-| 目录              | 内容                                    |
-| ----------------- | --------------------------------------- |
-| `core`            | 数据、身份认证、API、实时同步与插件管理 |
-| `client`          | React / TypeScript 共享界面             |
-| `shell/desktop`   | Windows Tauri 壳与 Android 共享原生入口 |
-| `shell/android`   | Android 主 Activity 与平台配置          |
-| `shell/bridge`    | 原生发现、身份存储、网络与扫码桥接      |
-| `plugins/system`  | 系统监控插件                            |
-| `packages`        | 协议与布局类型                          |
-| `assets/branding` | 原始品牌图标                            |
-| `scripts`         | 构建、验证与打包脚本                    |
+### Panestra
 
-Core 数据默认保留在本机，设备通过 HTTPS / WSS 通信。Windows 使用 DPAPI、Android 使用 Keystore 保存身份。配对需要电脑批准，插件操作受设备角色和授权范围限制
+**ONE CORE, EVERY DEVICE.**
 
-## 更新说明
+Built around one idea: **everything can become a surface capability.**
 
-### 0.1.25
-
-移除 Android 默认蓝色触摸高亮，触屏隐藏滚动条，桌面统一为主题细滚动条，保留正常滚动与键盘焦点提示
-
-### 0.1.24
-
-新增 15 种卡片表现预设与图示选择，涵盖仪表、柱状趋势、额度分栏、音乐封面和任务看板，各尺寸即时预览与独立保存
-
-### 0.1.23
-
-优化平板编辑手势，滚动与卡片移位分开，新增常见线条缩放角标和左栏左滑收起，保持原位内容预览与统一操作尺寸
-
-### 0.1.22
-
-新增 Windows 后台服务模式和系统托盘，支持无界面启动、关闭窗口后保留服务及快捷方式恢复，继续使用原有配对与布局
-
-### 0.1.21
-
-新增可选的网易云本机进度通道，支持真实时间轴、触屏拖动跳转与结果确认，最小化播放器后仍持续同步
-
-### 0.1.20
-
-调整网易云封面播放器布局，三个控制按键靠右并与封面居中，恢复进度轨道，兼容未知时长和各尺寸的内部布局设置
-
-### 0.1.19
-
-完善网易云播放控制的授权入口和反馈，增加真实封面、环形额度、余额构成、代理流量趋势与任务时间线，各尺寸可独立选择呈现样式
-
-### 0.1.18
-
-在浏览页的原有画布上通过浮动面板编辑，支持拖动或收起面板，小卡片保留移动手柄和原有内容尺寸
-
-### 0.1.17
-
-编辑面板滚动时保留标题和收起入口，拖动滚动边界跟随面板高度变化
-
-### 0.1.16
-
-支持从卡片内容区域触摸拖动，填写位置和自由尺寸时实时预览，编辑面板可收起，远端布局冲突时保留草稿并允许取消
-
-### 0.1.15
-
-接入 ALAS 实例、当前任务与调度队列，生成保留原自动运行和重载设置的本机只读桥接启动文件
-
-### 0.1.14
-
-接入网易云音乐系统媒体会话，支持歌曲、进度读取与单独授权的播放、切歌和进度控制
-
-### 0.1.13
-
-接入 Clash Verge 本机控制器，支持代理状态、流量读取与单独授权的模式和节点切换
-
-### 0.1.12
-
-接入智谱中国区 GLM Coding Plan 用量与 DeepSeek 账户余额
-
-### 0.1.11
-
-点击左上角品牌查看软件简介、当前版本和更新日志，通过菜单内的 GitHub 按钮打开项目页面
-
-### 0.1.10
-
-新增应用更新与分层更新日志，将 GitHub 入口移到品牌区，整理品牌素材和开源使用说明
-
-### 0.1.9
-
-恢复纯英文主品牌，统一全大写 slogan，调整连接页位置与版本标记
-
-### 0.1.8
-
-统一主题、控件和界面文案，简化工作空间导航与设置
-
-### 0.1.7
-
-原位动态编辑布局，增加尺寸与内容样式预设，完善触摸操作并接入 Codex 订阅额度
-
-更早记录与后续版本见 [CHANGELOG.md](CHANGELOG.md)
+</div>
