@@ -3,8 +3,10 @@ package netease
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math"
+	"net/http"
 	"strings"
 )
 
@@ -23,6 +25,7 @@ type Reading struct {
 	Title           string   `json:"title"`
 	Artist          string   `json:"artist"`
 	Album           string   `json:"album"`
+	ArtworkDataURL  string   `json:"artworkDataUrl,omitempty"`
 	Playback        string   `json:"playback"`
 	PositionSeconds *float64 `json:"positionSeconds"`
 	DurationSeconds *float64 `json:"durationSeconds"`
@@ -68,6 +71,19 @@ func validReading(reading Reading) error {
 	for _, value := range []string{reading.Title, reading.Artist, reading.Album} {
 		if len(value) > 4096 || strings.ContainsRune(value, '\x00') {
 			return fmt.Errorf("媒体信息无效")
+		}
+	}
+	if reading.ArtworkDataURL != "" {
+		if len(reading.ArtworkDataURL) > 132000 {
+			return fmt.Errorf("媒体封面过大")
+		}
+		prefix, encoded, ok := strings.Cut(reading.ArtworkDataURL, ";base64,")
+		if !ok || (prefix != "data:image/jpeg" && prefix != "data:image/png") {
+			return fmt.Errorf("媒体封面格式无效")
+		}
+		image, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil || len(image) == 0 || len(image) > 98304 || "data:"+http.DetectContentType(image) != prefix {
+			return fmt.Errorf("媒体封面内容无效")
 		}
 	}
 	switch reading.Playback {

@@ -61,7 +61,7 @@ function renderPreview(query: string) {
       : type === 'media-control'
         ? {
             enabled: true,
-            allowControl: params.has('control'),
+            allowControl: params.has('control') && !params.has('readonly'),
             state: 'ready',
             message: '已连接网易云音乐媒体会话',
             title: '一首名称很长很长的歌曲，需要在详情完整呈现',

@@ -16,6 +16,7 @@ export const PRESENTATIONS: Record<Widget['type'], readonly { id: string; label:
     { id: 'auto', label: '自动适配' },
     { id: 'summary', label: '实例摘要' },
     { id: 'tasks', label: '任务与调度' },
+    { id: 'timeline', label: '调度时间线' },
   ],
   'metric-card': [
     { id: 'auto', label: '自动适配' },
@@ -38,21 +39,25 @@ export const PRESENTATIONS: Record<Widget['type'], readonly { id: string; label:
     { id: 'auto', label: '自动适配' },
     { id: 'remaining', label: '剩余额度' },
     { id: 'windows', label: '额度与重置时间' },
+    { id: 'rings', label: '环形额度' },
   ],
   'account-usage': [
     { id: 'auto', label: '自动适配' },
     { id: 'summary', label: '额度与余额摘要' },
     { id: 'details', label: '完整账户信息' },
+    { id: 'visual', label: '额度图示与余额构成' },
   ],
   'proxy-status': [
     { id: 'auto', label: '自动适配' },
     { id: 'summary', label: '模式与流量' },
     { id: 'details', label: '代理状态详情' },
+    { id: 'trend', label: '双向流量趋势' },
   ],
   'media-control': [
     { id: 'auto', label: '自动适配' },
     { id: 'player', label: '播放控制' },
     { id: 'track', label: '歌曲信息' },
+    { id: 'cover', label: '封面播放器' },
   ],
 };
 export const sourcesFor = (type: Widget['type']) =>

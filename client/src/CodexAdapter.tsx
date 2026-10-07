@@ -5,6 +5,7 @@ import { CODEX_TOPIC } from '../../packages/protocol/src';
 import { core } from './core';
 import { Button, Modal } from './components';
 import { connectionErrorText } from './connection-errors';
+import { QuotaRing, UsagePreview } from './AdapterVisuals';
 
 export function windowLabel(window: CodexWindow): string {
   const duration = window.durationMinutes;
@@ -46,7 +47,8 @@ export function statusLabel(status: CodexStatus | undefined, online: boolean): s
 }
 function QuotaWindow({ window }: { window: CodexWindow }) {
   return (
-    <div className="codex-window">
+    <div className="codex-window with-ring">
+      <QuotaRing value={window.remainingPercent} label={`${windowLabel(window)}剩余`} />
       <div className="codex-window-heading">
         <span>{windowLabel(window)}窗口</span>
         <strong>剩余 {percent(window.remainingPercent)}</strong>
@@ -188,6 +190,16 @@ export function CodexAdapterCard() {
       <h3>Codex</h3>
       <span className="adapter-subtitle">订阅额度</span>
       <p>复用电脑上的 Codex 登录，查看额度窗口和重置卡</p>
+      <UsagePreview
+        items={[0, 1].map((index) => ({
+          label: main?.windows[index]
+            ? windowLabel(main.windows[index])
+            : index
+              ? '次要窗口'
+              : '主要窗口',
+          value: main?.windows[index]?.remainingPercent ?? null,
+        }))}
+      />
       <div className="adapter-fields">
         {[0, 1].map((index) => (
           <div key={index}>

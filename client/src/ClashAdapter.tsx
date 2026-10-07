@@ -4,6 +4,7 @@ import { CLASH_TOPIC, type ClashStatus } from '../../packages/protocol/src';
 import { core } from './core';
 import { Button, Modal } from './components';
 import { connectionErrorText } from './connection-errors';
+import { TrafficPlot } from './AdapterVisuals';
 
 export const modeName = (mode: string) =>
   ({ rule: '规则', global: '全局', direct: '直连' })[mode] || '—';
@@ -29,12 +30,22 @@ export function clashContents({
   compact = false,
   summary = false,
   showNode = true,
+  height = 600,
+  trend = false,
+  rxHistory = [],
+  txHistory = [],
+  area = false,
 }: {
   status?: ClashStatus;
   online: boolean;
   compact?: boolean;
   summary?: boolean;
   showNode?: boolean;
+  height?: number;
+  trend?: boolean;
+  rxHistory?: number[];
+  txHistory?: number[];
+  area?: boolean;
 }) {
   const group =
     status?.groups.find((g) => g.name === 'GLOBAL') ||
@@ -46,17 +57,32 @@ export function clashContents({
         <span className="view-muted">代理模式</span>
         <strong>{modeName(status?.mode || '')}</strong>
       </div>
-      <div data-block="traffic" className={`clash-rates ${compact ? 'is-small' : ''}`}>
-        <div>
-          <span className="view-muted">接收</span>
-          <strong>{rate(status?.download)}</strong>
+      <div data-block="traffic" className="clash-traffic">
+        <div className={`clash-rates ${compact ? 'is-small' : ''}`}>
+          <div>
+            <span className="view-muted">接收</span>
+            <strong>{rate(status?.download)}</strong>
+          </div>
+          <div>
+            <span className="view-muted">发送</span>
+            <strong>{rate(status?.upload)}</strong>
+          </div>
         </div>
-        <div>
-          <span className="view-muted">发送</span>
-          <strong>{rate(status?.upload)}</strong>
-        </div>
+        {trend && !compact ? (
+          <div className="clash-trend">
+            <TrafficPlot receive={rxHistory} send={txHistory} area={area} />
+            <div className="view-chart-caption">
+              <span>
+                <i />
+                接收 <i className="secondary" />
+                发送
+              </span>
+              <span>最近 {Math.min(30, rxHistory.length)} 次采样</span>
+            </div>
+          </div>
+        ) : null}
       </div>
-      {!compact && showNode ? (
+      {!compact && showNode && (!trend || height >= 320) ? (
         <div data-block="node" className="clash-current-node">
           <span className="view-muted">{group?.name || '策略组'}</span>
           <span>{group?.current || '—'}</span>
@@ -84,6 +110,8 @@ export function clashContents({
 export function ClashAdapterCard() {
   const state = useSyncExternalStore(core.subscribe, core.getSnapshot);
   const status = state.telemetry[CLASH_TOPIC]?.value as ClashStatus | undefined;
+  const receive = state.history[`${CLASH_TOPIC}/download`] || [],
+    send = state.history[`${CLASH_TOPIC}/upload`] || [];
   const [detail, setDetail] = useState(false),
     [secret, setSecret] = useState(''),
     [address, setAddress] = useState(''),
@@ -138,6 +166,13 @@ export function ClashAdapterCard() {
       <h3>Clash Verge</h3>
       <span className="adapter-subtitle">代理控制</span>
       <p>查看代理模式与流量，切换模式和策略组节点</p>
+      <div className="adapter-visual adapter-traffic">
+        <TrafficPlot receive={receive} send={send} area />
+        <div className="view-chart-caption">
+          <span>接收 {rate(status?.download)}</span>
+          <span>发送 {rate(status?.upload)}</span>
+        </div>
+      </div>
       <div className="adapter-fields">
         <div>
           <span>代理模式</span>
@@ -155,7 +190,14 @@ export function ClashAdapterCard() {
       {detail ? (
         <Modal title="Clash Verge · 代理控制" close={close} wide>
           <div className="account-detail-content">
-            {clashContents({ status, online: state.online })}
+            {clashContents({
+              status,
+              online: state.online,
+              trend: true,
+              rxHistory: receive,
+              txHistory: send,
+              area: true,
+            })}
           </div>
           <div className="button-row clash-mode-controls" aria-label="代理模式">
             {(['rule', 'global', 'direct'] as const).map((mode) => (

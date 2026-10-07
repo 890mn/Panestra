@@ -106,7 +106,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.18',
+        version: '0.1.19',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,
@@ -341,4 +341,37 @@ test('音乐小卡保留直接播放，详情支持切歌与进度，编辑、�
     await expect(page.getByRole('button', { name: '网易云暂停', exact: true })).toBeDisabled();
   }
   expect(actions).toHaveLength(4);
+  await page.evaluate((query) => (window as any).renderPreview(query), query + '&readonly');
+  await expect(page.getByRole('button', { name: '网易云暂停', exact: true })).toBeDisabled();
+  await expect(page.locator('.music-access')).toHaveText('未授权');
+  expect(actions).toHaveLength(4);
+});
+
+test('插件可视化使用真实数值，未知额度和余额不生成伪造图表', async ({ page }) => {
+  await page.goto('http://127.0.0.1:19519/?type=codex-usage&mode=rings&width=1000&w=8&h=5');
+  await expect(page.locator('.quota-ring').first()).toBeVisible();
+  await expect(page.locator('.quota-ring').first()).toHaveAttribute('aria-label', /87.5%/);
+  await page.evaluate(() =>
+    (window as any).renderPreview(
+      'type=account-usage&mode=visual&width=1000&w=8&h=5&account=deepseek',
+    ),
+  );
+  await expect(page.locator('.balance-composition').first()).toHaveAttribute(
+    'aria-label',
+    'CNY 赠送 10.00，充值 100.00',
+  );
+  await expect(page.locator('.balance-composition')).toHaveCount(1);
+  await page.evaluate(() =>
+    (window as any).renderPreview('type=proxy-status&mode=trend&width=1000&w=8&h=5'),
+  );
+  await expect(page.locator('.clash-trend-chart svg').first()).toBeVisible();
+  await page.evaluate(() =>
+    (window as any).renderPreview('type=task-status&mode=timeline&width=1000&w=8&h=8'),
+  );
+  await expect(page.locator('.alas-queue.is-timeline')).toBeVisible();
+  await page.evaluate(() =>
+    (window as any).renderPreview('type=codex-usage&mode=rings&width=1000&w=8&h=5&empty'),
+  );
+  await expect(page.locator('.quota-ring-value')).toHaveCount(0);
+  await page.screenshot({ path: 'artifacts/adapter-unknown-quota.png' });
 });

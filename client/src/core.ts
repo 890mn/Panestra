@@ -424,13 +424,42 @@ export class CoreClient {
         } else if (message.type === 'event') this.apply(message);
         else if (message.type === 'telemetry') {
           const topic = message.topic;
-          const history =
+          let history =
             typeof message.value === 'number'
               ? {
                   ...this.state.history,
                   [topic]: [...(this.state.history[topic] || []), message.value].slice(-60),
                 }
               : this.state.history;
+          if (
+            topic === CLASH_TOPIC &&
+            typeof message.value === 'object' &&
+            'groups' in message.value
+          ) {
+            const value = message.value;
+            const previous = this.state.telemetry[topic]?.value;
+            if (
+              value.state === 'ready' &&
+              !value.stale &&
+              !value.refreshing &&
+              value.updatedAt !==
+                (typeof previous === 'object' && 'groups' in previous
+                  ? previous.updatedAt
+                  : undefined)
+            ) {
+              history = { ...history };
+              for (const [key, rate] of [
+                ['download', value.download],
+                ['upload', value.upload],
+              ] as const) {
+                if (rate !== null && Number.isFinite(rate))
+                  history[`${topic}/${key}`] = [
+                    ...(history[`${topic}/${key}`] || []),
+                    rate / 1024,
+                  ].slice(-30);
+              }
+            }
+          }
           this.patch({ telemetry: { ...this.state.telemetry, [topic]: message }, history });
         }
       },

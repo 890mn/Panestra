@@ -646,8 +646,20 @@ export function App() {
                     data={state.telemetry[`${widget.data.pluginId}/${widget.data.source}`]?.value}
                     download={state.telemetry[`${SYSTEM}/network.rx`]?.value as number | undefined}
                     upload={state.telemetry[`${SYSTEM}/network.tx`]?.value as number | undefined}
-                    rxHistory={state.history[`${SYSTEM}/network.rx`] || []}
-                    txHistory={state.history[`${SYSTEM}/network.tx`] || []}
+                    rxHistory={
+                      state.history[
+                        widget.data.type === 'proxy-status'
+                          ? `${widget.data.pluginId}/${widget.data.source}/download`
+                          : `${SYSTEM}/network.rx`
+                      ] || []
+                    }
+                    txHistory={
+                      state.history[
+                        widget.data.type === 'proxy-status'
+                          ? `${widget.data.pluginId}/${widget.data.source}/upload`
+                          : `${SYSTEM}/network.tx`
+                      ] || []
+                    }
                     history={state.history[`${widget.data.pluginId}/${widget.data.source}`] || []}
                     online={state.online}
                     configure={() => setConfiguration(widget)}
@@ -1435,8 +1447,20 @@ function WidgetConfig({
             download={state.telemetry[`${SYSTEM}/network.rx`]?.value as number | undefined}
             upload={state.telemetry[`${SYSTEM}/network.tx`]?.value as number | undefined}
             history={state.history[`${widget.data.pluginId}/${source}`] || []}
-            rxHistory={state.history[`${SYSTEM}/network.rx`] || []}
-            txHistory={state.history[`${SYSTEM}/network.tx`] || []}
+            rxHistory={
+              state.history[
+                widget.data.type === 'proxy-status'
+                  ? `${widget.data.pluginId}/${widget.data.source}/download`
+                  : `${SYSTEM}/network.rx`
+              ] || []
+            }
+            txHistory={
+              state.history[
+                widget.data.type === 'proxy-status'
+                  ? `${widget.data.pluginId}/${widget.data.source}/upload`
+                  : `${SYSTEM}/network.tx`
+              ] || []
+            }
             online={state.online}
           />
         </div>

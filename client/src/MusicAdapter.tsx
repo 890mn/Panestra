@@ -11,11 +11,13 @@ import {
   SkipForward,
   AlertCircle,
   X,
+  LockKeyhole,
 } from 'lucide-react';
 import { NETEASE_TOPIC, type MediaStatus } from '../../packages/protocol/src';
 import { core } from './core';
 import { Button, Modal } from './components';
 import { connectionErrorText } from './connection-errors';
+import { PlaybackArt } from './AdapterVisuals';
 
 export const musicState = (status: MediaStatus | undefined, online: boolean) =>
   !online
@@ -90,6 +92,19 @@ export function MusicControls({
     }
   };
   const duration = status?.durationSeconds;
+  const reason = !online
+    ? 'Core 离线'
+    : !status?.enabled
+      ? '未启用'
+      : !status.allowControl
+        ? '未授权'
+        : !['owner', 'operator'].includes(state.device?.role || '')
+          ? '只读设备'
+          : status.stale
+            ? '数据过期'
+            : status.state !== 'ready'
+              ? '未连接'
+              : '';
   return (
     <div className={`music-actions ${small ? 'is-small' : ''}`}>
       {seek ? (
@@ -137,6 +152,7 @@ export function MusicControls({
             <Button
               className="icon-button secondary"
               aria-label="网易云上一首"
+              data-music-skip
               disabled={!allowed || busy || !status?.controls.previous}
               onClick={() => void perform('previous')}
             >
@@ -156,11 +172,18 @@ export function MusicControls({
             <Button
               className="icon-button secondary"
               aria-label="网易云下一首"
+              data-music-skip
               disabled={!allowed || busy || !status?.controls.next}
               onClick={() => void perform('next')}
             >
               <SkipForward size={18} />
             </Button>
+          ) : null}
+          {reason ? (
+            <span className="music-access">
+              <LockKeyhole size={12} />
+              {reason}
+            </span>
           ) : null}
         </div>
       ) : null}
@@ -195,6 +218,7 @@ export function musicContents({
   small = false,
   mode = 'auto',
   height = 600,
+  width = 800,
   expanded = false,
   editing = false,
 }: {
@@ -204,21 +228,42 @@ export function musicContents({
   small?: boolean;
   mode?: string;
   height?: number;
+  width?: number;
   expanded?: boolean;
   editing?: boolean;
 }) {
+  const artwork =
+    !compact && width >= 210 && (height >= 240 || (mode === 'cover' && height >= 170) || expanded);
   return (
     <>
       <div
         data-block="track"
-        className={`music-track ${compact ? 'is-small' : ''} ${expanded ? 'is-expanded' : ''}`}
+        className={`music-track ${compact ? 'is-small' : ''} ${expanded ? 'is-expanded' : ''} ${artwork ? 'with-artwork' : ''}`}
       >
-        <strong title={status?.title || ''}>{status?.title || '暂无歌曲'}</strong>
-        {!compact ? (
-          <span className="view-muted" title={status?.artist || ''}>
-            {status?.artist || '歌手未知'}
-          </span>
+        {artwork ? (
+          <PlaybackArt
+            playing={online && !status?.stale && status?.playback === 'Playing'}
+            artwork={status?.artworkDataUrl}
+          />
         ) : null}
+        <div className="music-track-copy">
+          <strong title={status?.title || ''}>{status?.title || '暂无歌曲'}</strong>
+          {!compact ? (
+            <span className="view-muted" title={status?.artist || ''}>
+              {status?.artist || '歌手未知'}
+            </span>
+          ) : null}
+          {height >= 240 || expanded ? (
+            <span className="music-playback">
+              <i
+                className={
+                  online && !status?.stale && status?.playback === 'Playing' ? 'active' : ''
+                }
+              />
+              {playbackName(status?.playback || '')}
+            </span>
+          ) : null}
+        </div>
       </div>
       {mode !== 'track' ? (
         <div data-block="controls">
@@ -231,31 +276,35 @@ export function musicContents({
           />
         </div>
       ) : null}
-      {height >= 170 || expanded ? (
+      {height >= (artwork ? 220 : 190) || expanded ? (
         <div data-block="progress" className="music-progress">
-          <MusicControls
-            status={status}
-            online={online}
-            editing={editing}
-            seek
-            buttons={false}
-            inlineError={expanded}
-          />
+          {status?.durationSeconds ? (
+            <MusicControls
+              status={status}
+              online={online}
+              editing={editing}
+              seek
+              buttons={false}
+              inlineError={expanded}
+            />
+          ) : (
+            <span className="view-muted music-progress-unavailable">播放器未提供进度</span>
+          )}
         </div>
       ) : null}
-      {(height >= 260 || expanded) && status?.album ? (
+      {(height >= 320 || expanded) && status?.album ? (
         <div data-block="album" className="music-album">
           <span className="view-muted">专辑</span>
           <span>{status.album}</span>
         </div>
       ) : null}
-      {height >= 320 || expanded ? (
+      {height >= 380 || expanded ? (
         <p data-block="status" className="view-muted account-message">
           {musicState(status, online)} · {playbackName(status?.playback || '')}
           {status?.stale || !online ? ' · 历史数据' : ''}
         </p>
       ) : null}
-      {(height >= 390 || expanded) && status?.updatedAt ? (
+      {(height >= 440 || expanded) && status?.updatedAt ? (
         <p data-block="updated" className="view-muted account-updated">
           最近同步{' '}
           {new Date(status.updatedAt).toLocaleTimeString('zh-CN', {
@@ -280,7 +329,8 @@ export function MusicAdapterCard() {
     setBusy(true);
     setError('');
     try {
-      await core.api('/integrations/netease' + path, body);
+      const saved = await core.api<MediaStatus>('/integrations/netease' + path, body);
+      if (!path) setAllowControl(saved.allowControl);
     } catch (err) {
       setError(connectionErrorText(err));
     } finally {
@@ -303,6 +353,17 @@ export function MusicAdapterCard() {
       <h3>网易云音乐</h3>
       <span className="adapter-subtitle">播放控制</span>
       <p>查看歌曲、歌手与进度，在设备间控制播放</p>
+      <div className="adapter-visual adapter-music">
+        <PlaybackArt
+          playing={state.online && !status?.stale && status?.playback === 'Playing'}
+          artwork={status?.artworkDataUrl}
+        />
+        <div>
+          <strong title={status?.title}>{status?.title || '等待歌曲信息'}</strong>
+          <span>{status?.artist || '在电脑上打开网易云音乐'}</span>
+          <span className="music-playback">{playbackName(status?.playback || '')}</span>
+        </div>
+      </div>
       <div className="adapter-fields">
         <div>
           <span>歌曲</span>
@@ -337,6 +398,26 @@ export function MusicAdapterCard() {
             {musicContents({ status, online: state.online, mode: 'track', expanded: true })}
           </div>
           <MusicControls status={status} online={state.online} inlineError />
+          {status?.enabled && !status.allowControl ? (
+            <div className="music-permission-note">
+              <LockKeyhole size={18} />
+              <span>
+                {owner
+                  ? '当前只读取歌曲信息，开启播放控制后才能操作'
+                  : '当前是只读模式，请在电脑端网易云适配中开启播放控制'}
+              </span>
+              {owner ? (
+                <Button
+                  className="secondary"
+                  pending={busy}
+                  disabled={!state.online}
+                  onClick={() => void request('', { enabled: true, allowControl: true })}
+                >
+                  开启播放控制
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           <p className="subtle">
             {status?.message || '在 Core 电脑上打开网易云音乐，并在播放器设置中启用系统媒体控制'}
           </p>

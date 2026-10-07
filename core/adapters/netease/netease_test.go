@@ -2,6 +2,7 @@ package netease
 
 import (
 	"context"
+	"encoding/base64"
 	"math"
 	"path/filepath"
 	"sync/atomic"
@@ -51,6 +52,20 @@ func TestMediaStatusAndActionValidation(t *testing.T) {
 	reading.Playback = "invented"
 	if validReading(reading) == nil {
 		t.Fatal("invalid playback accepted")
+	}
+}
+
+func TestArtworkIsBoundedRasterData(t *testing.T) {
+	reading := testReading()
+	reading.ArtworkDataURL = "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte{137, 80, 78, 71, 13, 10, 26, 10})
+	if err := validReading(reading); err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []string{"https://example.com/cover.jpg", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/png;base64,broken", "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte("not an image"))} {
+		reading.ArtworkDataURL = invalid
+		if validReading(reading) == nil {
+			t.Fatal("invalid artwork accepted")
+		}
 	}
 }
 

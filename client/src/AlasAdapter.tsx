@@ -51,7 +51,12 @@ export function alasContents({
   return (
     <>
       <div data-block="status" className={`alas-status ${compact ? 'is-small' : ''}`}>
-        <strong>{valid ? instanceState(instance?.state) : alasState(status, online)}</strong>
+        <strong>
+          <i
+            className={`alas-state-indicator ${valid && instance?.state === 'running' ? 'active' : ''}`}
+          />
+          {valid ? instanceState(instance?.state) : alasState(status, online)}
+        </strong>
         {!compact ? (
           <span className="view-muted">
             {status?.instance || 'alas'}
@@ -67,15 +72,18 @@ export function alasContents({
           </strong>
         </div>
       ) : null}
-      {(height >= 230 || expanded) && instance?.tasks[0] ? (
-        <div data-block="next" className="alas-task">
+      {(height >= 210 || expanded) && instance?.tasks[0] ? (
+        <div data-block="next" className="alas-task alas-next-task">
           <span className="view-muted">下次执行</span>
           <strong title={instance.tasks[0].name}>{instance.tasks[0].name}</strong>
           <span className="view-muted">{scheduledTime(instance.tasks[0].nextRun)}</span>
         </div>
       ) : null}
       {(height >= 360 || expanded) && (mode !== 'summary' || expanded) && instance?.tasks.length ? (
-        <div data-block="queue" className="alas-queue">
+        <div
+          data-block="queue"
+          className={`alas-queue ${mode === 'timeline' || mode === 'auto' || expanded ? 'is-timeline' : ''}`}
+        >
           {instance.tasks
             .slice(0, expanded ? 20 : Math.max(1, Math.floor((height - 280) / 44)))
             .map((task, i) => (
@@ -146,6 +154,25 @@ export function AlasAdapterCard() {
       <h3>ALAS</h3>
       <span className="adapter-subtitle">脚本状态</span>
       <p>查看 Azur Lane AutoScript 实例、当前任务与调度队列</p>
+      <div className="adapter-visual adapter-schedule">
+        <span>
+          {status?.state === 'ready'
+            ? `${status.instances.find((item) => item.name === status.instance)?.tasks.length ?? 0} 项调度`
+            : '等待调度数据'}
+        </span>
+        <div className="alas-queue is-timeline">
+          {status?.instances
+            .find((item) => item.name === status.instance)
+            ?.tasks.slice(0, 2)
+            .map((task, index) => (
+              <div key={`${task.name}-${index}`}>
+                <span title={task.name}>{task.name}</span>
+                <time>{scheduledTime(task.nextRun)}</time>
+              </div>
+            ))}
+          {!status?.instances.length ? <span>接入实例后显示调度时间线</span> : null}
+        </div>
+      </div>
       <div className="adapter-fields">
         <div>
           <span>实例</span>

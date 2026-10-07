@@ -146,6 +146,7 @@ export interface MediaStatus {
   title: string;
   artist: string;
   album: string;
+  artworkDataUrl?: string;
   playback: string;
   positionSeconds: number | null;
   durationSeconds: number | null;

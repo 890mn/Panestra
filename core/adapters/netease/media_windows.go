@@ -70,7 +70,7 @@ func (m *nativeMedia) startLocked() error {
 	go func() {
 		defer close(channel)
 		scanner := bufio.NewScanner(output)
-		scanner.Buffer(make([]byte, 4096), 64*1024)
+		scanner.Buffer(make([]byte, 4096), 160*1024)
 		for scanner.Scan() {
 			data := append([]byte(nil), scanner.Bytes()...)
 			select {

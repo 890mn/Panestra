@@ -148,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.18.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.19.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.18.png`,
+      path: `artifacts/connection-${label}-0.1.19.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -347,7 +347,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.18');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.19');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -761,6 +761,9 @@ test('Clash：真实控制器合同、跨设备控制与 Owner 撤销权限', as
     await desktop.getByLabel('允许切换模式与节点').check();
     await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
     await expect(desktop.getByTestId('clash-adapter')).toContainText('已接入');
+    await expect(
+      desktop.getByTestId('clash-adapter').locator('.adapter-traffic svg').first(),
+    ).toBeVisible();
     await expect(desktop.getByLabel('Mihomo Secret')).toHaveValue('');
     await expect(desktop.getByLabel('Auto节点')).toBeDisabled();
     await navigate(tablet);
@@ -837,6 +840,14 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
   );
   for (const name of ['网易云上一首', '网易云下一首'])
     await expect(desktop.getByRole('button', { name, exact: true })).toBeDisabled();
+  await expect(desktop.locator('.music-permission-note')).toContainText('当前只读取歌曲信息');
+  await desktop.getByRole('button', { name: '开启播放控制', exact: true }).click();
+  await expect(desktop.getByLabel('允许播放、切歌与调整进度')).toBeChecked();
+  await expect(desktop.getByTestId('netease-adapter').locator('.adapter-fields')).toContainText(
+    '已授权',
+  );
+  await desktop.getByLabel('允许播放、切歌与调整进度').uncheck();
+  await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
   await navigate(tablet, '插件');
   await tablet.getByRole('button', { name: '查看网易云播放状态与设置' }).click();
   await expect(tablet.getByRole('button', { name: '保存并启用读取', exact: true })).toHaveCount(0);

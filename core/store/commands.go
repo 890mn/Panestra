@@ -185,7 +185,7 @@ func validate(tx *sql.Tx, kind, id string, d map[string]any) error {
 				return err
 			}
 		}
-		modes := map[string][]string{"metric-card": {"auto", "value", "trend", "gauge"}, "network-chart": {"auto", "rates", "trend", "split"}, "system-overview": {"auto", "summary", "details"}, "codex-usage": {"auto", "remaining", "windows"}, "account-usage": {"auto", "summary", "details"}, "proxy-status": {"auto", "summary", "details"}, "media-control": {"auto", "player", "track"}, "task-status": {"auto", "summary", "tasks"}}
+		modes := map[string][]string{"metric-card": {"auto", "value", "trend", "gauge"}, "network-chart": {"auto", "rates", "trend", "split"}, "system-overview": {"auto", "summary", "details"}, "codex-usage": {"auto", "remaining", "windows", "rings"}, "account-usage": {"auto", "summary", "details", "visual"}, "proxy-status": {"auto", "summary", "details", "trend"}, "media-control": {"auto", "player", "track", "cover"}, "task-status": {"auto", "summary", "tasks", "timeline"}}
 		if value, exists := d["presentation"]; exists {
 			mode, isText := value.(string)
 			valid := false

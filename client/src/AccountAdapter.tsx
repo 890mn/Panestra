@@ -4,6 +4,7 @@ import { accountTopic, type AccountStatus } from '../../packages/protocol/src';
 import { core } from './core';
 import { Button, Modal } from './components';
 import { connectionErrorText } from './connection-errors';
+import { QuotaRing, BalanceComposition, UsagePreview } from './AdapterVisuals';
 
 export const ACCOUNT_META = {
   glm: {
@@ -38,6 +39,7 @@ export function accountContents({
   summary = false,
   details = true,
   windowLimit,
+  visual = false,
 }: {
   status?: AccountStatus;
   online: boolean;
@@ -45,6 +47,7 @@ export function accountContents({
   summary?: boolean;
   details?: boolean;
   windowLimit?: number;
+  visual?: boolean;
 }) {
   const windows = [...(status?.windows || [])].sort(
     (a, b) => Number(a.id.startsWith('TIME_LIMIT')) - Number(b.id.startsWith('TIME_LIMIT')),
@@ -72,6 +75,13 @@ export function accountContents({
                     balance.currency,
                   )}
                 </strong>
+                {visual && !compact ? (
+                  <BalanceComposition
+                    granted={balance.granted}
+                    toppedUp={balance.toppedUp}
+                    currency={balance.currency}
+                  />
+                ) : null}
               </div>
             ))
           ) : (
@@ -79,7 +89,13 @@ export function accountContents({
           )
         ) : windows.length ? (
           windows.slice(0, compact || summary ? 2 : windowLimit).map((window) => (
-            <div className="account-window" key={window.id}>
+            <div
+              className={`account-window ${visual && !compact ? 'with-ring' : ''}`}
+              key={window.id}
+            >
+              {visual && !compact ? (
+                <QuotaRing value={window.remainingPercent} label={`${window.name}剩余`} />
+              ) : null}
               <div className="account-window-value">
                 <span>
                   {compact || summary
@@ -91,7 +107,7 @@ export function accountContents({
                   <small>剩余</small>
                 </strong>
               </div>
-              {!compact && window.remainingPercent !== null ? (
+              {!compact && !visual && window.remainingPercent !== null ? (
                 <progress
                   aria-label={`${window.name}剩余`}
                   max={100}
@@ -208,6 +224,32 @@ export function AccountAdapterCard({ id }: { id: AccountID }) {
       <h3>{meta.name}</h3>
       <span className="adapter-subtitle">{meta.subtitle}</span>
       <p>{meta.description}</p>
+      {id === 'glm' ? (
+        <UsagePreview
+          items={[0, 1].map((index) => ({
+            label:
+              status?.windows[index]?.name.replace('编程额度 · ', '') ||
+              (index ? '工具额度' : '编程额度'),
+            value: status?.windows[index]?.remainingPercent ?? null,
+          }))}
+        />
+      ) : (
+        <div className="adapter-visual adapter-balance">
+          <Wallet size={32} />
+          <div>
+            <strong>
+              {status?.balances[0]
+                ? amount(status.balances[0].total, status.balances[0].currency)
+                : '—'}
+            </strong>
+            {status?.balances[0] ? (
+              <BalanceComposition {...status.balances[0]} />
+            ) : (
+              <span>配置账户后显示余额构成</span>
+            )}
+          </div>
+        </div>
+      )}
       <div className="adapter-fields">
         {id === 'deepseek' ? (
           <>
@@ -246,7 +288,7 @@ export function AccountAdapterCard({ id }: { id: AccountID }) {
       {detail ? (
         <Modal title={`${meta.name} · ${meta.subtitle}`} close={close} wide>
           <div className="account-detail-content">
-            <AccountSummary status={status} online={state.online} />
+            <AccountSummary status={status} online={state.online} visual />
           </div>
           <div className="adapter-boundary">
             <ShieldCheck size={18} />

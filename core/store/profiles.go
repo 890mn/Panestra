@@ -8,14 +8,14 @@ import (
 
 var profilePattern = regexp.MustCompile(`^(desktop|tablet|mobile):([0-9]+)x([0-9]+)$`)
 var profileModes = map[string]map[string]bool{
-	"task-status":     {"auto": true, "summary": true, "tasks": true},
+	"task-status":     {"auto": true, "summary": true, "tasks": true, "timeline": true},
 	"metric-card":     {"auto": true, "value": true, "trend": true, "gauge": true},
 	"network-chart":   {"auto": true, "rates": true, "trend": true, "split": true},
 	"system-overview": {"auto": true, "summary": true, "details": true},
-	"codex-usage":     {"auto": true, "remaining": true, "windows": true},
-	"account-usage":   {"auto": true, "summary": true, "details": true},
-	"proxy-status":    {"auto": true, "summary": true, "details": true},
-	"media-control":   {"auto": true, "player": true, "track": true},
+	"codex-usage":     {"auto": true, "remaining": true, "windows": true, "rings": true},
+	"account-usage":   {"auto": true, "summary": true, "details": true, "visual": true},
+	"proxy-status":    {"auto": true, "summary": true, "details": true, "trend": true},
+	"media-control":   {"auto": true, "player": true, "track": true, "cover": true},
 }
 
 // Values mark essential content which cannot be hidden.

@@ -15,6 +15,7 @@ import { musicContents } from './MusicAdapter';
 import { alasContents } from './AlasAdapter';
 import { ContentLayout, type ContentEditor } from './ContentLayout';
 import { windowLabel, CodexUsage, statusLabel } from './CodexAdapter';
+import { Sparkline, QuotaRing } from './AdapterVisuals';
 
 export type ViewProps = {
   widget: Widget;
@@ -27,45 +28,6 @@ export type ViewProps = {
   online: boolean;
   editing?: boolean;
 };
-export function Sparkline({
-  values,
-  area = false,
-  secondary = false,
-  scaleMax,
-}: {
-  values: number[];
-  area?: boolean;
-  secondary?: boolean;
-  scaleMax?: number;
-}) {
-  if (values.length < 2) return <div className="view-chart-empty">等待实时数据</div>;
-  const max = (scaleMax ?? Math.max(10, ...values)) * 1.12;
-  const points = values
-    .map((v, i) => `${(i / (values.length - 1)) * 400},${94 - (Math.max(0, v) / max) * 84}`)
-    .join(' ');
-  const color = secondary ? 'var(--muted)' : 'var(--accent)';
-  return (
-    <svg
-      className="view-chart"
-      viewBox="0 0 400 100"
-      preserveAspectRatio="none"
-      aria-label="最近一分钟趋势"
-      role="img"
-    >
-      <path className="chart-grid" d="M0 25H400 M0 55H400 M0 85H400" />
-      {area ? <polygon points={`0,100 ${points} 400,100`} fill={color} opacity=".10" /> : null}
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="2.5"
-        vectorEffect="non-scaling-stroke"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 const percent = (value: number | null) => (value === null ? '—' : `${Number(value.toFixed(1))}%`);
 const reset = (seconds: number | null) =>
   seconds === null
@@ -128,6 +90,7 @@ export function WidgetView(
             compact: short,
             small: narrow,
             height: size.h,
+            width: size.w * ((props.profile?.blocks.track?.span || 12) / 12),
             mode,
             expanded,
             editing: !!props.editing || !!props.contentEditor,
@@ -140,6 +103,11 @@ export function WidgetView(
             compact: short,
             summary: !expanded && (mode === 'summary' || size.h < 350),
             showNode: !!expanded || size.h >= 200,
+            height: size.h,
+            trend: !!expanded || (mode !== 'summary' && size.h >= 210),
+            rxHistory,
+            txHistory,
+            area,
           })
         : null}
       {widget.type === 'account-usage'
@@ -150,6 +118,9 @@ export function WidgetView(
             summary: !expanded && (mode === 'summary' || size.h < 350 || accountWidth < 240),
             details: !!expanded || size.h >= 520,
             windowLimit: expanded ? undefined : Math.max(2, Math.floor((size.h - 120) / 100)),
+            visual:
+              !!expanded ||
+              (size.h >= 210 && accountWidth >= 190 && ['auto', 'visual'].includes(mode)),
           })
         : null}
       {widget.type === 'metric-card' ? (
@@ -331,7 +302,16 @@ export function WidgetView(
             {main?.windows.length ? (
               <div data-block="windows" className="view-quota-windows">
                 {main.windows.slice(0, 2).map((window) => (
-                  <div className="view-quota-window" key={window.id}>
+                  <div
+                    className={`view-quota-window ${(mode === 'rings' || mode === 'auto') && size.h >= 190 && size.w >= 210 ? 'with-ring' : ''}`}
+                    key={window.id}
+                  >
+                    {(mode === 'rings' || mode === 'auto') && size.h >= 190 && size.w >= 210 ? (
+                      <QuotaRing
+                        value={window.remainingPercent}
+                        label={`${windowLabel(window)}剩余`}
+                      />
+                    ) : null}
                     <div>
                       <span>{windowLabel(window)}</span>
                       <strong>
@@ -341,7 +321,7 @@ export function WidgetView(
                     </div>
                     {!short && mode !== 'remaining' ? (
                       <>
-                        <div className="view-gauge">
+                        <div className="view-gauge quota-linear">
                           <span style={{ width: `${window.remainingPercent ?? 0}%` }} />
                         </div>
                         {roomy || (size.h >= 190 && !narrow) ? (
