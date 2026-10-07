@@ -1,11 +1,6 @@
-<img src="./assets/branding/icon.png" width="104" align="left" alt="Panestra" />
-
-<h1>
-  Panestra<br />
-  <sub>ONE CORE, EVERY DEVICE.</sub>
-</h1>
-
-<br clear="left" />
+<p align="center">
+  <img src="./assets/branding/readme-lockup.svg" width="560" alt="Panestra — ONE CORE, EVERY DEVICE." />
+</p>
 
 **A local-first personal control plane for the screens you already use.**  
 让 Windows 成为核心，把状态、工具、媒体与自动化能力带到电脑、手机和平板。
