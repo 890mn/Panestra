@@ -16,7 +16,9 @@ let tablet: Page;
 let tabletContext: BrowserContext;
 let coreData = '';
 let errors: string[] = [];
+let stoppingCore = false;
 async function startCore() {
+  stoppingCore = false;
   processCore = spawn(
     path.join(root, 'artifacts/panestra-core.exe'),
     [
@@ -61,12 +63,14 @@ async function startCore() {
       }
     });
     processCore.on('exit', (code) => {
+      if (!stoppingCore) console.error(`Unexpected test Core exit ${code}: ${startupLog}`);
       clearTimeout(timer);
       reject(new Error(`Core exited ${code}: ${startupLog}`));
     });
   });
 }
 async function stopCore() {
+  stoppingCore = true;
   if (!processCore || processCore.exitCode !== null) return;
   await new Promise<void>((resolve) => {
     const timer = setTimeout(() => {
@@ -146,7 +150,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.27.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.28.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -157,7 +161,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.27.png`,
+      path: `artifacts/connection-${label}-0.1.28.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -425,7 +429,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.27');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.28');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -791,11 +795,11 @@ test('原位预览、内部排布与每个尺寸独立保存和取消', async ()
   await expect(block.locator('.part-move')).toHaveCount(0);
   await tablet.getByLabel('内容左侧列').fill('1');
   await expect(tablet.getByLabel('内容左侧列')).not.toHaveValue('0');
-  await tablet.screenshot({ path: 'artifacts/layout-live-content-editor.png', fullPage: true });
   await tablet.getByRole('button', { name: '保存当前尺寸预设', exact: true }).click();
   await expect(
     tablet.getByRole('button', { name: '保存当前尺寸预设', exact: true }),
   ).toBeDisabled();
+  await tablet.screenshot({ path: 'artifacts/layout-live-content-editor.png' });
   await tablet.getByRole('button', { name: '结束内容编辑', exact: true }).click();
   await tablet.getByLabel('预制尺寸').selectOption('mini');
   await expect(cpu.locator('.widget-view')).toHaveAttribute('data-presentation', 'auto');
@@ -933,6 +937,31 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
   };
   await navigate(desktop, '插件');
   await desktop.getByRole('button', { name: '查看网易云音乐状态与设置' }).click();
+  await expect(desktop.getByRole('button', { name: '修复启动方式', exact: true })).toBeVisible();
+  await expect(desktop.getByRole('button', { name: '恢复启动设置', exact: true })).toBeVisible();
+  await expect(desktop.getByRole('button', { name: '修复启动方式', exact: true })).toHaveAttribute(
+    'type',
+    'button',
+  );
+  let unexpectedSaves = 0;
+  const countSaves = (request: import('@playwright/test').Request) => {
+    if (
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname === '/api/v1/integrations/netease'
+    )
+      unexpectedSaves++;
+  };
+  desktop.on('request', countSaves);
+  await desktop.getByRole('button', { name: '修复启动方式', exact: true }).click();
+  await expect(desktop.getByRole('dialog').getByRole('alert')).toContainText(
+    '请先保存本机进度通道端口',
+  );
+  await expect(desktop.getByRole('button', { name: '修复启动方式', exact: true })).toBeEnabled();
+  desktop.off('request', countSaves);
+  expect(unexpectedSaves).toBe(0);
+  await expect(desktop.getByRole('button', { name: '生成桥接启动文件', exact: true })).toHaveCount(
+    0,
+  );
   await expect(desktop.locator('.music-detail-content .music-buttons button')).toHaveCount(3);
   await expect(desktop.locator('.music-detail-content').getByLabel('播放进度')).toBeVisible();
   const alignment = await desktop.locator('.music-detail-content').evaluate((el) => {
@@ -962,6 +991,8 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
   await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
   await navigate(tablet, '插件');
   await tablet.getByRole('button', { name: '查看网易云音乐状态与设置' }).click();
+  await expect(tablet.getByRole('button', { name: '修复启动方式', exact: true })).toHaveCount(0);
+  await expect(tablet.getByRole('button', { name: '恢复启动设置', exact: true })).toHaveCount(0);
   await expect(tablet.getByRole('button', { name: '保存并启用读取', exact: true })).toHaveCount(0);
   await expect(
     tablet.getByRole('dialog').getByRole('button', { name: '网易云下一首', exact: true }),

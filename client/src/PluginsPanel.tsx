@@ -151,6 +151,7 @@ function PluginCard({
     [error, setError] = useState('');
   const [values, setValues] = useState<Record<string, string | boolean | number>>({});
   const [setup, setSetup] = useState<Record<string, unknown>>({});
+  const [actionMessage, setActionMessage] = useState('');
   const [grants, setGrants] = useState(plugin.permissions);
   const [confirm, setConfirm] = useState(false);
   const owner = state.device?.role === 'owner';
@@ -165,7 +166,9 @@ function PluginCard({
         : String(context[field.status || field.setup || field.key] ?? '');
   const open = async () => {
     setDetail(true);
+    setBusy(true);
     setError('');
+    setActionMessage('');
     setGrants(plugin.permissions);
     let current: Record<string, unknown> = {};
     if (owner && ui.setup) {
@@ -184,12 +187,22 @@ function PluginCard({
         ]),
       ),
     );
+    setBusy(false);
   };
   const request = async (operation: string, body: unknown = {}) => {
     setBusy(true);
     setError('');
     try {
-      await core.pluginRequest(plugin.id, operation, body);
+      const response = await core.pluginRequest(plugin.id, operation, body);
+      if (ui.ownerActions?.some((action) => action.operation === operation))
+        setActionMessage(
+          response &&
+            typeof response === 'object' &&
+            'message' in response &&
+            typeof response.message === 'string'
+            ? response.message
+            : '操作已完成',
+        );
       setValues((current) =>
         Object.fromEntries(
           Object.entries(current).map(([key, value]) => [
@@ -328,6 +341,11 @@ function PluginCard({
               {note}
             </p>
           ))}
+          {typeof status.timelineMessage === 'string' && status.timelineMessage ? (
+            <p className="subtle" role="status">
+              {status.timelineMessage}
+            </p>
+          ) : null}
           {error ? (
             <p className="form-error" role="alert">
               {error}
@@ -435,6 +453,7 @@ function PluginCard({
                 {ui.ownerActions?.map((action) => (
                   <Button
                     key={action.label}
+                    type="button"
                     className="secondary"
                     disabled={busy || !state.online}
                     onClick={() => void request(action.operation, action.body)}
@@ -447,6 +466,7 @@ function PluginCard({
                 </Button>
                 {status.enabled ? (
                   <Button
+                    type="button"
                     className="secondary"
                     disabled={busy || !state.online}
                     onClick={() => void request('configure', { enabled: false })}
@@ -456,6 +476,7 @@ function PluginCard({
                 ) : null}
                 {ui.settings?.some((field) => field.type === 'secret') && status.hasCredential ? (
                   <Button
+                    type="button"
                     className="secondary"
                     disabled={busy || !state.online}
                     onClick={() => void request('configure', { clearCredential: true })}
@@ -463,8 +484,9 @@ function PluginCard({
                     忘记凭据
                   </Button>
                 ) : null}
-                {ui.setup ? (
+                {ui.setup && ui.prepareLabel ? (
                   <Button
+                    type="button"
                     className="secondary"
                     disabled={busy || !state.online}
                     onClick={() =>
@@ -475,11 +497,17 @@ function PluginCard({
                   </Button>
                 ) : null}
               </div>
+              {actionMessage || (typeof setup.message === 'string' && setup.message) ? (
+                <p className="subtle" role="status">
+                  {actionMessage || String(setup.message)}
+                </p>
+              ) : null}
               {typeof setup.launcher === 'string' && setup.launcher ? (
                 <div className="adapter-boundary alas-launcher">
                   <code>{setup.launcher}</code>
                   <p>{ui.launcherNote}</p>
                   <Button
+                    type="button"
                     className="secondary"
                     onClick={() =>
                       void navigator.clipboard
