@@ -24,6 +24,15 @@ use tokio_tungstenite::{tungstenite::Message, Connector};
 #[derive(Default)]
 pub struct Connections(Mutex<HashMap<String, oneshot::Sender<()>>>);
 
+#[cfg(windows)]
+pub fn disconnect_all(state: State<'_, Connections>) {
+    if let Ok(mut connections) = state.0.lock() {
+        for (_, stop) in connections.drain() {
+            let _ = stop.send(());
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn open_github() -> Result<(), String> {
     // Browser activation may wait for another process. Never run it on the

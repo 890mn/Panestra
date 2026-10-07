@@ -89,6 +89,7 @@ import {
 import { LayoutCanvas, type EditorActions } from './LayoutCanvas';
 import { Brand, SLOGAN } from './Brand';
 import { AppUpdates } from './AppUpdates';
+import { DesktopServicePanel } from './DesktopServicePanel';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
@@ -2185,6 +2186,7 @@ function SettingsPanel({
         <ButtonPreview />
       </div>
       <AppUpdates />
+      <DesktopServicePanel />
       <div className="panel">
         <div className="panel-title">
           <div>

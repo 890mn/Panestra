@@ -3,6 +3,15 @@ import type { Endpoint } from '../../packages/protocol/src';
 
 export const native = '__TAURI_INTERNALS__' in window;
 export const canScanPairing = native && /Android/i.test(navigator.userAgent);
+export const desktopNative = native && !/Android/i.test(navigator.userAgent);
+export interface DesktopModePreferences {
+  startInBackground: boolean;
+  closeToBackground: boolean;
+}
+export const desktopModeInfo = () => invoke<DesktopModePreferences>('desktop_mode_info');
+export const configureDesktopMode = (preferences: DesktopModePreferences) =>
+  invoke<DesktopModePreferences>('configure_desktop_mode', { preferences });
+export const enterBackgroundMode = () => invoke<void>('enter_background_mode');
 export async function openProjectGitHub(): Promise<void> {
   await invoke('plugin:panestra-bridge|open_github');
 }

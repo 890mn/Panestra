@@ -2266,3 +2266,41 @@ legend {
     gap: 7px;
   }
 }
+/* Windows service controls share the existing settings panel and control geometry. */
+.desktop-service-options {
+  display: grid;
+  padding: 0 25px;
+}
+.desktop-service-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.desktop-service-option span {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.desktop-service-option small {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.desktop-service-option input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+.desktop-service-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  overflow-wrap: anywhere;
+  color: var(--danger);
+  padding: 0 25px 24px;
+}

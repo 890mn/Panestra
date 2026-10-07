@@ -7,6 +7,11 @@ mod desktop;
 #[cfg(target_os = "android")]
 mod mobile;
 
+#[cfg(windows)]
+pub fn disconnect_all<R: Runtime>(app: &tauri::AppHandle<R>) {
+    desktop::disconnect_all(app.state::<desktop::Connections>());
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     let builder = Builder::<R, ()>::new("panestra-bridge");
     #[cfg(not(target_os = "android"))]

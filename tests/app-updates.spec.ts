@@ -19,7 +19,49 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await server?.close();
 });
-const release = (tag = '0.1.22') => ({
+
+test('Windows 后台设置保留已保存值，失败后可重试，浏览器与 Android 不显示本机开关', async ({
+  page,
+  browser,
+}) => {
+  await page.goto('http://127.0.0.1:19520/?native&service');
+  const start = page.getByLabel('启动时进入后台');
+  const close = page.getByLabel('关闭窗口时转入后台');
+  await expect(start).toBeEnabled();
+  await expect(start).not.toBeChecked();
+  await close.check();
+  await expect(close).toBeEnabled();
+  await expect(close).toBeChecked();
+  await page.evaluate(() => {
+    (window as any).failDesktopSave = true;
+  });
+  await start.click();
+  await expect(page.getByRole('alert')).toContainText('设置未保存');
+  await expect(start).not.toBeChecked();
+  await expect(close).toBeChecked();
+  await page.evaluate(() => {
+    (window as any).failDesktopSave = false;
+  });
+  await start.check();
+  await expect(start).toBeEnabled();
+  await expect(start).toBeChecked();
+  await page.getByRole('button', { name: '切换为后台模式', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('切换失败');
+  await expect(page.getByRole('button', { name: '切换为后台模式', exact: true })).toBeEnabled();
+  await page.goto('http://127.0.0.1:19520/?service');
+  await expect(page.getByRole('heading', { name: '后台服务' })).toHaveCount(0);
+  const android = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140.0.0.0',
+  });
+  try {
+    const tablet = await android.newPage();
+    await tablet.goto('http://127.0.0.1:19520/?native&service');
+    await expect(tablet.getByRole('heading', { name: '后台服务' })).toHaveCount(0);
+  } finally {
+    await android.close();
+  }
+});
+const release = (tag = '0.1.23') => ({
   tag_name: `v${tag}`,
   body: '<script>unsafe()</script>\n- 新功能',
   draft: false,
@@ -66,12 +108,12 @@ test('版本检查区分空发布、当前版本、旧版本、错误与离线�
   await fixture(200, release());
   await expect(page.getByRole('button', { name: '下载并更新', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: '更新日志', exact: true }).click();
-  await page.getByRole('button', { name: '查看 v0.1.22 更新说明', exact: true }).click();
+  await page.getByRole('button', { name: '查看 v0.1.23 更新说明', exact: true }).click();
   await expect(page.locator('.release-detail pre')).toContainText('<script>unsafe()</script>');
   expect(await page.evaluate(() => 'unsafe' in window)).toBe(false);
   await page.getByRole('button', { name: '返回版本列表', exact: true }).click();
   await page.getByRole('button', { name: `查看 v${version} 更新说明`, exact: true }).click();
-  await expect(page.locator('.release-detail')).toContainText('接入网易云真实进度与拖动跳转');
+  await expect(page.locator('.release-detail')).toContainText('新增 Windows 后台服务模式');
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   await expect(page.getByRole('button', { name: '更新日志', exact: true })).toBeFocused();
   const compared = await page.evaluate(() => (window as any).compareVersions('0.1.10', '0.1.9'));
@@ -89,7 +131,7 @@ test('Windows 下载进度与失败可重试，不假报成功；三种尺寸的
   await expect(page.getByRole('status')).toContainText('签名校验失败');
   await expect(update).toBeEnabled();
   expect(await page.evaluate(() => (window as any).updateInvocations)).toEqual([
-    { command: 'install_app_update', version: '0.1.22' },
+    { command: 'install_app_update', version: '0.1.23' },
   ]);
   for (const width of [390, 900, 1440])
     for (const theme of ['day', 'night']) {
@@ -145,7 +187,7 @@ test('Android 缺少摘要时禁止更新，完整发布才调用系统安装入
   await page.getByRole('button', { name: '下载并更新', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('请在系统窗口确认安装');
   expect(await page.evaluate(() => (window as any).updateInvocations)).toEqual([
-    { command: 'plugin:panestra-bridge|install_app_update', version: '0.1.22' },
+    { command: 'plugin:panestra-bridge|install_app_update', version: '0.1.23' },
   ]);
   await context.close();
 });
@@ -173,7 +215,7 @@ test('品牌打开关于菜单，日志原位切换，关闭恢复焦点；窄�
       await dialog.getByRole('button', { name: '更新日志', exact: true }).click();
       await expect(page.getByRole('dialog')).toHaveCount(1);
       await dialog.getByRole('button', { name: `查看 v${version} 更新说明`, exact: true }).click();
-      await expect(dialog.locator('.release-detail')).toContainText('接入网易云真实进度与拖动跳转');
+      await expect(dialog.locator('.release-detail')).toContainText('新增 Windows 后台服务模式');
       await dialog.getByRole('button', { name: '返回版本列表', exact: true }).click();
       await dialog.getByRole('button', { name: '返回关于', exact: true }).click();
       await expect(dialog.locator('.about-version')).toBeVisible();

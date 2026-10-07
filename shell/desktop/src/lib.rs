@@ -7,6 +7,8 @@ use std::{
 use tauri::Manager;
 
 #[cfg(windows)]
+mod background;
+#[cfg(windows)]
 mod updates;
 
 #[derive(Clone, serde::Serialize, Default)]
@@ -59,18 +61,47 @@ fn shutdown_core(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default().plugin(tauri_plugin_panestra_bridge::init());
+    let builder = tauri::Builder::default();
+    #[cfg(windows)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _| {
+        if !args.iter().any(|arg| arg == "--background") {
+            background::reopen(app);
+        }
+    }));
+    let builder = builder.plugin(tauri_plugin_panestra_bridge::init());
     #[cfg(windows)]
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updates::UpdateLock::default())
+        .on_window_event(background::window_event)
         .invoke_handler(tauri::generate_handler![
             local_core_info,
-            updates::install_app_update
+            updates::install_app_update,
+            background::desktop_mode_info,
+            background::configure_desktop_mode,
+            background::enter_background_mode,
+            background::exit_desktop_app
         ]);
     #[cfg(not(windows))]
     let builder = builder.invoke_handler(tauri::generate_handler![local_core_info]);
 
+    let context = tauri::generate_context!();
+    #[cfg(windows)]
+    let context = {
+        let mut context = context;
+        context.config_mut().app.windows[0].create = false;
+        // Isolated development/test data roots must not capture the installed application's singleton.
+        if let Some(root) = std::env::var_os("PANESTRA_DATA_DIR") {
+            use std::hash::{Hash, Hasher};
+            let mut hash = std::collections::hash_map::DefaultHasher::new();
+            root.hash(&mut hash);
+            context
+                .config_mut()
+                .identifier
+                .push_str(&format!(".session{:016x}", hash.finish()));
+        }
+        context
+    };
     builder
         .setup(|app| {
             app.manage(LocalCore::default());
@@ -160,11 +191,15 @@ pub fn run() {
                 });
                 app.manage(CoreProcess(Mutex::new(Some(child))));
             }
+            #[cfg(windows)]
+            background::setup(app)?;
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("Panestra shell startup failed")
         .run(|_app, _event| {
+            #[cfg(windows)]
+            background::run_event(_app, &_event);
             #[cfg(not(target_os = "android"))]
             if let tauri::RunEvent::Exit = _event {
                 if let Ok(mut child) = _app.state::<CoreProcess>().0.lock() {
