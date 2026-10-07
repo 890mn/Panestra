@@ -564,46 +564,11 @@ export function App() {
                   </Button>
                 </div>
                 <div className="toolbar-actions">
-                  {editing ? (
-                    <>
-                      <Button
-                        className="icon-button"
-                        aria-label="撤销布局"
-                        disabled={!undo.length || busy || layoutSaving}
-                        onClick={() => void perform(() => history('undo'))}
-                      >
-                        <Undo2 size={17} />
-                      </Button>
-                      <Button
-                        className="icon-button"
-                        aria-label="重做布局"
-                        disabled={!redo.length || busy || layoutSaving}
-                        onClick={() => void perform(() => history('redo'))}
-                      >
-                        <Redo2 size={17} />
-                      </Button>
-                      <select
-                        aria-label="布局断点"
-                        value={preview}
-                        onChange={(e) => setPreview(e.target.value as Breakpoint | 'auto')}
-                      >
-                        <option value="auto">当前屏幕</option>
-                        <option value="desktop">桌面 · 12 列</option>
-                        <option value="tablet">平板 · 8 列</option>
-                        <option value="mobile">手机 · 4 列</option>
-                      </select>
-                    </>
-                  ) : (
-                    <span className="subtle toolbar-caption">
-                      {widgets.length} 个组件 <span>·</span>{' '}
-                      {breakpoint === 'desktop'
-                        ? '桌面'
-                        : breakpoint === 'tablet'
-                          ? '平板'
-                          : '手机'}
-                      视图
-                    </span>
-                  )}
+                  <span className="subtle toolbar-caption">
+                    {widgets.length} 个组件 <span>·</span>{' '}
+                    {breakpoint === 'desktop' ? '桌面' : breakpoint === 'tablet' ? '平板' : '手机'}
+                    视图
+                  </span>
                   <Button
                     className="primary compact"
                     disabled={!canEdit || busy}
@@ -612,23 +577,8 @@ export function App() {
                     <Plus size={17} />
                     添加组件
                   </Button>
-                  {editing ? (
-                    <Button
-                      className="icon-button"
-                      aria-label="页面选项"
-                      onClick={() => setModal('page-settings')}
-                    >
-                      <MoreHorizontal size={20} />
-                    </Button>
-                  ) : null}
                 </div>
               </div>
-              {editing ? (
-                <div className="editor-note">
-                  <Grip size={15} />
-                  拖动标题或卡片内容移动，右下角缩放，点选后调整位置、大小与样式，网格自动吸附
-                </div>
-              ) : null}
               <LayoutCanvas
                 key={currentPage?.id + ':' + breakpoint}
                 widgets={widgets}
@@ -643,6 +593,49 @@ export function App() {
                     sizeProfiles: { ...widget.data.sizeProfiles, [key]: profile },
                   });
                 }}
+                configure={setConfiguration}
+                historyActions={
+                  <>
+                    {' '}
+                    <Button
+                      className="icon-button"
+                      aria-label="撤销布局"
+                      disabled={!undo.length || busy || layoutSaving}
+                      onClick={() => void perform(() => history('undo'))}
+                    >
+                      <Undo2 size={17} />
+                    </Button>
+                    <Button
+                      className="icon-button"
+                      aria-label="重做布局"
+                      disabled={!redo.length || busy || layoutSaving}
+                      onClick={() => void perform(() => history('redo'))}
+                    >
+                      <Redo2 size={17} />
+                    </Button>
+                  </>
+                }
+                toolbar={
+                  <>
+                    <select
+                      aria-label="布局断点"
+                      value={preview}
+                      onChange={(e) => setPreview(e.target.value as Breakpoint | 'auto')}
+                    >
+                      <option value="auto">当前屏幕</option>
+                      <option value="desktop">桌面 · 12 列</option>
+                      <option value="tablet">平板 · 8 列</option>
+                      <option value="mobile">手机 · 4 列</option>
+                    </select>
+                    <Button
+                      className="icon-button"
+                      aria-label="页面选项"
+                      onClick={() => setModal('page-settings')}
+                    >
+                      <MoreHorizontal size={20} />
+                    </Button>
+                  </>
+                }
                 renderCard={(widget, layout, editor) => (
                   <WidgetCard
                     key={widget.id}
@@ -1226,41 +1219,37 @@ export const WidgetCard = memo(function WidgetCard(props: {
         data-testid={widget.id}
       >
         <div className="widget-heading">
-          {editing ? (
-            <Button
-              className="widget-title layout-move layout-title-move"
-              aria-label={`拖动${widget.data.title}`}
-              {...editor.move}
+          <div className="widget-title">
+            <span className="widget-icon">
+              <Icon source={widget.data.source} />
+            </span>
+            <button
+              className="widget-detail-trigger"
+              {...(editing ? editor.move : {})}
+              aria-label={editing ? `选择${widget.data.title}` : `查看${widget.data.title}详情`}
+              onClick={editing ? editor.move.onClick : () => setDetail(true)}
             >
-              <span className="widget-icon">
-                <Icon source={widget.data.source} />
-              </span>
               <h3 title={widget.data.title}>{widget.data.title}</h3>
-              <Grip className="title-grip" size={16} />
-            </Button>
-          ) : (
-            <div className="widget-title">
-              <span className="widget-icon">
-                <Icon source={widget.data.source} />
-              </span>
-              <button
-                className="widget-detail-trigger"
-                aria-label={`查看${widget.data.title}详情`}
-                onClick={() => setDetail(true)}
-              >
-                <h3 title={widget.data.title}>{widget.data.title}</h3>
-              </button>
-            </div>
-          )}
+            </button>
+          </div>
           <div className="widget-controls">
-            <Button
-              className="icon-button"
-              aria-label={`配置${widget.data.title}`}
-              disabled={editing && !!editor.move.disabled}
-              onClick={configure}
-            >
-              <MoreHorizontal size={18} />
-            </Button>
+            {editing ? (
+              <Button
+                className="layout-move layout-title-move icon-button"
+                aria-label={`拖动${widget.data.title}`}
+                {...editor.move}
+              >
+                <Grip className="title-grip" size={18} />
+              </Button>
+            ) : (
+              <Button
+                className="icon-button"
+                aria-label={`配置${widget.data.title}`}
+                onClick={configure}
+              >
+                <MoreHorizontal size={18} />
+              </Button>
+            )}
           </div>
         </div>
         <div className="widget-content">

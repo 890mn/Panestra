@@ -106,7 +106,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.17',
+        version: '0.1.18',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,
@@ -121,6 +121,61 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
   await page.goto('http://127.0.0.1:19519/?type=network-chart&w=8&h=4');
   await page.screenshot({ path: 'artifacts/widget-presets-network.png', fullPage: true });
 });
+test('编辑态沿用浏览态内容尺寸，所有 2 列卡片的移动手柄完整可见', async ({ page }) => {
+  await page.goto('http://127.0.0.1:19519/');
+  const measure = () =>
+    page.locator('.widget-card').evaluateAll((cards) =>
+      cards.map((card) => {
+        const body = card.querySelector('.widget-content')!;
+        const heading = card.querySelector('.widget-heading')!;
+        const view = card.querySelector('.widget-view')!;
+        const rect = (el: Element) => {
+          const r = el.getBoundingClientRect();
+          return { width: r.width, height: r.height, x: r.x, y: r.y };
+        };
+        return {
+          card: rect(card),
+          body: rect(body),
+          heading: rect(heading),
+          view: rect(view),
+          presentation: view.getAttribute('data-presentation'),
+          classes: view.className,
+          text: (body as HTMLElement).innerText,
+        };
+      }),
+    );
+  for (const [bp, width] of [
+    ['desktop', 1200],
+    ['tablet', 850],
+    ['mobile', 326],
+  ] as const)
+    for (const type of Object.keys(PRESENTATIONS)) {
+      const query = `bp=${bp}&width=${width}&type=${type}&w=2&h=2`;
+      await page.evaluate((q) => (window as any).renderPreview(q), query);
+      const browsing = await measure();
+      await page.evaluate((q) => (window as any).renderPreview(q), query + '&edit');
+      await expect.poll(measure).toEqual(browsing);
+      const handles = await page.locator('.layout-title-move').evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const r = button.getBoundingClientRect(),
+            svg = button.querySelector('svg')!;
+          return {
+            width: r.width,
+            height: r.height,
+            visible: getComputedStyle(svg).display !== 'none',
+            hit:
+              document
+                .elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+                ?.closest('button') === button,
+          };
+        }),
+      );
+      expect(handles.every((h) => h.width === 44 && h.height === 44 && h.visible && h.hit)).toBe(
+        true,
+      );
+    }
+});
+
 test('小卡片保留核心双向/双窗口数据，详情完整、夜间与离线状态可读', async ({ page }) => {
   for (const type of ['network-chart', 'codex-usage', 'system-overview']) {
     await page.goto(

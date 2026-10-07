@@ -8,17 +8,25 @@
   border-radius: 8px;
 }
 .layout-inspector {
+  position: fixed;
+  top: auto;
+  bottom: 12px;
+  right: 24px;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(560px, 55dvh, calc(100dvh - 108px));
+  overflow: auto;
+  z-index: 35;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--card-radius);
   padding: 16px;
-  margin-bottom: 20px;
+  margin: 0;
+  box-shadow: 0 8px 30px #10131820;
 }
 .layout-inspector-title {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px 16px;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 12px;
 }
 .layout-inspector-title strong {
@@ -26,7 +34,7 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-.layout-inspector-title > span {
+.inspector-caption > span {
   font-size: 12px;
   color: var(--muted);
 }
@@ -82,21 +90,7 @@
   min-height: 0;
 }
 .widget-card.editable {
-  padding: 12px;
-  gap: 6px;
   border-style: solid;
-  overflow: auto;
-  container-type: inline-size;
-}
-.widget-card.editable .widget-heading {
-  margin: 0;
-  min-height: 44px;
-}
-.widget-card.editable .widget-title {
-  gap: 8px;
-}
-.widget-card.editable .widget-title h3 {
-  font-size: 13px;
 }
 .layout-card-caption {
   display: flex;
@@ -211,61 +205,40 @@
     transition: none;
   }
 }
-/* The live canvas remains visible beside its inspector on wide screens. */
 .layout-workbench {
   min-width: 0;
 }
-@media (min-width: 1100px) {
-  .workbench-editing {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
-    align-items: start;
-    gap: 20px;
-  }
-  .workbench-editing .layout-inspector {
-    grid-column: 2;
-    grid-row: 1;
-    position: sticky;
-    top: 96px;
-    max-height: calc(100dvh - 120px);
-    overflow: auto;
-    margin: 0;
-  }
-  .workbench-editing .canvas-scroll {
-    grid-column: 1;
-    grid-row: 1;
-    min-width: 0;
-  }
-  .workbench-editing .widget-canvas {
-    min-width: 0;
-  }
-}
-.widget-card.editable {
-  gap: 0;
-}
 .layout-title-move.control {
+  flex: 0 0 44px;
+  width: 44px;
   border: 0;
   background: transparent;
   padding: 0;
-  justify-content: flex-start;
+  justify-content: center;
 }
 .layout-title-move .title-grip {
-  flex: 0 0 16px;
+  display: block;
   color: var(--muted);
-  margin-left: auto;
 }
 .layout-corner-resize.control {
   position: absolute;
-  right: -1px;
-  bottom: -1px;
+  right: 0;
+  bottom: 0;
   width: 44px;
   min-width: 44px;
   padding: 0;
   z-index: 3;
-  border-radius: 8px 0 8px 0;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
 }
-.widget-card.editable:has(.layout-corner-resize) .widget-content {
-  padding-bottom: 22px;
+.layout-corner-resize svg {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+.layout-corner-resize:disabled {
+  pointer-events: none;
 }
 .profile-controls {
   border-top: 1px solid var(--line);
@@ -332,30 +305,12 @@
 .profile-controls .form-error {
   margin-top: 12px;
 }
-@container (max-width:190px) {
-  .title-grip {
-    display: none;
-  }
-}
 @media (max-width: 1099px) {
-  .workbench-editing {
-    margin-bottom: 45dvh;
-  }
-  .workbench-editing .layout-inspector {
-    position: fixed;
-    left: 232px;
-    right: 17px;
+  .layout-inspector {
+    top: auto;
+    right: 12px;
     bottom: 12px;
-    z-index: 22;
-    max-height: 40dvh;
-    overflow: auto;
-    margin: 0;
-    box-shadow: 0 8px 30px #10131820;
-  }
-}
-@media (max-width: 767px) {
-  .workbench-editing .layout-inspector {
-    left: 17px;
+    max-height: min(45dvh, calc(100dvh - 108px));
   }
 }
 .widget-card.editable {
@@ -373,7 +328,40 @@
   padding-block: 8px;
 }
 .layout-inspector-title .inspector-toggle {
-  margin-left: auto;
+  flex: 0 0 44px;
+}
+.inspector-move {
+  flex: 0 0 44px;
+  touch-action: none;
+  cursor: grab;
+}
+.inspector-move:active {
+  cursor: grabbing;
+}
+.inspector-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.inspector-page-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.inspector-page-tools select {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+}
+.inspector-configure {
+  margin-top: 16px;
+}
+.layout-inspector:has(.layout-inspector-body[hidden]) .layout-inspector-title {
+  margin-bottom: 0;
 }
 .layout-inspector-body[hidden] {
   display: none;
@@ -409,12 +397,4 @@
   width: 100%;
   min-width: 0;
   min-height: 44px;
-}
-@media (max-width: 1099px) {
-  .workbench-editing.inspector-collapsed {
-    margin-bottom: 90px;
-  }
-  .inspector-collapsed .layout-inspector-title {
-    margin-bottom: 0;
-  }
 }

@@ -148,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.17.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.18.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.17.png`,
+      path: `artifacts/connection-${label}-0.1.18.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -233,7 +233,8 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
     desktop.getByTestId('widget-cpu').getByRole('heading', { name: '共同的处理器' }),
   ).toBeVisible();
   await desktop.getByRole('button', { name: '编辑布局', exact: true }).click();
-  await desktop.getByRole('button', { name: '配置共同的处理器', exact: true }).click();
+  await desktop.getByRole('button', { name: '选择共同的处理器', exact: true }).click();
+  await desktop.getByRole('button', { name: '组件配置', exact: true }).click();
   await desktop.getByLabel('行', { exact: true }).fill('8');
   await desktop.getByRole('button', { name: '保存配置' }).click();
   await expect(desktop.getByTestId('widget-cpu')).toHaveCSS('top', '672px');
@@ -346,7 +347,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.17');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.18');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -967,6 +968,68 @@ test('自由编辑：尺寸位置实时预览、应用与取消、小卡整面�
     path: 'artifacts/layout-editor-free-preview-tablet.png',
     fullPage: true,
   });
+  expect(errors).toEqual([]);
+});
+
+test('编辑面板浮动且可移位，切换编辑保持三端画布和内容几何一致', async () => {
+  for (const surface of [desktop, tablet, phone]) {
+    const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
+    if (await menu.isVisible()) await menu.click();
+    await surface.getByRole('button', { name: '总览', exact: true }).click();
+    await surface.getByRole('button', { name: '浏览', exact: true }).click();
+    const measure = () =>
+      surface.locator('.widget-canvas').evaluate((el) => {
+        const rect = (element: Element) => {
+          const r = element.getBoundingClientRect();
+          return { x: r.x, y: r.y, w: r.width, h: r.height };
+        };
+        return {
+          canvas: rect(el),
+          cards: [...el.querySelectorAll('.widget-card')].map((card) => ({
+            card: rect(card),
+            body: rect(card.querySelector('.widget-content')!),
+            heading: rect(card.querySelector('.widget-heading')!),
+          })),
+        };
+      });
+    const before = await measure();
+    await surface.getByRole('button', { name: '编辑布局', exact: true }).click();
+    await expect.poll(measure).toEqual(before);
+    const panel = surface.getByRole('complementary', { name: '布局编辑面板' });
+    await expect(panel).toHaveCSS('position', 'fixed');
+    const handle = surface.getByRole('button', { name: '移动编辑面板', exact: true });
+    const origin = await panel.boundingBox();
+    await handle.focus();
+    const horizontal = origin!.x > 28;
+    await handle.press(horizontal ? 'ArrowLeft' : 'ArrowUp');
+    await expect
+      .poll(async () => {
+        const current = (await panel.boundingBox())!;
+        return horizontal ? current.x : current.y;
+      })
+      .toBe((horizontal ? origin!.x : origin!.y) - 16);
+    await expect.poll(measure).toEqual(before);
+    for (let step = 0; step < 90; step++) await handle.press('ArrowLeft');
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBe(12);
+    expect(
+      await handle.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return (
+          document
+            .elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
+            ?.closest('button') === el
+        );
+      }),
+    ).toBe(true);
+    if (await menu.isVisible()) {
+      await menu.click();
+      await expect(surface.getByRole('button', { name: '关闭菜单', exact: true })).toBeVisible();
+      await surface.getByRole('button', { name: '关闭菜单', exact: true }).click();
+    }
+    await handle.press('Home');
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBe(origin!.x);
+    await surface.getByRole('button', { name: '浏览', exact: true }).click();
+  }
   expect(errors).toEqual([]);
 });
 
