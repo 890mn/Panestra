@@ -3,6 +3,7 @@ package backplane
 import (
 	"encoding/json"
 	"fmt"
+	"panestra.local/panestra/core/protocol"
 	"path/filepath"
 	"strings"
 )
@@ -116,11 +117,7 @@ func ParseManifest(data []byte) (Manifest, error) {
 		}
 		modes := map[string]bool{}
 		for _, mode := range w.Presentations {
-			known := map[string][]string{"metric-card": {"auto", "value", "trend", "gauge"}, "network-chart": {"auto", "rates", "trend", "split"}, "system-overview": {"auto", "summary", "details"}, "codex-usage": {"auto", "remaining", "windows", "rings"}, "account-usage": {"auto", "summary", "details", "visual"}, "proxy-status": {"auto", "summary", "details", "trend"}, "media-control": {"auto", "player", "track", "cover"}, "task-status": {"auto", "summary", "tasks", "timeline"}}
-			valid := false
-			for _, allowed := range known[w.ID] {
-				valid = valid || mode == allowed
-			}
+			valid := protocol.ValidPresentation(w.ID, mode)
 			if !valid || modes[mode] {
 				return m, fmt.Errorf("invalid widget presentation: %s", w.ID)
 			}

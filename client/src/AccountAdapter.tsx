@@ -4,7 +4,7 @@ import { accountTopic, type AccountStatus } from '../../packages/protocol/src';
 import { core } from './core';
 import { Button, Modal } from './components';
 import { connectionErrorText } from './connection-errors';
-import { QuotaRing, BalanceComposition, UsagePreview } from './AdapterVisuals';
+import { QuotaRing, BalanceComposition, UsagePreview, SegmentMeter } from './AdapterVisuals';
 
 export const ACCOUNT_META = {
   glm: {
@@ -40,6 +40,8 @@ export function accountContents({
   details = true,
   windowLimit,
   visual = false,
+  style = 'auto',
+  tiles = false,
 }: {
   status?: AccountStatus;
   online: boolean;
@@ -48,13 +50,18 @@ export function accountContents({
   details?: boolean;
   windowLimit?: number;
   visual?: boolean;
+  style?: string;
+  tiles?: boolean;
 }) {
   const windows = [...(status?.windows || [])].sort(
     (a, b) => Number(a.id.startsWith('TIME_LIMIT')) - Number(b.id.startsWith('TIME_LIMIT')),
   );
   return (
     <>
-      <div data-block="account" className={`account-values ${compact ? 'is-small' : ''}`}>
+      <div
+        data-block="account"
+        className={`account-values ${compact ? 'is-small' : ''} ${tiles && !compact ? 'account-tiles' : ''}`}
+      >
         {status?.id === 'deepseek' ? (
           status.balances.length ? (
             status.balances.map((balance) => (
@@ -75,11 +82,12 @@ export function accountContents({
                     balance.currency,
                   )}
                 </strong>
-                {visual && !compact ? (
+                {(visual || style === 'segments') && !compact ? (
                   <BalanceComposition
                     granted={balance.granted}
                     toppedUp={balance.toppedUp}
                     currency={balance.currency}
+                    segmented={style === 'segments'}
                   />
                 ) : null}
               </div>
@@ -107,7 +115,9 @@ export function accountContents({
                   <small>剩余</small>
                 </strong>
               </div>
-              {!compact && !visual && window.remainingPercent !== null ? (
+              {!compact && style === 'segments' ? (
+                <SegmentMeter value={window.remainingPercent} label={`${window.name}剩余`} />
+              ) : !compact && !visual && window.remainingPercent !== null ? (
                 <progress
                   aria-label={`${window.name}剩余`}
                   max={100}

@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, RotateCcw } from 'lucide-react';
 import type { Layout, Widget, WidgetProfile } from '../../packages/protocol/src';
 import { orderedBlocks, PRESENTATIONS } from '../../packages/widget-schema/src/presentation';
 import { Button } from './components';
+import { PresentationChoices } from './PresentationChoices';
 export function ProfileControls({
   widget,
   layout,
@@ -106,6 +107,12 @@ export function ProfileControls({
           {contentEditing ? '结束内容编辑' : '编辑卡片内部'}
         </Button>
       </div>
+      <PresentationChoices
+        type={widget.type}
+        value={profile.presentation}
+        disabled={busy}
+        change={(presentation) => change({ ...profile, presentation })}
+      />
       {contentEditing ? (
         <>
           <div className="profile-part-tabs">

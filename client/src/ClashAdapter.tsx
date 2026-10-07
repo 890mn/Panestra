@@ -4,7 +4,7 @@ import { CLASH_TOPIC, type ClashStatus } from '../../packages/protocol/src';
 import { core } from './core';
 import { Button, Modal } from './components';
 import { connectionErrorText } from './connection-errors';
-import { TrafficPlot } from './AdapterVisuals';
+import { TrafficPlot, SegmentMeter } from './AdapterVisuals';
 
 export const modeName = (mode: string) =>
   ({ rule: '规则', global: '全局', direct: '直连' })[mode] || '—';
@@ -35,6 +35,7 @@ export function clashContents({
   rxHistory = [],
   txHistory = [],
   area = false,
+  mode = 'auto',
 }: {
   status?: ClashStatus;
   online: boolean;
@@ -46,6 +47,7 @@ export function clashContents({
   rxHistory?: number[];
   txHistory?: number[];
   area?: boolean;
+  mode?: string;
 }) {
   const group =
     status?.groups.find((g) => g.name === 'GLOBAL') ||
@@ -68,7 +70,34 @@ export function clashContents({
             <strong>{rate(status?.upload)}</strong>
           </div>
         </div>
-        {trend && !compact ? (
+        {mode === 'meters' && !compact && height >= 210 ? (
+          <div className="traffic-meters">
+            {[
+              ['接收', status?.download, false],
+              ['发送', status?.upload, true],
+            ].map(([label, value, secondary]) => (
+              <SegmentMeter
+                key={String(label)}
+                value={
+                  typeof value !== 'number'
+                    ? null
+                    : (value /
+                        Math.max(
+                          1,
+                          ...rxHistory,
+                          ...txHistory,
+                          status?.download ?? 0,
+                          status?.upload ?? 0,
+                        )) *
+                      100
+                }
+                label={`${label}相对最近峰值`}
+                secondary={!!secondary}
+              />
+            ))}
+            <span className="view-muted">刻度相对最近采样峰值</span>
+          </div>
+        ) : trend && !compact && mode !== 'route' ? (
           <div className="clash-trend">
             <TrafficPlot receive={rxHistory} send={txHistory} area={area} />
             <div className="view-chart-caption">
@@ -82,8 +111,17 @@ export function clashContents({
           </div>
         ) : null}
       </div>
-      {!compact && showNode && (!trend || height >= 320) ? (
-        <div data-block="node" className="clash-current-node">
+      {!compact && showNode && (!trend || height >= 320 || mode === 'route') ? (
+        <div
+          data-block="node"
+          className={`clash-current-node ${mode === 'route' ? 'clash-route' : ''}`}
+        >
+          {mode === 'route' ? (
+            <span className="route-origin">
+              <span className="status-light" />
+              本机 Core <ArrowRight size={14} />
+            </span>
+          ) : null}
           <span className="view-muted">{group?.name || '策略组'}</span>
           <span>{group?.current || '—'}</span>
         </div>

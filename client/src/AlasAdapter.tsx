@@ -36,6 +36,7 @@ export function alasContents({
   online,
   compact = false,
   height = 600,
+  width = 800,
   mode = 'auto',
   expanded = false,
 }: {
@@ -43,14 +44,19 @@ export function alasContents({
   online: boolean;
   compact?: boolean;
   height?: number;
+  width?: number;
   mode?: string;
   expanded?: boolean;
 }) {
   const instance = status?.instances.find((item) => item.name === status.instance);
   const valid = status?.enabled && status.state === 'ready' && !status.stale && online;
+  const board = mode === 'board' && height >= 170 && (width >= 240 || height >= 300);
   return (
     <>
-      <div data-block="status" className={`alas-status ${compact ? 'is-small' : ''}`}>
+      <div
+        data-block="status"
+        className={`alas-status ${compact ? 'is-small' : ''} ${board ? 'alas-board' : ''}`}
+      >
         <strong>
           <i
             className={`alas-state-indicator ${valid && instance?.state === 'running' ? 'active' : ''}`}
@@ -62,6 +68,15 @@ export function alasContents({
             {status?.instance || 'alas'}
             {!valid && instance ? ' · 历史数据' : ''}
           </span>
+        ) : null}
+        {board ? (
+          <div className="alas-queue-count">
+            <span className="view-muted">调度任务</span>
+            <strong>
+              {instance?.tasks.length ?? '—'}
+              <small> 项</small>
+            </strong>
+          </div>
         ) : null}
       </div>
       {!compact && (height >= 130 || expanded) ? (

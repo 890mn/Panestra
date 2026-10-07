@@ -153,7 +153,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.23',
+        version: '0.1.24',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,
@@ -202,24 +202,27 @@ test('编辑态沿用浏览态内容尺寸，所有 2 列卡片的移动手柄�
       const browsing = await measure();
       await page.evaluate((q) => (window as any).renderPreview(q), query + '&edit');
       await expect.poll(measure).toEqual(browsing);
-      const handles = await page.locator('.layout-title-move').evaluateAll((buttons) =>
-        buttons.map((button) => {
-          const r = button.getBoundingClientRect(),
-            svg = button.querySelector('svg')!;
+      for (const handle of await page.locator('.layout-title-move').all()) {
+        await handle.scrollIntoViewIfNeeded();
+        const result = await handle.evaluate((button) => {
+          const r = button.getBoundingClientRect();
           return {
             width: r.width,
             height: r.height,
-            visible: getComputedStyle(svg).display !== 'none',
+            visible: getComputedStyle(button.querySelector('svg')!).display !== 'none',
             hit:
               document
                 .elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
                 ?.closest('button') === button,
           };
-        }),
-      );
-      expect(handles.every((h) => h.width === 44 && h.height === 44 && h.visible && h.hit)).toBe(
-        true,
-      );
+        });
+        expect(result, bp + '/' + type).toEqual({
+          width: 44,
+          height: 44,
+          visible: true,
+          hit: true,
+        });
+      }
     }
 });
 
@@ -520,4 +523,71 @@ test('插件可视化使用真实数值，未知额度和余额不生成伪造�
   );
   await expect(page.locator('.quota-ring-value')).toHaveCount(0);
   await page.screenshot({ path: 'artifacts/adapter-unknown-quota.png' });
+});
+
+test('新增预设使用实际数据，空数据不点亮刻度，黑白主题保持可读', async ({ page }) => {
+  await page.goto('http://127.0.0.1:19519/');
+  const additions: Record<string, string[]> = {
+    'metric-card': ['dial', 'segments', 'bars'],
+    'network-chart': ['bars', 'meters'],
+    'system-overview': ['tiles'],
+    'codex-usage': ['tiles', 'segments'],
+    'account-usage': ['tiles', 'segments'],
+    'proxy-status': ['route', 'meters'],
+    'media-control': ['vinyl', 'focus'],
+    'task-status': ['board'],
+  };
+  for (const theme of ['day', 'night']) {
+    for (const [type, modes] of Object.entries(additions))
+      for (const mode of modes) {
+        await page.evaluate(
+          (q) => (window as any).renderPreview(q),
+          `type=${type}&mode=${mode}&width=900&w=8&h=5&theme=${theme}`,
+        );
+        await expect(page.locator('.widget-view')).toHaveAttribute('data-presentation', mode);
+        expect(
+          await page
+            .locator('.widget-content')
+            .evaluate(
+              (e) => e.scrollHeight <= e.clientHeight + 1 && e.scrollWidth <= e.clientWidth + 1,
+            ),
+          type + '/' + mode,
+        ).toBe(true);
+        if (type === 'media-control' && mode === 'focus') {
+          const art = (await page.locator('.playback-art').boundingBox())!;
+          const copy = (await page.locator('.music-track-copy').boundingBox())!;
+          const controls = (await page.locator('.music-buttons').boundingBox())!;
+          expect(copy.x).toBeGreaterThanOrEqual(art.x + art.width);
+          expect(Math.abs(controls.y + controls.height / 2 - art.y - art.height / 2)).toBeLessThan(
+            1,
+          );
+        }
+        await page.screenshot({ path: `artifacts/preset-${type}-${mode}-${theme}.png` });
+      }
+  }
+  for (const [type, mode] of [
+    ['metric-card', 'dial'],
+    ['metric-card', 'segments'],
+    ['network-chart', 'meters'],
+    ['codex-usage', 'segments'],
+    ['proxy-status', 'meters'],
+  ]) {
+    await page.evaluate(
+      (q) => (window as any).renderPreview(q),
+      `type=${type}&mode=${mode}&width=900&w=8&h=5&empty`,
+    );
+    await expect(page.locator('.dial-fill,.meter-fill')).toHaveCount(0);
+  }
+  await page.evaluate(
+    (q) => (window as any).renderPreview(q),
+    'type=codex-usage&mode=segments&width=900&w=8&h=5',
+  );
+  await expect(page.getByRole('img', { name: '5 小时剩余 87.5%', exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: '1 周剩余 53.5%', exact: true })).toBeVisible();
+  await page.evaluate(
+    (q) => (window as any).renderPreview(q),
+    'type=account-usage&account=deepseek&mode=segments&width=900&w=8&h=5',
+  );
+  await expect(page.locator('.balance-composition')).toHaveCount(1);
+  await expect(page.locator('.account-values')).toContainText('$-1.00');
 });

@@ -1,4 +1,244 @@
 /* Card shells never inherit a renderer's margins or flex geometry. */
+/* Selectable visuals share the same tokens and collapse to the essential values. */
+.segment-meter {
+  display: block;
+  width: 100%;
+  height: 12px;
+  flex-shrink: 0;
+}
+.meter-track {
+  fill: var(--line);
+}
+.meter-fill {
+  fill: var(--accent);
+}
+.segment-meter.is-secondary .meter-fill {
+  fill: var(--muted);
+}
+.half-dial {
+  width: 100%;
+  height: 88px;
+  display: block;
+}
+.dial-track,
+.dial-fill {
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.dial-track {
+  stroke: var(--line);
+}
+.dial-fill {
+  stroke: var(--accent);
+}
+.widget-view .metric-dial {
+  align-items: center;
+  position: relative;
+  gap: 8px;
+  padding-top: 20px;
+  flex: 1;
+  min-height: 110px;
+  justify-content: center;
+}
+.metric-dial .half-dial {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.metric-dial .metric-value {
+  position: relative;
+  padding-top: 28px;
+  font-size: 28px;
+}
+.metric-dial .view-muted {
+  position: relative;
+}
+.metric-segments,
+.traffic-meters {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.host-tiles,
+.quota-tiles,
+.account-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.host-tiles > div,
+.quota-tiles > div,
+.account-tiles > div {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+  background: var(--panel);
+}
+.host-tiles > div {
+  display: grid;
+  gap: 6px;
+}
+.host-tiles span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.host-tiles strong {
+  font-size: 22px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.host-tiles small {
+  font-size: 11px;
+}
+.quota-tiles > div > div,
+.account-tiles .account-window-value {
+  flex-direction: column;
+  align-items: start;
+  gap: 4px;
+}
+.widget-view[data-presentation='meters'] .view-rates:has(.segment-meter) > div {
+  flex-direction: column;
+  align-items: stretch;
+}
+.view-quota-windows.quota-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.widget-view .clash-route {
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+}
+.clash-route .route-origin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.playback-art.vinyl-art {
+  border-radius: 50%;
+  position: relative;
+  background: repeating-radial-gradient(
+    circle,
+    var(--panel) 0 3px,
+    var(--line) 4px,
+    var(--panel) 5px
+  );
+}
+.vinyl-art img {
+  width: 58%;
+  height: 58%;
+  border-radius: 50%;
+}
+.vinyl-art::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--panel);
+  position: absolute;
+}
+.music-track.with-artwork.focus-artwork {
+  grid-template-columns: 132px minmax(0, 1fr);
+}
+.focus-artwork .playback-art {
+  width: 132px;
+  height: 132px;
+  border-radius: 12px;
+}
+.widget-view .music-player-layout:has(.focus-artwork) > .view-block-controls,
+.widget-view .music-detail-content:has(.focus-artwork) > [data-block='controls'] {
+  margin-top: 44px;
+}
+.alas-status.alas-board {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+}
+.alas-board > strong {
+  grid-column: 1;
+}
+.alas-board > .view-muted {
+  grid-column: 1;
+}
+.alas-board .alas-queue-count {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  gap: 4px;
+}
+.alas-queue-count strong {
+  font-size: 24px;
+  font-weight: 400;
+}
+.alas-queue-count small {
+  font-size: 11px;
+}
+.presentation-library {
+  margin: 0 0 12px;
+}
+.presentation-library summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.presentation-library summary::after {
+  content: '+';
+  margin-left: 8px;
+  color: var(--muted);
+}
+.presentation-library[open] summary::after {
+  content: '−';
+}
+.presentation-library summary span {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+.presentation-library summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.presentation-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.presentation-options .presentation-choice {
+  min-height: 52px;
+  height: auto;
+  justify-content: start;
+  gap: 10px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.presentation-choice svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.presentation-choice[aria-pressed='true'] svg {
+  color: var(--accent);
+}
+.presentation-library p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
 .clash-mode {
   display: flex;
   align-items: baseline;

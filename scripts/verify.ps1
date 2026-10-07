@@ -14,6 +14,8 @@ npm run format:check
 if ($LASTEXITCODE -ne 0) { throw 'Source formatting validation failed' }
 node ./scripts/check-version.mjs
 if ($LASTEXITCODE -ne 0) { throw 'Project version consistency failed' }
+node ./scripts/check-presentations.mjs
+if ($LASTEXITCODE -ne 0) { throw 'Presentation capability consistency failed' }
 $goFiles = rg --files core plugins -g '*.go' -g '!core/web/dist/**'
 $unformattedGo = & (Join-Path (Split-Path $goBinary) 'gofmt.exe') -l $goFiles
 if ($unformattedGo) { throw "Go formatting failed: $unformattedGo" }

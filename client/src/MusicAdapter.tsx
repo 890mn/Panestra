@@ -299,12 +299,13 @@ export function musicContents({
     <>
       <div
         data-block="track"
-        className={`music-track ${compact ? 'is-small' : ''} ${expanded ? 'is-expanded' : ''} ${artwork ? 'with-artwork' : ''}`}
+        className={`music-track ${compact ? 'is-small' : ''} ${expanded ? 'is-expanded' : ''} ${artwork ? 'with-artwork' : ''} ${artwork && mode === 'focus' && width >= 480 && height >= 300 ? 'focus-artwork' : ''}`}
       >
         {artwork ? (
           <PlaybackArt
             playing={online && !status?.stale && status?.playback === 'Playing'}
             artwork={status?.artworkDataUrl}
+            vinyl={mode === 'vinyl'}
           />
         ) : null}
         <div className="music-track-copy">

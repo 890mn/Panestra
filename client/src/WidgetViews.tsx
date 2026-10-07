@@ -15,7 +15,7 @@ import { musicContents } from './MusicAdapter';
 import { alasContents } from './AlasAdapter';
 import { ContentLayout, type ContentEditor } from './ContentLayout';
 import { windowLabel, CodexUsage, statusLabel } from './CodexAdapter';
-import { Sparkline, QuotaRing } from './AdapterVisuals';
+import { Sparkline, QuotaRing, HalfDial, SegmentMeter, SampleBars } from './AdapterVisuals';
 
 export type ViewProps = {
   widget: Widget;
@@ -64,7 +64,7 @@ export function WidgetView(
   const codex = typeof data === 'object' && 'buckets' in data ? data : undefined;
   const main = codex?.buckets.find((b) => b.id === 'codex') || codex?.buckets[0];
   const chartAllowed = !!expanded || size.h >= 145;
-  const networkTrend = chartAllowed && mode !== 'rates';
+  const networkTrend = chartAllowed && !['rates', 'meters'].includes(mode);
   const accountWidth = size.w * ((props.profile?.blocks.account?.span || 12) / 12);
   const musicPlayerLayout =
     widget.type === 'media-control' &&
@@ -72,11 +72,22 @@ export function WidgetView(
     mode !== 'track' &&
     size.w >= 240 &&
     size.h >= 135;
-  const split = networkTrend && mode === 'split' && size.h >= 225;
+  const split = networkTrend && ['split', 'bars'].includes(mode) && size.h >= 225;
   const metricText = widget.source.startsWith('network.')
     ? rate(metric)
     : [metric === undefined ? '—' : Number(metric.toFixed(1)).toString(), widget.unit || '%'];
-  const metricTrend = chartAllowed && ['auto', 'trend'].includes(mode);
+  const metricTrend = chartAllowed && ['auto', 'trend', 'bars'].includes(mode);
+  const metricScale = widget.source.startsWith('network.')
+    ? Math.max(1, ...history, metric ?? 0)
+    : 100;
+  const metricPercent = metric === undefined ? null : (metric / metricScale) * 100;
+  const metricScaleLabel = widget.source.startsWith('network.') ? '相对最近峰值' : '当前用量';
+  const metricDial = mode === 'dial' && size.h >= 135 && size.w >= 150;
+  const quotaTiles =
+    mode === 'tiles' &&
+    size.w >= 300 &&
+    size.h >= 190 &&
+    !Object.keys(props.profile?.blocks || {}).length;
   const contents = (
     <>
       {widget.type === 'task-status'
@@ -85,6 +96,7 @@ export function WidgetView(
             online,
             compact: short,
             height: size.h,
+            width: size.w,
             mode,
             expanded,
           })
@@ -115,6 +127,7 @@ export function WidgetView(
             rxHistory,
             txHistory,
             area,
+            mode,
           })
         : null}
       {widget.type === 'account-usage'
@@ -128,11 +141,22 @@ export function WidgetView(
             visual:
               !!expanded ||
               (size.h >= 210 && accountWidth >= 190 && ['auto', 'visual'].includes(mode)),
+            style:
+              mode === 'segments' &&
+              size.h <
+                (accountWidth < 240 ||
+                (typeof data === 'object' && 'balances' in data && data.id === 'deepseek')
+                  ? 300
+                  : 210)
+                ? 'summary'
+                : mode,
+            tiles: quotaTiles,
           })
         : null}
       {widget.type === 'metric-card' ? (
         <>
-          <div data-block="value" className="view-metric">
+          <div data-block="value" className={`view-metric ${metricDial ? 'metric-dial' : ''}`}>
+            {metricDial ? <HalfDial value={metricPercent} label={metricScaleLabel} /> : null}
             <strong className="metric-value">
               {metricText[0]}
               <span>{metricText[1]}</span>
@@ -149,6 +173,12 @@ export function WidgetView(
               </span>
             ) : null}
           </div>
+          {['segments', 'dial'].includes(mode) && !metricDial && size.h >= 90 ? (
+            <div data-block="gauge" className="metric-segments">
+              <SegmentMeter value={metricPercent} label={metricScaleLabel} />
+              {size.h >= 160 ? <span className="view-muted">{metricScaleLabel}</span> : null}
+            </div>
+          ) : null}
           {mode === 'gauge' && size.h >= 50 ? (
             <div
               data-block="gauge"
@@ -164,7 +194,11 @@ export function WidgetView(
           ) : null}
           {metricTrend ? (
             <div data-block="trend" className="view-trend">
-              <Sparkline values={history} area={area} />
+              {mode === 'bars' ? (
+                <SampleBars values={history} />
+              ) : (
+                <Sparkline values={history} area={area} />
+              )}
               <div className="view-chart-caption">
                 <span>最近 60 秒</span>
                 <span>现在</span>
@@ -209,6 +243,25 @@ export function WidgetView(
                     {value}
                     <small>{unit}</small>
                   </strong>
+                  {mode === 'meters' && size.h >= 160 ? (
+                    <SegmentMeter
+                      value={
+                        item.value === undefined
+                          ? null
+                          : (item.value /
+                              Math.max(
+                                1,
+                                ...rxHistory,
+                                ...txHistory,
+                                props.download ?? 0,
+                                props.upload ?? 0,
+                              )) *
+                            100
+                      }
+                      label={`${item.label}相对最近峰值`}
+                      secondary={item.secondary}
+                    />
+                  ) : null}
                 </div>
               );
             })}
@@ -216,20 +269,35 @@ export function WidgetView(
           {networkTrend ? (
             <div data-block="trend" className={`view-trend ${split ? 'view-split' : ''}`}>
               <div>
-                <Sparkline
-                  values={rxHistory}
-                  area={area}
-                  scaleMax={split ? undefined : Math.max(10, ...rxHistory, ...txHistory)}
-                />
+                {mode === 'bars' ? (
+                  <SampleBars
+                    values={rxHistory}
+                    scaleMax={Math.max(10, ...rxHistory, ...txHistory)}
+                  />
+                ) : (
+                  <Sparkline
+                    values={rxHistory}
+                    area={area}
+                    scaleMax={split ? undefined : Math.max(10, ...rxHistory, ...txHistory)}
+                  />
+                )}
                 {split ? <span className="view-muted">接收</span> : null}
               </div>
               <div>
-                <Sparkline
-                  values={txHistory}
-                  area={area}
-                  secondary
-                  scaleMax={split ? undefined : Math.max(10, ...rxHistory, ...txHistory)}
-                />
+                {mode === 'bars' ? (
+                  <SampleBars
+                    values={txHistory}
+                    secondary
+                    scaleMax={Math.max(10, ...rxHistory, ...txHistory)}
+                  />
+                ) : (
+                  <Sparkline
+                    values={txHistory}
+                    area={area}
+                    secondary
+                    scaleMax={split ? undefined : Math.max(10, ...rxHistory, ...txHistory)}
+                  />
+                )}
                 {split ? <span className="view-muted">发送</span> : null}
               </div>
               <div className="view-chart-caption">
@@ -242,7 +310,12 @@ export function WidgetView(
               </div>
             </div>
           ) : null}
-          {roomy && mode !== 'rates' ? (
+          {mode === 'meters' && size.h >= 180 ? (
+            <span data-block="trend" className="view-muted">
+              刻度相对最近采样峰值
+            </span>
+          ) : null}
+          {roomy && mode !== 'rates' && (mode !== 'meters' || !narrow || size.h >= 320) ? (
             <div data-block="stats" className="view-stats">
               <div>
                 <span>接收峰值 / 60 秒</span>
@@ -265,11 +338,32 @@ export function WidgetView(
           <strong data-block="hostname" className="view-hostname" title={system?.hostname}>
             {system?.hostname || 'Panestra Core'}
           </strong>
-          <span data-block="memory" className="view-muted">
-            {system
-              ? `${system.cores} 核 · ${Number(system.memoryGB.toFixed(1))} GB`
-              : '等待系统信息'}
-          </span>
+          <div
+            data-block="memory"
+            className={
+              mode === 'tiles' && size.h >= 160 && size.w >= 240 ? 'host-tiles' : 'view-muted'
+            }
+          >
+            {mode === 'tiles' && size.h >= 160 && size.w >= 240 ? (
+              <>
+                <div>
+                  <span>核心</span>
+                  <strong>{system?.cores ?? '—'}</strong>
+                </div>
+                <div>
+                  <span>内存</span>
+                  <strong>
+                    {system ? Number(system.memoryGB.toFixed(1)) : '—'}
+                    <small> GB</small>
+                  </strong>
+                </div>
+              </>
+            ) : system ? (
+              `${system.cores} 核 · ${Number(system.memoryGB.toFixed(1))} GB`
+            ) : (
+              '等待系统信息'
+            )}
+          </div>
           {!short && !narrow ? (
             <span data-block="os" className="view-muted view-os">
               {system?.os || '—'}
@@ -307,7 +401,10 @@ export function WidgetView(
               </div>
             ) : null}
             {main?.windows.length ? (
-              <div data-block="windows" className="view-quota-windows">
+              <div
+                data-block="windows"
+                className={`view-quota-windows ${quotaTiles ? 'quota-tiles' : ''}`}
+              >
                 {main.windows.slice(0, 2).map((window) => (
                   <div
                     className={`view-quota-window ${(mode === 'rings' || mode === 'auto') && size.h >= 190 && size.w >= 210 ? 'with-ring' : ''}`}
@@ -328,9 +425,16 @@ export function WidgetView(
                     </div>
                     {!short && mode !== 'remaining' ? (
                       <>
-                        <div className="view-gauge quota-linear">
-                          <span style={{ width: `${window.remainingPercent ?? 0}%` }} />
-                        </div>
+                        {mode === 'segments' && size.h >= 160 ? (
+                          <SegmentMeter
+                            value={window.remainingPercent}
+                            label={`${windowLabel(window)}剩余`}
+                          />
+                        ) : (
+                          <div className="view-gauge quota-linear">
+                            <span style={{ width: `${window.remainingPercent ?? 0}%` }} />
+                          </div>
+                        )}
                         {roomy || (size.h >= 190 && !narrow) ? (
                           <span className="view-muted">{reset(window.resetsAt)}</span>
                         ) : null}

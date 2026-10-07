@@ -185,13 +185,9 @@ func validate(tx *sql.Tx, kind, id string, d map[string]any) error {
 				return err
 			}
 		}
-		modes := map[string][]string{"metric-card": {"auto", "value", "trend", "gauge"}, "network-chart": {"auto", "rates", "trend", "split"}, "system-overview": {"auto", "summary", "details"}, "codex-usage": {"auto", "remaining", "windows", "rings"}, "account-usage": {"auto", "summary", "details", "visual"}, "proxy-status": {"auto", "summary", "details", "trend"}, "media-control": {"auto", "player", "track", "cover"}, "task-status": {"auto", "summary", "tasks", "timeline"}}
 		if value, exists := d["presentation"]; exists {
 			mode, isText := value.(string)
-			valid := false
-			for _, allowed := range modes[text("type")] {
-				valid = valid || mode == allowed
-			}
+			valid := protocol.ValidPresentation(text("type"), mode)
 			if !isText || !valid {
 				return errCode("INVALID_PAYLOAD", "不支持的呈现方式")
 			}

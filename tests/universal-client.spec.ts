@@ -148,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.23.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.24.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.23.png`,
+      path: `artifacts/connection-${label}-0.1.24.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -425,7 +425,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.23');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.24');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -747,6 +747,21 @@ test('原位预览、内部排布与每个尺寸独立保存和取消', async ()
   await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
   await cpu.locator('.layout-move').click();
   await expect(cpu.locator('.metric-value')).toBeVisible();
+  await tablet.locator('.profile-controls .presentation-library summary').click();
+  await tablet.getByRole('button', { name: '半环仪表', exact: true }).click();
+  await expect(cpu.locator('.half-dial')).toBeVisible();
+  await expect(cpu.locator('.widget-view')).toHaveAttribute('data-presentation', 'dial');
+  await tablet.getByRole('button', { name: '分段刻度', exact: true }).click();
+  await expect(cpu.locator('.segment-meter')).toBeVisible();
+  await tablet.getByRole('button', { name: '保存当前尺寸预设', exact: true }).click();
+  await expect(
+    tablet.getByRole('button', { name: '保存当前尺寸预设', exact: true }),
+  ).toBeDisabled();
+  await tablet.reload();
+  await expect(tablet.locator('.live-pill')).toContainText('实时同步', { timeout: 20000 });
+  await expect(cpu.locator('.widget-view')).toHaveAttribute('data-presentation', 'segments');
+  await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
+  await cpu.locator('.layout-move').click();
   await tablet.getByLabel('当前尺寸呈现方式').selectOption('gauge');
   await tablet.getByRole('button', { name: '编辑卡片内部', exact: true }).click();
   await tablet.getByRole('button', { name: '数值', exact: true }).click();

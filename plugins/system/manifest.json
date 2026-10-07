@@ -113,7 +113,7 @@
           "h": 4
         }
       ],
-      "presentations": ["auto", "value", "trend", "gauge"]
+      "presentations": ["auto", "value", "trend", "gauge", "dial", "segments", "bars"]
     },
     {
       "id": "network-chart",
@@ -171,7 +171,7 @@
           "h": 4
         }
       ],
-      "presentations": ["auto", "rates", "trend", "split"]
+      "presentations": ["auto", "rates", "trend", "split", "bars", "meters"]
     },
     {
       "id": "system-overview",
@@ -229,7 +229,7 @@
           "h": 4
         }
       ],
-      "presentations": ["auto", "summary", "details"]
+      "presentations": ["auto", "summary", "details", "tiles"]
     }
   ],
   "actions": [

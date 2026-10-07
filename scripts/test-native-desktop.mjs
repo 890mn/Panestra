@@ -56,7 +56,7 @@ try {
   if (!(await page.getByLabel('首次认领码').inputValue()))
     throw new Error('Native sidecar bootstrap code missing');
   await page.screenshot({
-    path: path.join(root, 'artifacts/connection-desktop-native-0.1.23.png'),
+    path: path.join(root, 'artifacts/connection-desktop-native-0.1.24.png'),
     fullPage: true,
     animations: 'disabled',
   });
@@ -84,7 +84,7 @@ try {
     const callback = window.__TAURI_INTERNALS__.transformCallback(() => {}, true);
     try {
       await window.__TAURI_INTERNALS__.invoke('install_app_update', {
-        expectedVersion: '0.1.23',
+        expectedVersion: '0.1.24',
         progress: `__CHANNEL__:${callback}`,
       });
     } catch (error) {
@@ -99,12 +99,12 @@ try {
   });
   const updateCheck = await page.locator('.update-status').innerText();
   await page.getByRole('button', { name: '更新日志', exact: true }).click();
-  await page.getByRole('button', { name: '查看 v0.1.23 更新说明', exact: true }).click();
-  await expect(page.locator('.release-detail')).toContainText('优化触屏编辑与侧栏手势');
+  await page.getByRole('button', { name: '查看 v0.1.24 更新说明', exact: true }).click();
+  await expect(page.locator('.release-detail')).toContainText('新增 15 种卡片表现预设');
   await page.screenshot({ path: path.join(root, 'artifacts/native-desktop-update-logs.png') });
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   await page.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-  await expect(page.locator('.about-version')).toHaveText('v0.1.23');
+  await expect(page.locator('.about-version')).toHaveText('v0.1.24');
   await page.screenshot({ path: path.join(root, 'artifacts/native-desktop-about.png') });
   await page.getByRole('button', { name: 'GitHub 项目', exact: true }).click();
   await expect(page.getByRole('button', { name: 'GitHub 项目', exact: true })).toBeEnabled({

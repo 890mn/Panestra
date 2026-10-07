@@ -92,6 +92,7 @@ import { AppUpdates } from './AppUpdates';
 import { DesktopServicePanel } from './DesktopServicePanel';
 import { ResizeGrip } from './ResizeGrip';
 import { useSidebar } from './useSidebar';
+import { PresentationChoices } from './PresentationChoices';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
@@ -1441,6 +1442,12 @@ function WidgetConfig({
             </select>
           </label>
         ) : null}
+        <PresentationChoices
+          type={widget.data.type}
+          value={presentation}
+          disabled={!canEdit}
+          change={setPresentation}
+        />
         <div
           className="config-preview"
           aria-label="组件实时预览"
