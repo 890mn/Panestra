@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/shirou/gopsutil/v4/process"
-	"os"
 	"panestra.local/panestra/core/store"
 	"path/filepath"
 	"sync/atomic"
@@ -13,16 +12,12 @@ import (
 )
 
 func TestProfileTwentyOneIsolatedWorkers(t *testing.T) {
-	binary, _ := filepath.Abs("../../artifacts/system-plugin.exe")
-	if _, err := os.Stat(binary); err != nil {
-		t.Skip("build bundled worker before process profile")
-	}
+	binary, raw := systemProcessFixture(t)
 	s, err := store.Open(filepath.Join(t.TempDir(), "profile.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.DB.Close()
-	raw, _ := os.ReadFile("../../plugins/system/manifest.json")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	workers := make([]*Runtime, 0, 21)

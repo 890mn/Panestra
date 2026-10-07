@@ -8,12 +8,42 @@ import '../../client/src/widget-views.css';
 import { BLOCKS, defaultBlock, PRESENTATIONS } from '../../packages/widget-schema/src/presentation';
 import type { Breakpoint, Widget } from '../../packages/protocol/src';
 import { core } from '../../client/src/core';
+import type { InstalledPlugin } from '../../client/src/core';
 const previewRoot = createRoot(document.getElementById('root')!);
 function renderPreview(query: string) {
   const params = new URLSearchParams(query);
   if (params.has('control'))
     core.patch({
       online: !params.has('offline'),
+      plugins: [
+        {
+          id: 'dev.panestra.preview',
+          name: '测试播放器',
+          version: '1.0.0',
+          enabled: true,
+          status: 'running',
+          pid: 0,
+          restarts: 0,
+          permissions: {},
+          manifest: {
+            id: 'dev.panestra.preview',
+            name: '测试播放器',
+            version: '1.0.0',
+            sources: [{ id: 'media.status', type: 'object', unit: '' }],
+            widgets: [],
+            permissions: [],
+            actions: [],
+            routes: [
+              {
+                method: 'POST',
+                path: '/integrations/netease/actions',
+                operation: 'control',
+                role: 'operator',
+              },
+            ],
+          },
+        } as InstalledPlugin,
+      ],
       endpoint: {
         uri: location.origin,
         serverId: 'preview-core',
@@ -212,7 +242,8 @@ function renderPreview(query: string) {
               rev: 1,
               data: {
                 pageId: 'page',
-                pluginId: 'dev.panestra.system',
+                pluginId: 'dev.panestra.preview',
+                valueMode: params.get('account') === 'deepseek' ? 'balance' : 'usage',
                 type,
                 source:
                   type === 'task-status'

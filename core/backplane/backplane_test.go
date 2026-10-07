@@ -25,14 +25,14 @@ func TestFrameBoundsAndCompatibility(t *testing.T) {
 	if _, err = f.Read(); err == nil {
 		t.Fatal("oversized frame accepted")
 	}
-	manifest, err := os.ReadFile("../../plugins/system/manifest.json")
+	manifest, err := os.ReadFile("../testdata/system-manifest.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = ParseManifest(manifest); err != nil {
 		t.Fatal(err)
 	}
-	bad := bytes.Replace(manifest, []byte(`"required": true`), []byte(`"required": true`), 1)
+	bad := bytes.Replace(manifest, []byte(`"schemaVersion": 2`), []byte(`"schemaVersion": 1`), 1)
 	bad = bytes.Replace(bad, []byte("system.metrics.read"), []byte("unknown.required"), 1)
 	if _, err = ParseManifest(bad); err == nil {
 		t.Fatal("unknown required capability accepted")
@@ -59,19 +59,12 @@ func TestFilesystemScope(t *testing.T) {
 	}
 }
 func TestPluginCrashIsolation(t *testing.T) {
-	binary, err := filepath.Abs("../../artifacts/system-plugin.exe")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = os.Stat(binary); err != nil {
-		t.Skip("build System Plugin before runtime integration test")
-	}
+	binary, manifest := systemProcessFixture(t)
 	s, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.DB.Close()
-	manifest, _ := os.ReadFile("../../plugins/system/manifest.json")
 	r, err := NewRuntime(s, binary, manifest)
 	if err != nil {
 		t.Fatal(err)

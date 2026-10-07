@@ -10,12 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"panestra.local/panestra/core/adapters/accounts"
-	"panestra.local/panestra/core/adapters/alas"
-	"panestra.local/panestra/core/adapters/clash"
-	"panestra.local/panestra/core/adapters/codex"
-	"panestra.local/panestra/core/adapters/netease"
 	"panestra.local/panestra/core/backplane"
+	"panestra.local/panestra/core/plugins"
 	"panestra.local/panestra/core/protocol"
 	"panestra.local/panestra/core/security"
 	"panestra.local/panestra/core/store"
@@ -34,12 +30,7 @@ type Server struct {
 	Store          *store.Store
 	Auth           *security.Auth
 	Plugin         *backplane.Runtime
-	Codex          *codex.Service
-	Accounts       map[string]*accounts.Service
-	Clash          *clash.Service
-	Netease        *netease.Service
-	Alas           *alas.Service
-	codexUpdateMu  sync.Mutex
+	Plugins        *plugins.Manager
 	Hub            *Hub
 	DataDir        string
 	Origins        map[string]bool
@@ -54,28 +45,9 @@ type Server struct {
 func New(s *store.Store, a *security.Auth, p *backplane.Runtime, dir string, ctx context.Context) *Server {
 	srv := &Server{Store: s, Auth: a, Plugin: p, Hub: NewHub(), DataDir: dir, Context: ctx, Origins: map[string]bool{}, rates: map[string]bucket{}, Started: time.Now()}
 	s.OnEvent = srv.Hub.Event
-	srv.Accounts = map[string]*accounts.Service{}
-	for _, id := range accounts.IDs {
-		srv.Accounts[id] = accounts.NewService(ctx, id, filepath.Join(dir, "integrations"), func(status accounts.Status, seq uint64) {
-			srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: accounts.Topic(id), Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
-		})
+	if p != nil {
+		p.Publish = srv.Hub.Telemetry
 	}
-	p.Publish = srv.Hub.Telemetry
-	srv.Clash = clash.NewService(ctx, filepath.Join(dir, "integrations"), func(status clash.Status, seq uint64) {
-		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: clash.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
-	})
-	srv.Codex = codex.NewService(ctx, func(status codex.Status, seq uint64) {
-		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: codex.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
-	})
-	srv.Netease = netease.NewService(ctx, filepath.Join(dir, "integrations"), func(status netease.Status, seq uint64) {
-		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: netease.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
-	})
-	srv.Alas = alas.NewService(ctx, filepath.Join(dir, "integrations"), func(status alas.Status, seq uint64) {
-		srv.Hub.Telemetry(backplane.Telemetry{Type: "telemetry", Topic: alas.Topic, Seq: seq, TS: time.Now().UTC().Format(time.RFC3339), Value: status})
-	})
-	var granted bool
-	_ = s.DB.QueryRow("SELECT granted FROM plugin_permissions WHERE plugin_id=? AND capability=?", codex.ID, codex.Permission).Scan(&granted)
-	srv.Codex.SetEnabled(granted)
 	return srv
 }
 func JSON(w http.ResponseWriter, status int, v any) {
@@ -266,41 +238,7 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 		}
 	}
 	mux.HandleFunc("GET /api/v1/me", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) { JSON(w, 200, d) }))
-	s.accountRoutes(mux, protect)
-	s.clashRoutes(mux, protect)
-	s.neteaseRoutes(mux, protect)
-	s.alasRoutes(mux, protect)
-	mux.HandleFunc("GET /api/v1/integrations/codex", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
-		JSON(w, 200, s.Codex.Snapshot())
-	}))
-	mux.HandleFunc("POST /api/v1/integrations/codex", protect(true, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
-		var p struct {
-			Enabled *bool `json:"enabled"`
-		}
-		if !decode(w, r, &p) {
-			return
-		}
-		if p.Enabled == nil {
-			JSON(w, 400, protocol.Error{Code: "INVALID_PAYLOAD", Message: "需要 enabled 字段"})
-			return
-		}
-		s.codexUpdateMu.Lock()
-		defer s.codexUpdateMu.Unlock()
-		s.Store.Mu.Lock()
-		_, err := s.Store.DB.Exec("INSERT INTO plugin_permissions VALUES(?,?,?) ON CONFLICT(plugin_id,capability) DO UPDATE SET granted=excluded.granted", codex.ID, codex.Permission, *p.Enabled)
-		s.Store.Mu.Unlock()
-		if err != nil {
-			failure(w, err)
-			return
-		}
-		s.Codex.SetEnabled(*p.Enabled)
-		s.Store.Audit(d.ID, "codex.permission", codex.ID, map[bool]string{true: "enabled", false: "disabled"}[*p.Enabled], r.Header.Get("X-Request-ID"))
-		JSON(w, 200, s.Codex.Snapshot())
-	}))
-	mux.HandleFunc("POST /api/v1/integrations/codex/refresh", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
-		s.Codex.Refresh()
-		JSON(w, 200, s.Codex.Snapshot())
-	}))
+	s.pluginRoutes(mux, protect)
 	mux.HandleFunc("GET /api/v1/snapshot", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		v, err := s.Store.Snapshot()
 		if err != nil {
@@ -385,11 +323,23 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 		JSON(w, 200, map[string]bool{"ok": true})
 	}))
 	mux.HandleFunc("GET /api/v1/plugins", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
-		JSON(w, 200, []any{s.Plugin.Status()})
+		if s.Plugins != nil {
+			JSON(w, 200, s.Plugins.Status())
+		} else if s.Plugin != nil {
+			JSON(w, 200, []any{s.Plugin.Status()})
+		} else {
+			JSON(w, 200, []any{})
+		}
 	}))
-	mux.HandleFunc("GET /api/v1/plugins/system/update", protect(true, s.pluginUpdateStatus))
-	mux.HandleFunc("POST /api/v1/plugins/system/update", protect(true, s.updatePlugin))
 	mux.HandleFunc("POST /api/v1/plugins/system", protect(true, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
+		plugin := s.Plugin
+		if s.Plugins != nil {
+			plugin = s.Plugins.Get("dev.panestra.system")
+		}
+		if plugin == nil {
+			JSON(w, 404, protocol.Error{Code: "PLUGIN_NOT_INSTALLED", Message: "插件尚未安装"})
+			return
+		}
 		s.pluginUpdateMu.Lock()
 		defer s.pluginUpdateMu.Unlock()
 		var p struct {
@@ -400,23 +350,31 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 		if !decode(w, r, &p) {
 			return
 		}
-		s.Plugin.Stop()
-		if err := s.Plugin.Grant("system.metrics.read", p.Metrics); err != nil {
+		plugin.Stop()
+		if err := plugin.Grant("system.metrics.read", p.Metrics); err != nil {
 			failure(w, err)
 			return
 		}
-		if err := s.Plugin.Grant("system.session.lock", p.Lock); err != nil {
+		if err := plugin.Grant("system.session.lock", p.Lock); err != nil {
 			failure(w, err)
 			return
 		}
-		if p.Enabled {
-			if err := s.Plugin.Start(s.Context); err != nil {
+		if s.Plugins != nil {
+			if err := s.Plugins.SetEnabled(plugin.Manifest.ID, p.Enabled); err != nil {
+				failure(w, err)
+				return
+			}
+		} else if p.Enabled {
+			if err := plugin.Start(s.Context); err != nil {
 				failure(w, err)
 				return
 			}
 		}
+		if !p.Enabled {
+			s.Hub.ClearPlugin(plugin.Manifest.ID)
+		}
 		s.Store.Audit(d.ID, "plugin.permissions", "dev.panestra.system", "success", r.Header.Get("X-Request-ID"))
-		JSON(w, 200, s.Plugin.Status())
+		JSON(w, 200, plugin.Status())
 	}))
 	mux.HandleFunc("POST /api/v1/actions/{id}", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		if d.Role != "owner" {
@@ -436,7 +394,15 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		err := s.Plugin.Invoke(ctx, r.PathValue("id"))
+		plugin := s.Plugin
+		if s.Plugins != nil {
+			plugin = s.Plugins.Get("dev.panestra.system")
+		}
+		if plugin == nil {
+			JSON(w, 404, protocol.Error{Code: "PLUGIN_NOT_INSTALLED", Message: "插件尚未安装"})
+			return
+		}
+		err := plugin.Invoke(ctx, r.PathValue("id"))
 		result := "success"
 		if err != nil {
 			result = "failure"
@@ -466,7 +432,7 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 	mux.HandleFunc("GET /api/v1/health", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
-		JSON(w, 200, map[string]any{"sqliteVersion": s.Store.Version, "coreVersion": protocol.CoreVersion, "uptime": time.Since(s.Started).Seconds(), "goroutines": runtime.NumGoroutine(), "heapBytes": m.HeapAlloc, "websocket": s.Hub.Stats(), "plugin": s.Plugin.Status()})
+		JSON(w, 200, map[string]any{"sqliteVersion": s.Store.Version, "coreVersion": protocol.CoreVersion, "uptime": time.Since(s.Started).Seconds(), "goroutines": runtime.NumGoroutine(), "heapBytes": m.HeapAlloc, "websocket": s.Hub.Stats(), "plugins": s.Plugins.Status()})
 	}))
 	mux.HandleFunc("POST /api/v1/backups", protect(true, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		dir := filepath.Join(s.DataDir, "backups")
@@ -527,7 +493,11 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 				return
 			}
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
+		limit := int64(64 * 1024)
+		if r.Method == "POST" && r.URL.Path == "/api/v1/plugins/import" {
+			limit = 90 * 1024 * 1024
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		start := time.Now()
 		mux.ServeHTTP(w, r)
 		if r.URL.Path != "/ws/v1" {

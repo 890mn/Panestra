@@ -7,7 +7,7 @@ import (
 )
 
 func TestWidgetSizeAndPresentationContract(t *testing.T) {
-	data, err := os.ReadFile("../../plugins/system/manifest.json")
+	data, err := os.ReadFile("../testdata/system-manifest.json")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -21,14 +21,14 @@ Panestra（星序）把电脑的状态和控制放到你常用的屏幕上。Win
 - 通过局域网发现或二维码配对设备，管理角色与权限，随时撤销设备访问
 - 在授权后锁定电脑会话，自动备份工作空间，离线时查看缓存
 
-System Monitor 在独立进程运行，软件适配由 Core 统一连接，读取与控制分别授权。ALAS 通过本机只读桥接读取状态；Codex 当前接入的是订阅额度
+所有插件均在 Windows Core 上以独立进程运行，通过本机 IPC 提供数据和操作；读取与控制分别授权。ALAS 通过本机只读桥接读取状态；Codex 当前接入的是订阅额度
 
 ## 安装与连接
 
 从 [GitHub Releases](https://github.com/890mn/Panestra/releases) 下载与你的设备对应的版本。尚未发布安装包时，可按下文从源码构建
 
 1. 在 Windows 上安装并打开 Panestra，Core 会随应用启动。连接页自动填入本机信息，首次使用点击「建立并进入工作空间」
-2. 进入「插件」，授权并启用 System Monitor，再向工作空间添加需要的组件
+2. 进入「插件」，打开 System Monitor 的状态与设置，授权并启用，再向工作空间添加需要的组件。未附带插件包的构建可打开插件目录下载安装
 3. 电脑打开「设备与连接」中的配对窗口，Android 与电脑连接同一局域网，扫描电脑二维码或选择自动发现的 Core
 4. 在电脑上核对并批准请求，完成后 Android 会保存配对，下次打开可自动重连
 
@@ -60,11 +60,11 @@ Clash Verge 可在「插件 → Clash Verge → 状态与设置」由 Owner 启�
 
 接口依据：[Mihomo 官方控制接口](https://wiki.metacubex.one/api/)、[Clash Verge 本机连接实现](https://github.com/clash-verge-rev/clash-verge-rev/blob/main/src-tauri/src/utils/dirs.rs)
 
-网易云音乐可在「插件 → 网易云音乐 → 状态与设置」启用读取，再添加音乐组件。读取只显示歌曲信息，Owner 点击「开启播放控制」后，操作设备才能播放、暂停和切歌。电脑需要安装网易云音乐，并在播放器设置中开启系统媒体控制；仅识别网易云的媒体会话，不会控制其他播放器。封面与状态同步给已配对设备，未提供播放时长时显示「播放器未提供进度」。客户端版本未提供系统媒体会话时显示「未找到播放器」，控制能力以播放器实际提供的接口为准
+网易云音乐可在「插件 → 网易云音乐 → 状态与设置」启用读取，再添加音乐组件。读取只显示歌曲信息，Owner 勾选「允许播放与切歌控制」并保存后，操作设备才能播放、暂停和切歌。电脑需要安装网易云音乐，并在播放器设置中开启系统媒体控制；仅识别网易云的媒体会话，不会控制其他播放器。封面与状态同步给已配对设备，未提供播放时长时显示「播放器未提供进度」。客户端版本未提供系统媒体会话时显示「未找到播放器」，控制能力以播放器实际提供的接口为准
 
 控制播放需要 Owner 单独授权，Operator 可操作，Viewer 保持只读。小卡保留播放按键，完整详情提供切歌、播放进度和专辑信息；编辑布局和离线时禁用控制
 
-部分网易云版本不向 Windows 提供时间轴，可在状态与设置中启用「使用本机进度通道」，默认端口为 19228。关闭网易云后，在电脑上用以下参数启动播放器，再保存 Panestra 设置
+部分网易云版本不向 Windows 提供时间轴，可在状态与设置中填写「本机进度通道端口」，例如 19228；填写 0 可关闭。关闭网易云后，在电脑上用以下参数启动播放器，再保存 Panestra 设置
 
 ```powershell
 & 'C:\实际安装目录\cloudmusic.exe' --remote-debugging-address=127.0.0.1 --remote-debugging-port=19228
@@ -81,6 +81,28 @@ ALAS 可在「插件 → ALAS → 状态与设置」填写电脑上的安装目�
 桥接在真实 WebUI 进程内读取已载入实例的 ProcessManager 和调度配置，仅提供本机认证的只读状态接口。实例未载入、任务名称未知或桥接断开时会明确显示，不用进程存在推断任务正常运行。任务控制不在此插件的权限范围内
 
 实现依据：[ALAS 官方 WebUI 源码](https://github.com/LmeSzinc/AzurLaneAutoScript/blob/master/module/webui/app.py)
+
+## 插件安装与开发
+
+插件源码、设置清单和独立发布工具位于 [Panestra-Plugins](https://github.com/890mn/Panestra-Plugins)，主程序只保留插件管理、通信、布局和共用可视化组件
+
+「插件 → 打开插件目录」显示本地随包提供的插件；「检查插件更新」手动获取插件仓库的 GitHub Release 目录。选择安装或更新后，Core 下载到本机、验证发布者签名和文件摘要，再展示权限确认；候选进程通过检查才替换原版本，失败继续运行旧版本
+
+也可使用「导入插件包」选择同一插件的 ZIP、JSON 与 SIG 三个文件，支持分块传输。卸载会停止运行并保留本机配置和已有布局，重新安装后可恢复；已安装插件在断网时照常运行
+
+只运行受信发布者签名的 Windows 原生插件，独立进程与权限检查不等同于操作系统沙箱。Android 只显示状态和发送授权操作，不下载或执行 Windows 插件
+
+### 构建时附带离线插件包
+
+两仓库分别构建。普通主程序构建不需要插件源码；可从正式发布获取签名包，或在插件仓库用自己的发布密钥独立构建。自定义发行者需要同时替换主程序的公开信任根 `core/plugins/publisher.pub`，私钥始终留在仓库外
+
+准备包含 `catalog.json`、ZIP、JSON 与 SIG 的目录后，在主仓库构建时指定
+
+```powershell
+.\scripts\build.ps1 -Desktop -PluginPackages '..\Panestra-Plugins\artifacts\packages\1'
+```
+
+只附带已构建的签名包，不把插件源码复制到主仓库。自动测试插件的实际进程、安装生命周期和协议时，也需要预先准备这些包；纯网页开发、类型与格式检查不需要运行插件
 
 ## 从源码构建
 
@@ -139,11 +161,7 @@ APK 位于 `shell/desktop/gen/android/app/build/outputs/apk/arm64/debug`。首�
 
 检查包括 TypeScript、Prettier、gofmt、rustfmt、Go vet 与测试，以及桌面、平板和手机尺寸的 Playwright 测试。浏览器测试需要本机 Chrome，Windows 身份与传输测试需要真实用户配置；原生 Android 验收需显式指定授权设备
 
-ALAS 桥接的独立测试只依赖 Python 标准库，可用 Python 3.7 及以上版本运行：
-
-```powershell
-python tests/test-alas-bridge.py
-```
+软件适配和 ALAS 桥接的测试位于独立的 [Panestra-Plugins 仓库](https://github.com/890mn/Panestra-Plugins)，主仓库只测试宿主、协议、布局和通用渲染
 
 ## 更新
 
@@ -175,7 +193,7 @@ Release 正文用于新版本更新说明。推送源码、创建标签和公开
 | `shell/desktop`   | Windows Tauri 壳与 Android 共享原生入口 |
 | `shell/android`   | Android 主 Activity 与平台配置          |
 | `shell/bridge`    | 原生发现、身份存储、网络与扫码桥接      |
-| `plugins/system`  | 系统监控插件                            |
+| `core/plugins`    | 签名包安装、下载、权限与插件进程管理    |
 | `packages`        | 协议与布局类型                          |
 | `assets/branding` | 原始品牌图标                            |
 | `scripts`         | 构建、验证与打包脚本                    |
@@ -183,6 +201,10 @@ Release 正文用于新版本更新说明。推送源码、创建标签和公开
 Core 数据默认保留在本机，设备通过 HTTPS / WSS 通信。Windows 使用 DPAPI、Android 使用 Keystore 保存身份。配对需要电脑批准，插件操作受设备角色和授权范围限制
 
 ## 更新说明
+
+### 0.1.26
+
+将七项适配拆分到独立插件仓库，插件设置与组件由清单生成，增加下载、签名预览、安装、停用与卸载，保留配置、布局和设备配对
 
 ### 0.1.25
 

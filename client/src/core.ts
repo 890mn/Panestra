@@ -10,16 +10,8 @@ import type {
   Snapshot,
   Telemetry,
 } from '../../packages/protocol/src';
-import {
-  SOURCES,
-  SYSTEM,
-  CODEX_TOPIC,
-  CLASH_TOPIC,
-  NETEASE_TOPIC,
-  ALAS_TOPIC,
-  ACCOUNT_IDS,
-  accountTopic,
-} from '../../packages/protocol/src';
+import type { Plugin } from '../../packages/protocol/src';
+import type { PluginManifest } from './plugin-schema';
 import { deviceKey, discover, native, realtime, sign, transport } from './platform';
 import { connectionErrorText, pairingRequired } from './connection-errors';
 
@@ -34,7 +26,9 @@ type State = {
   error: string;
   telemetry: Record<string, Telemetry>;
   history: Record<string, number[]>;
+  plugins: InstalledPlugin[];
 };
+export type InstalledPlugin = Plugin & { manifest: PluginManifest; enabled: boolean };
 export class CoreClient {
   state: State = {
     snapshot: null,
@@ -47,6 +41,7 @@ export class CoreClient {
     error: '',
     telemetry: {},
     history: {},
+    plugins: [],
   };
   listeners = new Set<() => void>();
   token = '';
@@ -79,7 +74,7 @@ export class CoreClient {
       clearTimeout(this.refreshTimer);
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
-      value = { ...value, online: false, snapshot: null, telemetry: {}, history: {} };
+      value = { ...value, online: false, snapshot: null, telemetry: {}, history: {}, plugins: [] };
     }
     this.state = { ...this.state, ...value };
     this.listeners.forEach((fn) => fn());
@@ -88,7 +83,8 @@ export class CoreClient {
     const endpoint = await get<Endpoint>('panestra.active.v1');
     if (endpoint) {
       const snapshot = await get<Snapshot>(`panestra.snapshot.v1:${endpoint.serverId}`);
-      this.patch({ endpoint, snapshot: snapshot || null });
+      const plugins = await get<InstalledPlugin[]>('panestra.plugins.v1:' + endpoint.serverId);
+      this.patch({ endpoint, snapshot: snapshot || null, plugins: plugins || [] });
       try {
         await this.login();
       } catch (e) {
@@ -395,25 +391,48 @@ export class CoreClient {
       ep.publicKeyHash,
     );
   }
+  async loadPlugins() {
+    const plugins = await this.api<InstalledPlugin[]>('/plugins');
+    const installed = new Set(
+      plugins.filter((plugin) => plugin.enabled).map((plugin) => plugin.id),
+    );
+    this.patch({
+      plugins,
+      telemetry: Object.fromEntries(
+        Object.entries(this.state.telemetry).filter(([topic]) =>
+          installed.has(topic.split('/')[0]),
+        ),
+      ),
+      history: Object.fromEntries(
+        Object.entries(this.state.history).filter(([topic]) => installed.has(topic.split('/')[0])),
+      ),
+    });
+    const ep = this.state.endpoint!;
+    await set('panestra.plugins.v1:' + ep.serverId, plugins);
+  }
+  async pluginRequest<T>(id: string, operation: string, body?: unknown): Promise<T> {
+    const route = this.state.plugins
+      .find((plugin) => plugin.id === id)
+      ?.manifest.routes?.find((route) => route.operation === operation);
+    if (!route) throw { message: '插件不支持此操作' };
+    return this.api<T>(route.path, route.method === 'GET' ? undefined : body || {});
+  }
   async openRealtime() {
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
     this.stopSocket?.();
     const generation = ++this.generation;
     const ep = this.state.endpoint!;
+    await this.loadPlugins();
+    if (generation !== this.generation) return;
     this.stopSocket = await realtime(
       ep.uri,
       ep.publicKeyHash,
       this.token,
       this.state.snapshot?.serverSeq || 0,
-      [
-        ...SOURCES.map((s) => `${SYSTEM}/${s}`),
-        CODEX_TOPIC,
-        CLASH_TOPIC,
-        NETEASE_TOPIC,
-        ALAS_TOPIC,
-        ...ACCOUNT_IDS.map(accountTopic),
-      ],
+      this.state.plugins
+        .filter((plugin) => plugin.enabled)
+        .flatMap((plugin) => plugin.manifest.sources.map((source) => `${plugin.id}/${source.id}`)),
       (data) => {
         if (generation !== this.generation) return;
         const message = JSON.parse(data) as Snapshot | CanonicalEvent | Telemetry;
@@ -432,7 +451,7 @@ export class CoreClient {
                 }
               : this.state.history;
           if (
-            topic === CLASH_TOPIC &&
+            message.value !== null &&
             typeof message.value === 'object' &&
             'groups' in message.value
           ) {

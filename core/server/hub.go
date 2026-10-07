@@ -5,13 +5,9 @@ import (
 	"encoding/json"
 	"github.com/coder/websocket"
 	"net/http"
-	"panestra.local/panestra/core/adapters/accounts"
-	"panestra.local/panestra/core/adapters/alas"
-	"panestra.local/panestra/core/adapters/clash"
-	"panestra.local/panestra/core/adapters/codex"
-	"panestra.local/panestra/core/adapters/netease"
 	"panestra.local/panestra/core/backplane"
 	"panestra.local/panestra/core/protocol"
+	"strings"
 	"sync"
 	"time"
 )
@@ -88,6 +84,15 @@ func (h *Hub) Close() {
 	defer h.mu.Unlock()
 	for p := range h.peers {
 		p.close()
+	}
+}
+func (h *Hub) ClearPlugin(id string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for topic := range h.latest {
+		if strings.HasPrefix(topic, id+"/") {
+			delete(h.latest, topic)
+		}
 	}
 }
 func (h *Hub) Stats() map[string]any {
@@ -172,19 +177,13 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			topics := map[string]bool{}
+			allowed := map[string]bool{}
+			if s.Plugins != nil {
+				allowed = s.Plugins.Topics()
+			}
 			for _, topic := range msg.Topics {
-				if topic == codex.Topic || topic == clash.Topic || topic == netease.Topic || topic == alas.Topic {
+				if allowed[topic] {
 					topics[topic] = true
-				}
-				for _, id := range accounts.IDs {
-					if topic == accounts.Topic(id) {
-						topics[topic] = true
-					}
-				}
-				for _, source := range s.Plugin.Manifest.Sources {
-					if topic == s.Plugin.Manifest.ID+"/"+source.ID {
-						topics[topic] = true
-					}
 				}
 			}
 			p.mu.Lock()

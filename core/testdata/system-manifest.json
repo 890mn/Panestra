@@ -1,0 +1,539 @@
+{
+  "schemaVersion": 2,
+  "id": "dev.panestra.system",
+  "name": "System Monitor",
+  "version": "0.1.0",
+  "engine": {
+    "pluginApi": ">=1.0.0 <2.0.0",
+    "runtime": "native-process",
+    "entry": "system-plugin.exe",
+    "maxChildren": 1
+  },
+  "permissions": [
+    {
+      "id": "system.metrics.read",
+      "required": true
+    },
+    {
+      "id": "system.session.lock",
+      "required": false
+    }
+  ],
+  "sources": [
+    {
+      "id": "cpu.usage",
+      "type": "number",
+      "unit": "%",
+      "defaultIntervalMs": 1000
+    },
+    {
+      "id": "memory.usage",
+      "type": "number",
+      "unit": "%",
+      "defaultIntervalMs": 1000
+    },
+    {
+      "id": "disk.usage",
+      "type": "number",
+      "unit": "%",
+      "defaultIntervalMs": 1000
+    },
+    {
+      "id": "network.rx",
+      "type": "number",
+      "unit": "KB/s",
+      "defaultIntervalMs": 1000
+    },
+    {
+      "id": "network.tx",
+      "type": "number",
+      "unit": "KB/s",
+      "defaultIntervalMs": 1000
+    },
+    {
+      "id": "system.info",
+      "type": "object",
+      "unit": "",
+      "defaultIntervalMs": 1000
+    }
+  ],
+  "widgets": [
+    {
+      "id": "metric-card",
+      "renderer": "declarative",
+      "subscriptions": ["cpu.usage", "memory.usage", "disk.usage"],
+      "layout": {
+        "desktop": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 12,
+          "maxH": 12
+        },
+        "tablet": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 8,
+          "maxH": 12
+        },
+        "mobile": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 4,
+          "maxH": 12
+        }
+      },
+      "sizePresets": [
+        {
+          "id": "mini",
+          "w": 2,
+          "h": 2
+        },
+        {
+          "id": "strip",
+          "w": 4,
+          "h": 2
+        },
+        {
+          "id": "standard",
+          "w": 4,
+          "h": 3
+        },
+        {
+          "id": "detail",
+          "w": 4,
+          "h": 4
+        },
+        {
+          "id": "wide",
+          "w": 6,
+          "h": 3
+        },
+        {
+          "id": "large",
+          "w": 8,
+          "h": 4
+        }
+      ],
+      "presentations": ["auto", "value", "trend", "gauge", "dial", "segments", "bars"],
+      "defaults": {
+        "title": "处理器",
+        "source": "cpu.usage",
+        "unit": "%",
+        "color": "sage"
+      },
+      "catalog": [
+        {
+          "title": "处理器",
+          "source": "cpu.usage",
+          "unit": "%",
+          "color": "sage",
+          "description": "实时用量与趋势"
+        },
+        {
+          "title": "内存",
+          "source": "memory.usage",
+          "unit": "%",
+          "color": "blue",
+          "description": "实时用量与趋势"
+        },
+        {
+          "title": "系统磁盘",
+          "source": "disk.usage",
+          "unit": "%",
+          "color": "sand",
+          "description": "实时用量与趋势"
+        }
+      ]
+    },
+    {
+      "id": "network-chart",
+      "renderer": "declarative",
+      "subscriptions": ["network.rx", "network.tx"],
+      "layout": {
+        "desktop": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 12,
+          "maxH": 12
+        },
+        "tablet": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 8,
+          "maxH": 12
+        },
+        "mobile": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 4,
+          "maxH": 12
+        }
+      },
+      "sizePresets": [
+        {
+          "id": "mini",
+          "w": 2,
+          "h": 2
+        },
+        {
+          "id": "strip",
+          "w": 4,
+          "h": 2
+        },
+        {
+          "id": "standard",
+          "w": 4,
+          "h": 3
+        },
+        {
+          "id": "detail",
+          "w": 4,
+          "h": 4
+        },
+        {
+          "id": "wide",
+          "w": 6,
+          "h": 3
+        },
+        {
+          "id": "large",
+          "w": 8,
+          "h": 4
+        }
+      ],
+      "presentations": ["auto", "rates", "trend", "split", "bars", "meters"],
+      "defaults": {
+        "title": "网络流量",
+        "source": "network.rx",
+        "unit": "",
+        "color": "sage"
+      },
+      "catalog": [
+        {
+          "title": "网络流量",
+          "source": "network.rx",
+          "unit": "",
+          "color": "sage",
+          "description": "接收、发送与流量趋势"
+        }
+      ]
+    },
+    {
+      "id": "system-overview",
+      "renderer": "declarative",
+      "subscriptions": ["system.info"],
+      "layout": {
+        "desktop": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 12,
+          "maxH": 12
+        },
+        "tablet": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 8,
+          "maxH": 12
+        },
+        "mobile": {
+          "minW": 2,
+          "minH": 2,
+          "maxW": 4,
+          "maxH": 12
+        }
+      },
+      "sizePresets": [
+        {
+          "id": "mini",
+          "w": 2,
+          "h": 2
+        },
+        {
+          "id": "strip",
+          "w": 4,
+          "h": 2
+        },
+        {
+          "id": "standard",
+          "w": 4,
+          "h": 3
+        },
+        {
+          "id": "detail",
+          "w": 4,
+          "h": 4
+        },
+        {
+          "id": "wide",
+          "w": 6,
+          "h": 3
+        },
+        {
+          "id": "large",
+          "w": 8,
+          "h": 4
+        }
+      ],
+      "presentations": ["auto", "summary", "details", "tiles"],
+      "defaults": {
+        "title": "此刻的 Core",
+        "source": "system.info",
+        "unit": "",
+        "color": "sage"
+      },
+      "catalog": [
+        {
+          "title": "此刻的 Core",
+          "source": "system.info",
+          "unit": "",
+          "color": "sage",
+          "description": "硬件、运行时间与系统信息"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "lock",
+      "permission": "system.session.lock",
+      "risk": "medium"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "sampleIntervalMs": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 60000,
+        "default": 1000
+      }
+    }
+  },
+  "ui": {
+    "key": "system",
+    "category": "status",
+    "icon": "cpu",
+    "subtitle": "电脑运行状态",
+    "description": "查看处理器、内存、磁盘和网络流量",
+    "notes": [],
+    "settings": [],
+    "permissions": {
+      "system.metrics.read": {
+        "label": "读取系统指标",
+        "description": "处理器、内存、磁盘与网络状态"
+      },
+      "system.session.lock": {
+        "label": "锁定电脑会话",
+        "description": "允许授权设备锁定 Core 电脑，默认关闭"
+      }
+    }
+  },
+  "initialWidgets": [
+    {
+      "id": "widget-cpu",
+      "data": {
+        "pageId": "page-overview",
+        "pluginId": "dev.panestra.system",
+        "type": "metric-card",
+        "title": "处理器",
+        "source": "cpu.usage",
+        "unit": "%",
+        "color": "sage"
+      },
+      "layouts": [
+        {
+          "widgetId": "widget-cpu",
+          "breakpoint": "desktop",
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-cpu",
+          "breakpoint": "tablet",
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-cpu",
+          "breakpoint": "mobile",
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        }
+      ]
+    },
+    {
+      "id": "widget-memory",
+      "data": {
+        "pageId": "page-overview",
+        "pluginId": "dev.panestra.system",
+        "type": "metric-card",
+        "title": "内存",
+        "source": "memory.usage",
+        "unit": "%",
+        "color": "blue"
+      },
+      "layouts": [
+        {
+          "widgetId": "widget-memory",
+          "breakpoint": "desktop",
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-memory",
+          "breakpoint": "tablet",
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-memory",
+          "breakpoint": "mobile",
+          "x": 0,
+          "y": 3,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        }
+      ]
+    },
+    {
+      "id": "widget-disk",
+      "data": {
+        "pageId": "page-overview",
+        "pluginId": "dev.panestra.system",
+        "type": "metric-card",
+        "title": "系统磁盘",
+        "source": "disk.usage",
+        "unit": "%",
+        "color": "sand"
+      },
+      "layouts": [
+        {
+          "widgetId": "widget-disk",
+          "breakpoint": "desktop",
+          "x": 8,
+          "y": 0,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-disk",
+          "breakpoint": "tablet",
+          "x": 0,
+          "y": 3,
+          "w": 8,
+          "h": 3,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-disk",
+          "breakpoint": "mobile",
+          "x": 0,
+          "y": 6,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        }
+      ]
+    },
+    {
+      "id": "widget-network",
+      "data": {
+        "pageId": "page-overview",
+        "pluginId": "dev.panestra.system",
+        "type": "network-chart",
+        "title": "网络流量",
+        "source": "network.rx",
+        "unit": "KB/s",
+        "color": "sage"
+      },
+      "layouts": [
+        {
+          "widgetId": "widget-network",
+          "breakpoint": "desktop",
+          "x": 0,
+          "y": 3,
+          "w": 6,
+          "h": 4,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-network",
+          "breakpoint": "tablet",
+          "x": 0,
+          "y": 6,
+          "w": 8,
+          "h": 3,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-network",
+          "breakpoint": "mobile",
+          "x": 0,
+          "y": 9,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        }
+      ]
+    },
+    {
+      "id": "widget-system",
+      "data": {
+        "pageId": "page-overview",
+        "pluginId": "dev.panestra.system",
+        "type": "system-overview",
+        "title": "此刻的 Core",
+        "source": "system.info",
+        "unit": "",
+        "color": "sage"
+      },
+      "layouts": [
+        {
+          "widgetId": "widget-system",
+          "breakpoint": "desktop",
+          "x": 6,
+          "y": 3,
+          "w": 6,
+          "h": 4,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-system",
+          "breakpoint": "tablet",
+          "x": 0,
+          "y": 9,
+          "w": 8,
+          "h": 3,
+          "detached": false
+        },
+        {
+          "widgetId": "widget-system",
+          "breakpoint": "mobile",
+          "x": 0,
+          "y": 12,
+          "w": 4,
+          "h": 3,
+          "detached": false
+        }
+      ]
+    }
+  ]
+}

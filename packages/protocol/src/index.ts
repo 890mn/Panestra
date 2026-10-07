@@ -48,6 +48,7 @@ export interface Widget {
   presentation?: string;
   chartStyle?: 'line' | 'area';
   sizeProfiles?: Record<string, WidgetProfile>;
+  valueMode?: 'usage' | 'balance';
 }
 export interface Page {
   title: string;
@@ -131,13 +132,6 @@ export interface Plugin {
   permissions: Record<string, boolean>;
   pid: number;
 }
-export const SYSTEM = 'dev.panestra.system';
-export const CODEX = 'dev.panestra.codex';
-export const CODEX_TOPIC = `${CODEX}/account.usage`;
-export const CLASH = 'dev.panestra.clash';
-export const CLASH_TOPIC = `${CLASH}/proxy.status`;
-export const NETEASE = 'dev.panestra.netease';
-export const NETEASE_TOPIC = `${NETEASE}/media.status`;
 export interface MediaStatus {
   enabled: boolean;
   allowControl: boolean;
@@ -176,8 +170,6 @@ export interface ClashStatus {
   download: number | null;
   groups: { name: string; current: string; options: string[]; selectable: boolean }[];
 }
-export const ACCOUNT_IDS = ['glm', 'deepseek'] as const;
-export const accountTopic = (id: string) => `dev.panestra.${id}/account.usage`;
 export interface AccountWindow {
   id: string;
   name: string;
@@ -231,16 +223,7 @@ export interface CodexStatus {
   resetCredits: { availableCount: number | null; expiresAt: number | null } | null;
   pollIntervalSeconds: number;
 }
-export const SOURCES = [
-  'cpu.usage',
-  'memory.usage',
-  'disk.usage',
-  'network.rx',
-  'network.tx',
-  'system.info',
-];
 
-export const ALAS_TOPIC = 'dev.panestra.alas/task.status';
 export interface AlasTask {
   name: string;
   nextRun: string;

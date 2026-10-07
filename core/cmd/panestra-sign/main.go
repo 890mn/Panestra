@@ -134,7 +134,7 @@ func run() error {
 		}
 		digests[entry.Name] = hex.EncodeToString(leaf.Sum(nil))
 	}
-	for _, name := range []string{"panestra-core.exe", "system-plugin.exe", "plugins/system/manifest.json"} {
+	for _, name := range []string{"panestra-core.exe"} {
 		if digests[name] == "" {
 			return fmt.Errorf("required package file missing: %s", name)
 		}

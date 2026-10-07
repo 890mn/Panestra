@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-func AttachJob(pid int) (func(), error) {
+func AttachJob(pid int, children ...int) (func(), error) {
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
 		return nil, err
@@ -16,6 +16,9 @@ func AttachJob(pid int) (func(), error) {
 	info.BasicLimitInformation.LimitFlags = windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | windows.JOB_OBJECT_LIMIT_PROCESS_MEMORY | windows.JOB_OBJECT_LIMIT_ACTIVE_PROCESS
 	info.ProcessMemoryLimit = 256 * 1024 * 1024
 	info.BasicLimitInformation.ActiveProcessLimit = 1
+	if len(children) > 0 && children[0] > 1 && children[0] <= 4 {
+		info.BasicLimitInformation.ActiveProcessLimit = uint32(children[0])
+	}
 	if _, err = windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info))); err != nil {
 		windows.CloseHandle(job)
 		return nil, err

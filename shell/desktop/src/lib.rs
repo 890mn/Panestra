@@ -121,26 +121,18 @@ pub fn run() {
                 } else {
                     development
                 };
-                let worker = if resources.join("system-plugin.exe").exists() {
-                    resources.join("system-plugin.exe")
+                let plugin_seed = if resources.join("plugin-seed/catalog.json").exists() {
+                    resources.join("plugin-seed")
                 } else {
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../../artifacts/system-plugin.exe")
-                };
-                let manifest = if resources.join("plugins/system/manifest.json").exists() {
-                    resources.join("plugins/system/manifest.json")
-                } else {
-                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../../plugins/system/manifest.json")
+                        .join("../../artifacts/plugin-seed")
                 };
                 let mut command = Command::new(core);
                 command.args([
                     "--data",
                     data.to_str().ok_or("Invalid data path")?,
-                    "--worker",
-                    worker.to_str().ok_or("Invalid worker path")?,
-                    "--manifest",
-                    manifest.to_str().ok_or("Invalid manifest path")?,
+                    "--plugin-seed",
+                    plugin_seed.to_str().ok_or("Invalid plugin seed path")?,
                     "--origins",
                     "http://tauri.localhost,https://tauri.localhost",
                 ]);

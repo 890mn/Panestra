@@ -18,10 +18,8 @@ const core = spawn(
     data,
     '--listen',
     '0.0.0.0:19444',
-    '--worker',
-    path.join(root, 'artifacts/system-plugin.exe'),
-    '--manifest',
-    path.join(root, 'plugins/system/manifest.json'),
+    '--plugin-seed',
+    path.join(root, 'artifacts/plugin-seed'),
     '--parent-stdio',
   ],
   { cwd: root, windowsHide: true },
@@ -63,8 +61,10 @@ try {
   await desktop.getByRole('button', { name: '建立并进入工作空间' }).click();
   await expect(desktop.getByTestId('widget-cpu')).toBeVisible();
   await desktop.getByRole('button', { name: '插件', exact: true }).click();
+  await desktop.getByRole('button', { name: '查看System Monitor状态与设置' }).click();
   await desktop.getByLabel('读取系统指标').check();
   await desktop.getByRole('button', { name: '授权并启用' }).click();
+  await desktop.getByRole('button', { name: '关闭', exact: true }).click();
   await desktop.getByRole('button', { name: '设备与连接', exact: true }).click();
   await desktop.getByRole('button', { name: '添加设备', exact: true }).click();
   const code = await desktop.locator('.pairing-code').innerText();

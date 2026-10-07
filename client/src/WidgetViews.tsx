@@ -9,13 +9,14 @@ import type {
   Widget,
   WidgetProfile,
 } from '../../packages/protocol/src';
-import { accountContents } from './AccountAdapter';
-import { clashContents } from './ClashAdapter';
-import { musicContents } from './MusicAdapter';
-import { alasContents } from './AlasAdapter';
+import { accountContents } from './AccountView';
+import { clashContents } from './ProxyView';
+import { musicContents } from './MediaView';
+import { alasContents } from './TaskView';
 import { ContentLayout, type ContentEditor } from './ContentLayout';
-import { windowLabel, CodexUsage, statusLabel } from './CodexAdapter';
+import { windowLabel, CodexUsage, statusLabel } from './QuotaView';
 import { Sparkline, QuotaRing, HalfDial, SegmentMeter, SampleBars } from './AdapterVisuals';
+import { widgetDefinition } from './plugin-views';
 
 export type ViewProps = {
   widget: Widget;
@@ -53,7 +54,8 @@ export function WidgetView(
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const { widget, data, history, rxHistory, txHistory, online, expanded } = props;
+  const { data, history, rxHistory, txHistory, online, expanded } = props;
+  const widget = { ...widgetDefinition(props.widget)?.defaults, ...props.widget };
   const mode = props.profile?.presentation || widget.presentation || 'auto';
   const area = (props.profile?.chartStyle || widget.chartStyle) === 'area';
   const short = !expanded && size.h < 120;
@@ -103,6 +105,7 @@ export function WidgetView(
         : null}
       {widget.type === 'media-control'
         ? musicContents({
+            pluginId: widget.pluginId,
             status: typeof data === 'object' && 'playback' in data ? data : undefined,
             online,
             compact: short,
@@ -132,6 +135,7 @@ export function WidgetView(
         : null}
       {widget.type === 'account-usage'
         ? accountContents({
+            valueMode: widget.valueMode,
             status: typeof data === 'object' && 'balances' in data ? data : undefined,
             online,
             compact: short,
@@ -145,7 +149,7 @@ export function WidgetView(
               mode === 'segments' &&
               size.h <
                 (accountWidth < 240 ||
-                (typeof data === 'object' && 'balances' in data && data.id === 'deepseek')
+                (typeof data === 'object' && 'balances' in data && data.balances.length > 0)
                   ? 300
                   : 210)
                 ? 'summary'

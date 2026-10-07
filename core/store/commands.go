@@ -198,57 +198,8 @@ func validate(tx *sql.Tx, kind, id string, d map[string]any) error {
 				return errCode("INVALID_PAYLOAD", "不支持的趋势效果")
 			}
 		}
-		if text("pluginId") == "dev.panestra.codex" {
-			if text("type") != "codex-usage" || text("source") != "account.usage" {
-				return errCode("INVALID_SOURCE", "Codex 仅支持订阅额度组件")
-			}
-			return parent("pages", text("pageId"))
-		}
-		if text("pluginId") != "dev.panestra.system" {
-			if text("pluginId") == "dev.panestra.alas" {
-				if text("type") != "task-status" || text("source") != "task.status" {
-					return errCode("INVALID_SOURCE", "ALAS 仅支持任务状态组件")
-				}
-				return parent("pages", text("pageId"))
-			}
-			if text("pluginId") == "dev.panestra.netease" {
-				if text("type") != "media-control" || text("source") != "media.status" {
-					return errCode("INVALID_SOURCE", "网易云音乐仅支持媒体组件")
-				}
-				return parent("pages", text("pageId"))
-			}
-			if text("pluginId") == "dev.panestra.clash" {
-				if text("type") != "proxy-status" || text("source") != "proxy.status" {
-					return errCode("INVALID_SOURCE", "Clash 仅支持代理状态组件")
-				}
-				return parent("pages", text("pageId"))
-			}
-			if text("pluginId") == "dev.panestra.glm" || text("pluginId") == "dev.panestra.deepseek" {
-				if text("type") != "account-usage" || text("source") != "account.usage" {
-					return errCode("INVALID_SOURCE", "账户适配仅支持额度与余额组件")
-				}
-				return parent("pages", text("pageId"))
-			}
-			return errCode("INVALID_PLUGIN", "插件未注册")
-		}
-		if text("type") != "metric-card" && text("type") != "network-chart" && text("type") != "system-overview" {
-			return errCode("INVALID_WIDGET", "仅支持声明式组件")
-		}
-		valid := false
-		for _, source := range []string{"cpu.usage", "memory.usage", "disk.usage", "network.rx", "network.tx", "system.info"} {
-			if text("source") == source {
-				valid = true
-			}
-		}
-		if text("type") == "system-overview" {
-			valid = text("source") == "system.info"
-		} else if text("type") == "network-chart" {
-			valid = text("source") == "network.rx" || text("source") == "network.tx"
-		} else {
-			valid = valid && text("source") != "system.info"
-		}
-		if !valid {
-			return errCode("INVALID_SOURCE", "数据源与组件类型不匹配")
+		if err := validatePluginWidget(tx, d); err != nil {
+			return err
 		}
 		return parent("pages", text("pageId"))
 	case "layout":

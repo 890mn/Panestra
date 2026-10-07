@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"panestra.local/panestra/core/protocol"
 	"path/filepath"
 	"sync"
@@ -17,6 +18,17 @@ func testStore(t *testing.T) *Store {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.DB.Close() })
+	raw, err := os.ReadFile("../testdata/system-manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.DB.Exec("INSERT INTO plugins VALUES(?,?,?,?,?)", "dev.panestra.system", "0.1.0", "stopped", "fixture", string(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SeedPlugin(raw); err != nil {
+		t.Fatal(err)
+	}
 	_, err = s.DB.Exec("INSERT INTO devices VALUES('owner-device','Owner','unused','owner','now','now',NULL),('viewer-device','Viewer','unused','viewer','now','now',NULL)")
 	if err != nil {
 		t.Fatal(err)

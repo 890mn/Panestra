@@ -24,10 +24,8 @@ async function startCore() {
       coreData,
       '--listen',
       '127.0.0.1:19443',
-      '--worker',
-      path.join(root, 'artifacts/system-plugin.exe'),
-      '--manifest',
-      path.join(root, 'plugins/system/manifest.json'),
+      '--plugin-seed',
+      path.join(root, 'artifacts/plugin-seed'),
       '--parent-stdio',
     ],
     {
@@ -148,7 +146,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.25.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.26.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +157,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.25.png`,
+      path: `artifacts/connection-${label}-0.1.26.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -171,8 +169,10 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await desktop.getByRole('button', { name: '建立并进入工作空间' }).click();
   await expect(desktop.getByTestId('widget-cpu')).toBeVisible();
   await desktop.getByRole('button', { name: '插件', exact: true }).click();
+  await desktop.getByRole('button', { name: '查看System Monitor状态与设置' }).click();
   await desktop.getByLabel('读取系统指标').check();
   await desktop.getByRole('button', { name: '授权并启用' }).click();
+  await desktop.getByRole('button', { name: '关闭', exact: true }).click();
   await desktop.getByRole('button', { name: '总览', exact: true }).click();
   await expect(desktop.getByTestId('widget-cpu').locator('.metric-value')).not.toContainText('—', {
     timeout: 15000,
@@ -425,7 +425,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.25');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.26');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -466,7 +466,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       await expect(feedback).toBeDisabled();
       await expect(feedback).toBeEnabled();
       await navigate('插件');
-      await expect(surface.locator('.adapter-card')).toHaveCount(6);
+      await expect(surface.locator('.adapter-card')).toHaveCount(7);
       await expect(surface.getByTestId('codex-adapter').locator('.adapter-state')).toHaveText(
         '未启用',
       );
@@ -476,10 +476,10 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       await surface.getByRole('button', { name: '控制', exact: true }).click();
       await expect(surface.locator('.adapter-card')).toHaveCount(2);
       await surface.getByRole('button', { name: '状态', exact: true }).click();
-      await expect(surface.locator('.adapter-card')).toHaveCount(4);
+      await expect(surface.locator('.adapter-card')).toHaveCount(5);
       await surface.getByRole('button', { name: '全部', exact: true }).click();
       await surface.getByRole('button', { name: '查看ALAS状态与设置', exact: true }).click();
-      await expect(surface.locator('dialog[open]')).toContainText('ProcessManager');
+      await expect(surface.locator('dialog[open]')).toContainText('只读桥接，不提供任务控制');
       await surface.getByRole('button', { name: '关闭', exact: true }).click();
       await expect(
         surface.getByRole('button', { name: '查看ALAS状态与设置', exact: true }),
@@ -547,7 +547,7 @@ test('Codex 适配：权限、多额度桶、空值、组件同步和停用清�
   await navigate(tablet, '插件');
   await tablet.getByRole('button', { name: '查看Codex额度与设置' }).click();
   await expect(tablet.locator('dialog[open]')).toContainText('63%');
-  await expect(tablet.getByRole('button', { name: '停用读取', exact: true })).toBeDisabled();
+  await expect(tablet.getByRole('button', { name: '停用读取', exact: true })).toHaveCount(0);
   await tablet.getByRole('button', { name: '刷新额度', exact: true }).click();
   await tablet.getByRole('button', { name: '关闭', exact: true }).click();
   await navigate(desktop, '总览');
@@ -835,7 +835,7 @@ test('Clash：真实控制器合同、跨设备控制与 Owner 撤销权限', as
     const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
     if (await menu.isVisible()) await menu.click();
     await surface.getByRole('button', { name: '插件', exact: true }).click();
-    await surface.getByRole('button', { name: '查看Clash状态与设置' }).click();
+    await surface.getByRole('button', { name: '查看Clash Verge状态与设置' }).click();
   };
   try {
     await navigate(desktop);
@@ -846,7 +846,7 @@ test('Clash：真实控制器合同、跨设备控制与 Owner 撤销权限', as
     await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
     await expect(desktop.getByTestId('clash-adapter')).toContainText('已接入');
     await expect(
-      desktop.getByTestId('clash-adapter').locator('.adapter-traffic svg').first(),
+      desktop.getByTestId('clash-adapter').locator('.plugin-live-preview .clash-trend svg').first(),
     ).toBeVisible();
     await expect(desktop.getByLabel('Mihomo Secret')).toHaveValue('');
     await expect(desktop.getByLabel('Auto节点')).toBeDisabled();
@@ -915,7 +915,7 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
     await surface.getByRole('button', { name, exact: true }).click();
   };
   await navigate(desktop, '插件');
-  await desktop.getByRole('button', { name: '查看网易云播放状态与设置' }).click();
+  await desktop.getByRole('button', { name: '查看网易云音乐状态与设置' }).click();
   await expect(desktop.locator('.music-detail-content .music-buttons button')).toHaveCount(3);
   await expect(desktop.locator('.music-detail-content').getByLabel('播放进度')).toBeVisible();
   const alignment = await desktop.locator('.music-detail-content').evaluate((el) => {
@@ -926,26 +926,29 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
     });
   });
   expect(alignment.every((difference) => difference <= 1)).toBe(true);
-  await desktop.getByLabel('允许播放、切歌与调整进度').uncheck();
+  await desktop.getByLabel('允许播放与切歌控制').uncheck();
   await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
   await expect(desktop.getByTestId('netease-adapter').locator('.adapter-state')).toHaveText(
     /未找到播放器|已接入/,
     { timeout: 15000 },
   );
   for (const name of ['网易云上一首', '网易云下一首'])
-    await expect(desktop.getByRole('button', { name, exact: true })).toBeDisabled();
-  await expect(desktop.locator('.music-permission-note')).toContainText('当前只读取歌曲信息');
-  await desktop.getByRole('button', { name: '开启播放控制', exact: true }).click();
-  await expect(desktop.getByLabel('允许播放、切歌与调整进度')).toBeChecked();
-  await expect(desktop.getByTestId('netease-adapter').locator('.adapter-fields')).toContainText(
-    '已授权',
-  );
-  await desktop.getByLabel('允许播放、切歌与调整进度').uncheck();
+    await expect(
+      desktop.getByRole('dialog').getByRole('button', { name, exact: true }),
+    ).toBeDisabled();
+  await expect(desktop.locator('.control-permission-note')).toContainText('当前只读取歌曲信息');
+  await desktop.getByLabel('允许播放与切歌控制').check();
+  await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
+  await expect(desktop.getByLabel('允许播放与切歌控制')).toBeChecked();
+  await expect(desktop.locator('dialog[open] .control-permission-note')).toContainText('已授权');
+  await desktop.getByLabel('允许播放与切歌控制').uncheck();
   await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
   await navigate(tablet, '插件');
-  await tablet.getByRole('button', { name: '查看网易云播放状态与设置' }).click();
+  await tablet.getByRole('button', { name: '查看网易云音乐状态与设置' }).click();
   await expect(tablet.getByRole('button', { name: '保存并启用读取', exact: true })).toHaveCount(0);
-  await expect(tablet.getByRole('button', { name: '网易云下一首', exact: true })).toBeDisabled();
+  await expect(
+    tablet.getByRole('dialog').getByRole('button', { name: '网易云下一首', exact: true }),
+  ).toBeDisabled();
   await tablet.getByRole('button', { name: '关闭', exact: true }).click();
   await desktop.getByRole('button', { name: '关闭', exact: true }).click();
   await navigate(desktop, '总览');
@@ -958,7 +961,7 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
     tablet.locator('[data-widget-type="media-control"] .music-buttons button').first(),
   ).toBeDisabled();
   await navigate(desktop, '插件');
-  await desktop.getByRole('button', { name: '查看网易云播放状态与设置' }).click();
+  await desktop.getByRole('button', { name: '查看网易云音乐状态与设置' }).click();
   await desktop.getByRole('button', { name: '停用读取', exact: true }).click();
   await expect(tablet.locator('[data-widget-type="media-control"]')).toContainText('暂无歌曲');
   await expect(desktop.getByTestId('netease-adapter')).toContainText('未启用');
@@ -989,7 +992,7 @@ test('ALAS：生成只读桥接、Owner 配置权限与跨设备状态组件', a
   await tablet.getByRole('button', { name: '查看ALAS状态与设置' }).click();
   await expect(tablet.getByLabel('ALAS 安装目录')).toHaveCount(0);
   await expect(tablet.locator('dialog[open]')).not.toContainText(install);
-  await expect(tablet.locator('.alas-status')).not.toContainText('运行中');
+  await expect(tablet.getByRole('dialog').locator('.alas-status')).not.toContainText('运行中');
   await tablet.getByRole('button', { name: '关闭', exact: true }).click();
   await desktop.getByRole('button', { name: '关闭', exact: true }).click();
   await navigate(desktop, '总览');
@@ -1162,5 +1165,58 @@ test('位置预览遇到远端修改时保留草稿，拒绝覆盖并可取消�
   });
   await tablet.getByRole('button', { name: '浏览', exact: true }).click();
   await desktop.getByRole('button', { name: '浏览', exact: true }).click();
+  expect(errors).toEqual([]);
+});
+
+test('独立插件包：停用与卸载持久化、离线下载重装、权限预览与布局保留', async () => {
+  const geometry = () =>
+    desktop.locator('.widget-card').evaluateAll((cards) =>
+      cards
+        .map((card) => ({
+          id: card.getAttribute('data-testid'),
+          style: card.getAttribute('style'),
+        }))
+        .sort((a, b) => String(a.id).localeCompare(String(b.id))),
+    );
+  await desktop.getByRole('button', { name: '总览', exact: true }).click();
+  await desktop.getByRole('button', { name: '编辑布局', exact: true }).click();
+  await desktop.getByLabel('布局断点').selectOption('desktop');
+  await desktop.getByRole('button', { name: '浏览', exact: true }).click();
+  const before = await geometry();
+  await desktop.getByRole('button', { name: '插件', exact: true }).click();
+  await expect(desktop.locator('.adapter-card')).toHaveCount(7);
+  const open = () => desktop.getByRole('button', { name: '查看Codex额度与设置' }).click();
+  await open();
+  await desktop.locator('.plugin-management summary').click();
+  await desktop.getByRole('button', { name: '停用插件', exact: true }).click();
+  await desktop.getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(desktop.getByTestId('codex-adapter')).toContainText('已停用');
+  await stopCore();
+  await startCore();
+  await desktop.reload();
+  await desktop.getByRole('button', { name: '插件', exact: true }).click();
+  await expect(desktop.getByTestId('codex-adapter')).toContainText('已停用');
+  await open();
+  await desktop.locator('.plugin-management summary').click();
+  await desktop.getByRole('button', { name: '授权并启用', exact: true }).click();
+  await desktop.getByRole('button', { name: '卸载插件', exact: true }).click();
+  await desktop.getByRole('button', { name: '确认卸载', exact: true }).click();
+  await expect(desktop.locator('.adapter-card')).toHaveCount(6);
+  await stopCore();
+  await startCore();
+  await desktop.reload();
+  await desktop.getByRole('button', { name: '插件', exact: true }).click();
+  await expect(desktop.locator('.adapter-card')).toHaveCount(6);
+  await desktop.getByRole('button', { name: '打开插件目录', exact: true }).click();
+  const row = desktop
+    .locator('.backup-row')
+    .filter({ has: desktop.getByText('Codex', { exact: true }) });
+  await row.getByRole('button', { name: '下载安装', exact: true }).click();
+  await expect(desktop.getByRole('dialog')).toContainText('文件签名已验证');
+  await expect(desktop.getByRole('dialog')).toContainText('dev.panestra.codex');
+  await desktop.getByRole('button', { name: '确认安装', exact: true }).click();
+  await expect(desktop.locator('.adapter-card')).toHaveCount(7);
+  await desktop.getByRole('button', { name: '总览', exact: true }).click();
+  await expect.poll(geometry).toEqual(before);
   expect(errors).toEqual([]);
 });

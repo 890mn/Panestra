@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"panestra.local/panestra/core/adapters/codex"
 	"path/filepath"
 	"testing"
 	"time"
@@ -16,7 +15,11 @@ func TestCodexPermissionAndSafeFailure(t *testing.T) {
 		t.Fatal(code)
 	}
 	code, data := api(t, httpServer, token, "GET", "/api/v1/integrations/codex", nil)
-	var status codex.Status
+	var status struct {
+		Enabled bool
+		State   string
+		Buckets []any
+	}
 	_ = json.Unmarshal(data, &status)
 	if code != 200 || status.Enabled {
 		t.Fatalf("%d %s", code, data)
@@ -33,15 +36,20 @@ func TestCodexPermissionAndSafeFailure(t *testing.T) {
 	if code != 200 {
 		t.Fatal(code)
 	}
-	end := time.Now().Add(time.Second)
-	for time.Now().Before(end) && s.Codex.Snapshot().State != "not_found" {
-		time.Sleep(time.Millisecond)
+	end := time.Now().Add(3 * time.Second)
+	for time.Now().Before(end) {
+		_, data = api(t, httpServer, token, "GET", "/api/v1/integrations/codex", nil)
+		_ = json.Unmarshal(data, &status)
+		if status.State == "not_found" {
+			break
+		}
+		time.Sleep(time.Millisecond * 10)
 	}
-	if s.Codex.Snapshot().State != "not_found" {
-		t.Fatal(s.Codex.Snapshot())
+	if status.State != "not_found" {
+		t.Fatal(status)
 	}
 	var granted bool
-	_ = s.Store.DB.QueryRow("SELECT granted FROM plugin_permissions WHERE plugin_id=? AND capability=?", codex.ID, codex.Permission).Scan(&granted)
+	_ = s.Store.DB.QueryRow("SELECT granted FROM plugin_permissions WHERE plugin_id=? AND capability=?", "dev.panestra.codex", "codex.account.read").Scan(&granted)
 	if !granted {
 		t.Fatal("grant not persisted")
 	}
@@ -61,9 +69,9 @@ func TestCodexPermissionAndSafeFailure(t *testing.T) {
 		t.Fatalf("%d %s", code, data)
 	}
 	s.Hub.mu.Lock()
-	latest := s.Hub.latest[codex.Topic]
+	latest := s.Hub.latest["dev.panestra.codex/account.usage"]
 	s.Hub.mu.Unlock()
-	if latest.Value.(codex.Status).Enabled {
+	if latest.Value.(map[string]any)["enabled"] == true {
 		t.Fatal("latest telemetry not cleared")
 	}
 }

@@ -63,7 +63,7 @@ import type {
   Widget,
   WidgetProfile,
 } from '../../packages/protocol/src';
-import { SOURCES, SYSTEM, CODEX } from '../../packages/protocol/src';
+import { widgetCatalog } from './plugin-schema';
 import {
   COLUMNS,
   clampLayout,
@@ -77,7 +77,8 @@ import { canScanPairing, discover, localCoreInfo, native, scanPairing } from './
 import { loopbackEndpoint, parsePairingCode } from './pairing';
 import { connectionErrorText } from './connection-errors';
 import { Button, ButtonPreview, Modal } from './components';
-import { SoftwareAdapters } from './SoftwareAdapters';
+import { PluginsPanel } from './PluginsPanel';
+import { pluginPresets, pluginSources, pluginPresentations } from './plugin-views';
 import { WidgetView } from './WidgetViews';
 import {
   PRESENTATIONS,
@@ -330,7 +331,9 @@ export function App() {
     source: string,
     type: Widget['type'],
     title: string,
-    pluginId = SYSTEM,
+    pluginId: string,
+    unit: string,
+    color: string,
   ) => {
     if (!currentPage) return;
     const id = 'widget-' + crypto.randomUUID();
@@ -340,8 +343,8 @@ export function App() {
       type,
       title,
       source,
-      unit: source.startsWith('network') ? 'KB/s' : '%',
-      color: 'sage',
+      unit,
+      color,
     });
     for (const bp of ['desktop', 'tablet', 'mobile'] as Breakpoint[]) {
       const layouts =
@@ -377,7 +380,11 @@ export function App() {
         ) : null}
       </>
     );
-  const system = state.telemetry[`${SYSTEM}/system.info`]?.value as SystemInfo | undefined;
+  const systemPlugin = state.plugins.find((plugin) =>
+    plugin.manifest.sources.some((source) => source.id === 'system.info'),
+  );
+  const system = state.telemetry[`${systemPlugin?.id}/system.info`]?.value as
+    SystemInfo | undefined;
   return (
     <div className={`app-shell ${sidebar.visible ? '' : 'sidebar-collapsed'}`}>
       <aside
@@ -653,20 +660,26 @@ export function App() {
                     editor={editor}
                     editing={editing && canEdit}
                     data={state.telemetry[`${widget.data.pluginId}/${widget.data.source}`]?.value}
-                    download={state.telemetry[`${SYSTEM}/network.rx`]?.value as number | undefined}
-                    upload={state.telemetry[`${SYSTEM}/network.tx`]?.value as number | undefined}
+                    download={
+                      state.telemetry[`${widget.data.pluginId}/network.rx`]?.value as
+                        number | undefined
+                    }
+                    upload={
+                      state.telemetry[`${widget.data.pluginId}/network.tx`]?.value as
+                        number | undefined
+                    }
                     rxHistory={
                       state.history[
                         widget.data.type === 'proxy-status'
                           ? `${widget.data.pluginId}/${widget.data.source}/download`
-                          : `${SYSTEM}/network.rx`
+                          : `${widget.data.pluginId}/network.rx`
                       ] || []
                     }
                     txHistory={
                       state.history[
                         widget.data.type === 'proxy-status'
                           ? `${widget.data.pluginId}/${widget.data.source}/upload`
-                          : `${SYSTEM}/network.tx`
+                          : `${widget.data.pluginId}/network.tx`
                       ] || []
                     }
                     history={state.history[`${widget.data.pluginId}/${widget.data.source}`] || []}
@@ -728,79 +741,7 @@ export function App() {
         <Modal title="添加组件" close={() => setModal('')} wide>
           <p className="modal-description">系统状态、软件信息与常用控制，在每块屏幕同步呈现</p>
           <div className="widget-library">
-            {[
-              {
-                source: 'cpu.usage',
-                title: '处理器',
-                detail: '使用率与最近 60 秒趋势',
-                type: 'metric-card',
-              },
-              {
-                source: 'memory.usage',
-                title: '内存',
-                detail: '实时物理内存使用率',
-                type: 'metric-card',
-              },
-              {
-                source: 'disk.usage',
-                title: '系统磁盘',
-                detail: '系统盘空间使用情况',
-                type: 'metric-card',
-              },
-              {
-                source: 'network.rx',
-                title: '网络流量',
-                detail: '接收、发送与流量趋势',
-                type: 'network-chart',
-              },
-              {
-                source: 'system.info',
-                title: '系统概览',
-                detail: '硬件、运行时间与系统信息',
-                type: 'system-overview',
-              },
-              {
-                source: 'account.usage',
-                title: 'Codex 额度',
-                detail: '订阅窗口、剩余额度与重置卡',
-                type: 'codex-usage',
-              },
-              {
-                source: 'account.usage',
-                title: 'GLM 编程额度',
-                detail: '智谱中国区编程套餐与 MCP 工具用量',
-                type: 'account-usage',
-                pluginId: 'dev.panestra.glm',
-              },
-              {
-                source: 'account.usage',
-                title: 'DeepSeek 余额',
-                detail: '可用余额、赠送余额与充值余额',
-                type: 'account-usage',
-                pluginId: 'dev.panestra.deepseek',
-              },
-              {
-                source: 'proxy.status',
-                title: 'Clash 代理状态',
-                detail: '代理模式、策略组节点与收发流量',
-                type: 'proxy-status',
-                pluginId: 'dev.panestra.clash',
-              },
-              {
-                source: 'task.status',
-                title: 'ALAS 任务状态',
-                detail: '实例状态、当前任务与下次执行',
-                type: 'task-status',
-                pluginId: 'dev.panestra.alas',
-              },
-              {
-                source: 'media.status',
-                title: '网易云播放',
-                detail: '歌曲、播放进度与远程播放控制',
-                type: 'media-control',
-                pluginId: 'dev.panestra.netease',
-              },
-            ].map((item) => (
+            {widgetCatalog(state.plugins).map((item) => (
               <Button
                 className="library-item"
                 disabled={busy}
@@ -811,11 +752,9 @@ export function App() {
                       item.source,
                       item.type as Widget['type'],
                       item.title,
-                      'pluginId' in item && item.pluginId
-                        ? item.pluginId
-                        : item.type === 'codex-usage'
-                          ? CODEX
-                          : SYSTEM,
+                      item.pluginId,
+                      item.unit || '',
+                      item.color || 'sage',
                     ),
                   )
                 }
@@ -824,7 +763,7 @@ export function App() {
                   <Icon source={item.source} size={23} />
                 </span>
                 <strong>{item.title}</strong>
-                <p>{item.detail}</p>
+                <p>{item.description}</p>
                 <span className="library-add">
                   <Plus size={15} />
                   添加
@@ -1407,7 +1346,7 @@ function WidgetConfig({
         <label>
           数据源
           <select disabled={!canEdit} value={source} onChange={(e) => setSource(e.target.value)}>
-            {sourcesFor(widget.data.type).map((s) => (
+            {pluginSources(widget.data).map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -1422,7 +1361,7 @@ function WidgetConfig({
             value={presentation}
             onChange={(e) => setPresentation(e.target.value)}
           >
-            {PRESENTATIONS[widget.data.type].map((p) => (
+            {pluginPresentations(widget.data).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.label}
               </option>
@@ -1443,6 +1382,7 @@ function WidgetConfig({
           </label>
         ) : null}
         <PresentationChoices
+          widget={widget.data}
           type={widget.data.type}
           value={presentation}
           disabled={!canEdit}
@@ -1458,21 +1398,25 @@ function WidgetConfig({
             widget={{ ...widget.data, title, source }}
             profile={activeProfile}
             data={state.telemetry[`${widget.data.pluginId}/${source}`]?.value}
-            download={state.telemetry[`${SYSTEM}/network.rx`]?.value as number | undefined}
-            upload={state.telemetry[`${SYSTEM}/network.tx`]?.value as number | undefined}
+            download={
+              state.telemetry[`${widget.data.pluginId}/network.rx`]?.value as number | undefined
+            }
+            upload={
+              state.telemetry[`${widget.data.pluginId}/network.tx`]?.value as number | undefined
+            }
             history={state.history[`${widget.data.pluginId}/${source}`] || []}
             rxHistory={
               state.history[
                 widget.data.type === 'proxy-status'
                   ? `${widget.data.pluginId}/${widget.data.source}/download`
-                  : `${SYSTEM}/network.rx`
+                  : `${widget.data.pluginId}/network.rx`
               ] || []
             }
             txHistory={
               state.history[
                 widget.data.type === 'proxy-status'
                   ? `${widget.data.pluginId}/${widget.data.source}/upload`
-                  : `${SYSTEM}/network.tx`
+                  : `${widget.data.pluginId}/network.tx`
               ] || []
             }
             online={state.online}
@@ -1492,7 +1436,7 @@ function WidgetConfig({
               布局
             </legend>
             <div className="preset-grid">
-              {presetsFor(geometry.breakpoint).map((p) => (
+              {pluginPresets(widget.data, geometry.breakpoint).map((p) => (
                 <Button
                   key={p.id}
                   type="button"
@@ -1585,231 +1529,6 @@ function SectionHeading({
       <h1>{title}</h1>
       <p>{description}</p>
     </div>
-  );
-}
-function PluginsPanel({
-  owner,
-  online,
-  notify,
-}: {
-  owner: boolean;
-  online: boolean;
-  notify: (s: string) => void;
-}) {
-  const [update, setUpdate] = useState<{
-    available: boolean;
-    message?: string;
-    version?: string;
-    permissions?: Array<{ id: string; required: boolean }>;
-  } | null>(null);
-  const [consent, setConsent] = useState<string[]>([]);
-  const [plugin, setPlugin] = useState<Plugin | null>(null);
-  const [metrics, setMetrics] = useState(false);
-  const [lock, setLock] = useState(false);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!online) return;
-    void core
-      .api<Plugin[]>('/plugins')
-      .then((list) => {
-        setPlugin(list[0]);
-        setMetrics(list[0].permissions['system.metrics.read']);
-        setLock(list[0].permissions['system.session.lock']);
-      })
-      .catch((e) => notify(errorText(e)));
-  }, [online]);
-  const apply = async (enabled: boolean) => {
-    setBusy(true);
-    try {
-      const next = await core.api<Plugin>('/plugins/system', { enabled, metrics, lock });
-      setPlugin(next);
-      notify(
-        enabled ? 'System Monitor 已启用，真实数据将通过 WebSocket 推送' : 'System Monitor 已停用',
-      );
-    } catch (e) {
-      notify(errorText(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <>
-      <SectionHeading
-        eyebrow="PANESTRA BACKPLANE"
-        title="能力，随插即用"
-        description="每个插件都在独立进程中运行，你决定它能做什么"
-      />
-      <div className="plugin-card panel">
-        <div className="plugin-card-head">
-          <div className="plugin-logo">
-            <Cpu size={30} />
-          </div>
-          <div>
-            <div className="inline-heading">
-              <h2>System Monitor</h2>
-              <span className="badge">内置</span>
-            </div>
-            <p>处理器、内存、磁盘与网络，你的电脑，此刻的状态</p>
-            <span className="mono subtle">dev.panestra.system · {plugin?.version || '0.1.0'}</span>
-          </div>
-          <span className="status-chip">
-            <span
-              className={`status-light ${plugin?.status === 'running' || plugin?.status === 'starting' ? '' : 'offline'}`}
-            />
-            {plugin?.status === 'running'
-              ? '运行中'
-              : plugin?.status === 'starting'
-                ? '启动中'
-                : plugin
-                  ? '已停止'
-                  : '未读取'}
-          </span>
-        </div>
-        <div className="plugin-features">
-          <span>
-            <Activity size={16} />6 个数据源
-          </span>
-          <span>
-            <LayoutDashboard size={16} />3 类组件
-          </span>
-          <span>
-            <LockKeyhole size={16} />1 个操作
-          </span>
-          <span>
-            <ShieldCheck size={16} />
-            独立 Worker
-          </span>
-        </div>
-        <div className="permission-section">
-          <h3>插件权限</h3>
-          <label className="permission-row">
-            <div>
-              <strong>读取系统指标</strong>
-              <span>CPU、内存、磁盘和网络状态，此插件的必需权限</span>
-            </div>
-            <input
-              disabled={!owner || !online}
-              type="checkbox"
-              checked={metrics}
-              onChange={(e) => setMetrics(e.target.checked)}
-            />
-          </label>
-          <label className="permission-row">
-            <div>
-              <strong>锁定电脑会话</strong>
-              <span>允许通过已授权设备锁定本机，默认关闭</span>
-            </div>
-            <input
-              disabled={!owner || !online}
-              type="checkbox"
-              checked={lock}
-              onChange={(e) => setLock(e.target.checked)}
-            />
-          </label>
-        </div>
-        <div className="panel-footer">
-          <span className="subtle">
-            {plugin ? `Worker 重启 ${plugin.restarts} 次` : '尚未读取插件状态'}
-          </span>
-          <div className="button-row">
-            <Button
-              className="secondary"
-              disabled={!owner || !online || busy}
-              onClick={() => void apply(false)}
-            >
-              停用
-            </Button>
-            <Button
-              className="primary"
-              pending={busy}
-              disabled={!owner || !online || !metrics}
-              onClick={() => void apply(true)}
-            >
-              <Plug size={16} />
-              {busy ? '正在应用…' : '授权并启用'}
-            </Button>
-          </div>
-        </div>
-      </div>
-      <div className="panel">
-        <div className="panel-title">
-          <div>
-            <h2>第一方插件更新</h2>
-            <p>新版本先验证签名与健康状态，失败时继续运行当前版本</p>
-          </div>
-          <Button
-            className="secondary"
-            disabled={!owner || !online || busy}
-            onClick={() =>
-              void core
-                .api<NonNullable<typeof update>>('/plugins/system/update')
-                .then(setUpdate)
-                .catch((e) => notify(errorText(e)))
-            }
-          >
-            检查待更新版本
-          </Button>
-        </div>
-        {update ? (
-          <>
-            <p className="panel-description">
-              {update.available
-                ? `可切换到 System Monitor ${update.version}`
-                : update.message || '当前没有待更新版本'}
-            </p>
-            {update.available ? (
-              <>
-                {update.permissions
-                  ?.filter((p) => !Object.hasOwn(plugin?.permissions || {}, p.id))
-                  .map((p) => (
-                    <label className="permission-row" key={p.id}>
-                      <div>
-                        <strong>{p.id}</strong>
-                        <span>新版本申请的{p.required ? '必需' : '可选'}权限，请核对后授权</span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={consent.includes(p.id)}
-                        onChange={(e) =>
-                          setConsent(
-                            e.target.checked
-                              ? [...consent, p.id]
-                              : consent.filter((c) => c !== p.id),
-                          )
-                        }
-                      />
-                    </label>
-                  ))}
-                <Button
-                  className="primary"
-                  pending={busy}
-                  onClick={() => {
-                    setBusy(true);
-                    void core
-                      .api<Plugin>('/plugins/system/update', { consent })
-                      .then((next) => {
-                        setPlugin(next);
-                        setUpdate(null);
-                        setConsent([]);
-                        notify('插件版本已切换');
-                      })
-                      .catch((e) => notify(errorText(e)))
-                      .finally(() => setBusy(false));
-                  }}
-                >
-                  {busy ? '验证新版本…' : '验证并切换'}
-                </Button>
-              </>
-            ) : null}
-          </>
-        ) : null}
-      </div>
-      <SoftwareAdapters />
-      <div className="quiet-note">
-        <ShieldCheck size={18} />
-        <p>当前仅启用随应用构建的第一方原生插件，公开插件市场和不可信原生扩展不在此版本范围内</p>
-      </div>
-    </>
   );
 }
 function DevicesPanel({

@@ -16,7 +16,7 @@ node ./scripts/check-version.mjs
 if ($LASTEXITCODE -ne 0) { throw 'Project version consistency failed' }
 node ./scripts/check-presentations.mjs
 if ($LASTEXITCODE -ne 0) { throw 'Presentation capability consistency failed' }
-$goFiles = rg --files core plugins -g '*.go' -g '!core/web/dist/**'
+$goFiles = rg --files core -g '*.go' -g '!core/web/dist/**'
 $unformattedGo = & (Join-Path (Split-Path $goBinary) 'gofmt.exe') -l $goFiles
 if ($unformattedGo) { throw "Go formatting failed: $unformattedGo" }
 . "$PSScriptRoot/native-env.ps1"
@@ -24,9 +24,9 @@ cargo fmt --manifest-path shell/desktop/Cargo.toml --check
 if ($LASTEXITCODE -ne 0) { throw 'Rust formatting failed' }
 cargo fmt --manifest-path shell/bridge/Cargo.toml --check
 if ($LASTEXITCODE -ne 0) { throw 'Native bridge Rust formatting failed' }
-& $goBinary vet ./core/... ./plugins/...
+& $goBinary vet ./core/...
 if ($LASTEXITCODE -ne 0) { throw 'Go vet failed' }
-& $goBinary test ./core/... ./plugins/... -count=1
+& $goBinary test ./core/... -count=1
 if ($LASTEXITCODE -ne 0) { throw 'Go tests failed' }
 npm run test:ui
 if ($LASTEXITCODE -ne 0) { throw 'Browser integration tests failed' }

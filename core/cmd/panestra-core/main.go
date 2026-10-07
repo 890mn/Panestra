@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/tls"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -13,9 +11,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"panestra.local/panestra/core/backplane"
 	"panestra.local/panestra/core/discovery"
-	"panestra.local/panestra/core/release"
+	"panestra.local/panestra/core/plugins"
 	"panestra.local/panestra/core/security"
 	"panestra.local/panestra/core/server"
 	"panestra.local/panestra/core/store"
@@ -34,8 +31,7 @@ func main() {
 func run() error {
 	data := flag.String("data", ".data", "private data directory")
 	listen := flag.String("listen", "0.0.0.0:9443", "TLS listener")
-	worker := flag.String("worker", "artifacts/system-plugin.exe", "trusted bundled System Plugin")
-	manifest := flag.String("manifest", "plugins/system/manifest.json", "bundled manifest")
+	pluginSeed := flag.String("plugin-seed", "", "verified local starter plugin packages")
 	origins := flag.String("origins", "", "explicit development origins, comma separated")
 	backup := flag.String("backup", "", "write consistent backup then exit")
 	restore := flag.String("restore", "", "restore validated backup offline; preserves host identity")
@@ -85,42 +81,21 @@ func run() error {
 	if code := auth.BootstrapCode(); code != "" {
 		fmt.Printf("本机首次认领码（10 分钟有效）: %s\n", code)
 	}
-	var applied release.Pointer
-	if queryErr := s.DB.QueryRow("SELECT applied_seq,version_dir,version FROM plugin_release_state WHERE plugin_id='dev.panestra.system'").Scan(&applied.ReleaseSequence, &applied.Directory, &applied.Version); queryErr == nil {
-		pub, readErr := os.ReadFile(filepath.Join(abs, "publisher.pub"))
-		if readErr != nil {
-			return fmt.Errorf("load installed plugin publisher: %w", readErr)
-		}
-		key, keyErr := hex.DecodeString(strings.TrimSpace(string(pub)))
-		if keyErr != nil {
-			return keyErr
-		}
-		manager := release.Manager{Root: filepath.Join(abs, "releases"), PublisherKey: ed25519.PublicKey(key)}
-		if err = manager.ValidateDirectory(applied, []string{"system-plugin.exe", "plugins/system/manifest.json"}); err != nil {
-			return fmt.Errorf("validate installed plugin: %w", err)
-		}
-		*worker = filepath.Join(applied.Directory, "system-plugin.exe")
-		*manifest = filepath.Join(applied.Directory, "plugins/system/manifest.json")
-	}
-	manifestBytes, err := os.ReadFile(*manifest)
-	if err != nil {
-		return err
-	}
-	binary, err := filepath.Abs(*worker)
-	if err != nil {
-		return err
-	}
-	plugin, err := backplane.NewRuntime(s, binary, manifestBytes)
-	if err != nil {
-		return err
-	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	if *parentStdio {
 		go func() { _, _ = io.Copy(io.Discard, os.Stdin); cancel() }()
 	}
-	defer plugin.Stop()
-	srv := server.New(s, auth, plugin, abs, ctx)
+	manager, err := plugins.Open(ctx, s, abs, plugins.PublisherKey())
+	if err != nil {
+		return err
+	}
+	defer manager.StopAll()
+	if err = manager.Bootstrap(*pluginSeed); err != nil {
+		return fmt.Errorf("bootstrap plugins: %w", err)
+	}
+	srv := server.New(s, auth, manager.Get("dev.panestra.system"), abs, ctx)
+	srv.AttachPlugins(manager)
 	srv.ListenAddress = *listen
 	for _, o := range strings.Split(*origins, ",") {
 		if o != "" {
@@ -145,10 +120,8 @@ func run() error {
 	} else {
 		defer advertisement.Shutdown()
 	}
-	if plugin.Granted("system.metrics.read") {
-		if err = plugin.Start(ctx); err != nil {
-			return err
-		}
+	if err = manager.StartAll(); err != nil {
+		return err
 	}
 	go func() {
 		daily := time.NewTicker(24 * time.Hour)

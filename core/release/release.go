@@ -30,6 +30,7 @@ type Metadata struct {
 	SHA256          string            `json:"sha256"`
 	Size            int64             `json:"size"`
 	Files           map[string]string `json:"files,omitempty"`
+	PluginID        string            `json:"pluginId,omitempty"`
 }
 type Pointer struct {
 	Version         string `json:"version"`
@@ -37,9 +38,10 @@ type Pointer struct {
 	Directory       string `json:"directory"`
 }
 type Manager struct {
-	Root         string
-	PublisherKey ed25519.PublicKey
-	mu           sync.Mutex
+	Root          string
+	PublisherKey  ed25519.PublicKey
+	RequiredFiles []string
+	mu            sync.Mutex
 }
 
 func Verify(metadataBytes, signatureBytes []byte, key ed25519.PublicKey, artifactPath string, minimum uint64) (Metadata, error) {
@@ -93,6 +95,13 @@ func (m *Manager) Stage(artifact string, metadata, signature []byte) (Pointer, e
 	}
 	dir := filepath.Join(m.Root, "versions", fmt.Sprintf("%d-%s", meta.ReleaseSequence, meta.Version))
 	if _, err = os.Stat(dir); !os.IsNotExist(err) {
+		if m.RequiredFiles != nil {
+			pointer := Pointer{Version: meta.Version, ReleaseSequence: meta.ReleaseSequence, Directory: dir}
+			raw, readErr := os.ReadFile(filepath.Join(dir, ".release-meta.json"))
+			if readErr == nil && string(raw) == string(metadata) && m.ValidateDirectory(pointer, m.RequiredFiles) == nil {
+				return pointer, nil
+			}
+		}
 		return Pointer{}, errors.New("immutable version already exists")
 	}
 	if err = os.MkdirAll(filepath.Dir(dir), 0700); err != nil {
@@ -148,7 +157,11 @@ func (m *Manager) Stage(artifact string, metadata, signature []byte) (Pointer, e
 			return Pointer{}, closeErr
 		}
 	}
-	for _, required := range []string{"panestra-core.exe", "system-plugin.exe", "plugins/system/manifest.json"} {
+	requiredFiles := m.RequiredFiles
+	if requiredFiles == nil {
+		requiredFiles = []string{"panestra-core.exe", "system-plugin.exe", "plugins/system/manifest.json"}
+	}
+	for _, required := range requiredFiles {
 		if _, err = os.Stat(filepath.Join(staging, required)); err != nil {
 			return Pointer{}, errors.New("package missing: " + required)
 		}

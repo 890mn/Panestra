@@ -112,44 +112,10 @@ PRAGMA user_version=2;`
 	seed := []struct{ kind, id, data string }{
 		{"workspace", "workspace-main", `{"title":"我的工作空间"}`},
 		{"page", "page-overview", `{"title":"总览","workspaceId":"workspace-main","icon":"layout"}`},
-		{"widget", "widget-cpu", `{"pageId":"page-overview","pluginId":"dev.panestra.system","type":"metric-card","title":"处理器","source":"cpu.usage","unit":"%","color":"sage"}`},
-		{"widget", "widget-memory", `{"pageId":"page-overview","pluginId":"dev.panestra.system","type":"metric-card","title":"内存","source":"memory.usage","unit":"%","color":"blue"}`},
-		{"widget", "widget-disk", `{"pageId":"page-overview","pluginId":"dev.panestra.system","type":"metric-card","title":"系统磁盘","source":"disk.usage","unit":"%","color":"sand"}`},
-		{"widget", "widget-network", `{"pageId":"page-overview","pluginId":"dev.panestra.system","type":"network-chart","title":"网络流量","source":"network.rx","unit":"KB/s","color":"sage"}`},
-		{"widget", "widget-system", `{"pageId":"page-overview","pluginId":"dev.panestra.system","type":"system-overview","title":"此刻的 Core","source":"system.info","color":"sage"}`},
 	}
 	for _, e := range seed {
 		if _, err = tx.Exec("INSERT INTO "+tables[e.kind]+" VALUES(?,1,0,?)", e.id, e.data); err != nil {
 			return err
-		}
-	}
-	for i, id := range []string{"widget-cpu", "widget-memory", "widget-disk", "widget-network", "widget-system"} {
-		for _, bp := range []string{"desktop", "tablet", "mobile"} {
-			x, y, w, h := 0, i*3, 4, 3
-			if bp == "desktop" {
-				if i < 3 {
-					x = i * 4
-					y = 0
-				} else {
-					x = (i - 3) * 6
-					y = 3
-					w = 6
-					h = 4
-				}
-			}
-			if bp == "tablet" {
-				if i < 2 {
-					x = i * 4
-					y = 0
-				} else {
-					y = (i - 1) * 3
-					w = 8
-				}
-			}
-			raw, _ := json.Marshal(map[string]any{"widgetId": id, "breakpoint": bp, "x": x, "y": y, "w": w, "h": h, "detached": false})
-			if _, err = tx.Exec("INSERT INTO widget_layouts VALUES(?,1,0,?)", id+":"+bp, string(raw)); err != nil {
-				return err
-			}
 		}
 	}
 	return tx.Commit()

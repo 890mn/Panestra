@@ -1,3 +1,4 @@
+import { pluginPresets, pluginPresentations } from './plugin-views';
 import {
   useEffect,
   useRef,
@@ -451,13 +452,15 @@ export function LayoutCanvas({
                   disabled={!selectedRecord || saving || profileDirty || profileBusy}
                   value={
                     selectedRecord
-                      ? presetsFor(breakpoint).find(
+                      ? pluginPresets(selectedWidget?.data, breakpoint).find(
                           (p) => p.w === selectedRecord.layout.w && p.h === selectedRecord.layout.h,
                         )?.id || ''
                       : ''
                   }
                   onChange={(event) => {
-                    const preset = presetsFor(breakpoint).find((p) => p.id === event.target.value);
+                    const preset = pluginPresets(selectedWidget?.data, breakpoint).find(
+                      (p) => p.id === event.target.value,
+                    );
                     if (preset && selectedRecord)
                       void save(
                         arrangeLayouts(
@@ -473,7 +476,7 @@ export function LayoutCanvas({
                   }}
                 >
                   <option value="">自定义尺寸</option>
-                  {presetsFor(breakpoint).map((p) => (
+                  {pluginPresets(selectedWidget?.data, breakpoint).map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.label} · {p.w} × {p.h}
                     </option>

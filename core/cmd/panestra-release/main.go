@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"panestra.local/panestra/core/backplane"
 	"panestra.local/panestra/core/release"
 	"path/filepath"
 	"time"
@@ -41,20 +40,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	manager := release.Manager{Root: *root, PublisherKey: ed25519.PublicKey(public)}
+	manager := release.Manager{Root: *root, PublisherKey: ed25519.PublicKey(public), RequiredFiles: []string{"panestra-core.exe"}}
 	next, err := manager.Stage(*artifact, metadata, sig)
 	if err != nil {
 		fail(err)
 	}
 	if *activate {
 		err = manager.Activate(next, func(dir string) error {
-			manifest, err := os.ReadFile(filepath.Join(dir, "plugins/system/manifest.json"))
-			if err != nil {
-				return err
-			}
-			if _, err = backplane.ParseManifest(manifest); err != nil {
-				return err
-			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			return exec.CommandContext(ctx, filepath.Join(dir, "panestra-core.exe"), "--preflight").Run()

@@ -96,8 +96,10 @@ try {
   await page.getByRole('button', { name: '建立并进入工作空间' }).click();
   await page.getByTestId('widget-cpu').waitFor({ timeout: 15000 });
   await page.getByRole('button', { name: '插件', exact: true }).click();
+  await page.getByRole('button', { name: '查看System Monitor状态与设置' }).click();
   await page.getByLabel('读取系统指标').check();
   await page.getByRole('button', { name: '授权并启用' }).click();
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
   const originalIdentity = await request('identity');
   // Obtain an independent authenticated session using the already paired test identity.
   const session = await page.evaluate(async (fingerprint) => {
@@ -127,7 +129,9 @@ try {
   let healthBefore;
   await until(async () => {
     healthBefore = await request('health', session.token);
-    return healthBefore.plugin.pid > 0;
+    return (
+      healthBefore.plugins.length === 7 && healthBefore.plugins.every((plugin) => plugin.pid > 0)
+    );
   }, 'Authorized plugin did not start');
   await page.getByRole('button', { name: '设置', exact: true }).click();
   await expect(page.getByLabel('启动时进入后台')).not.toBeChecked();
@@ -155,8 +159,10 @@ try {
   expect(healthAfter).toBeTruthy();
   expect(healthBefore).toBeTruthy();
   expect(healthAfter.uptime).toBeGreaterThan(healthBefore.uptime);
-  expect(healthAfter.plugin.pid).toBe(healthBefore.plugin.pid);
-  expect(healthAfter.plugin.pid).toBeGreaterThan(0);
+  expect(healthAfter.plugins.map((plugin) => [plugin.id, plugin.pid])).toEqual(
+    healthBefore.plugins.map((plugin) => [plugin.id, plugin.pid]),
+  );
+  expect(healthAfter.plugins.every((plugin) => plugin.pid > 0)).toBe(true);
   await until(
     async () => (await request('health', session.token)).websocket.connections === 0,
     'Released desktop retained a WebSocket',

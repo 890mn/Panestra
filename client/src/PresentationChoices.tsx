@@ -1,3 +1,4 @@
+import { pluginPresentations } from './plugin-views';
 import type { Widget } from '../../packages/protocol/src';
 import { PRESENTATIONS } from '../../packages/widget-schema/src/presentation';
 import { Button } from './components';
@@ -42,11 +43,13 @@ function PreviewMark({ mode }: { mode: string }) {
 
 export function PresentationChoices({
   type,
+  widget,
   value,
   disabled,
   change,
 }: {
   type: Widget['type'];
+  widget?: Widget;
   value: string;
   disabled?: boolean;
   change: (value: string) => void;
@@ -54,10 +57,11 @@ export function PresentationChoices({
   return (
     <details className="presentation-library">
       <summary>
-        预设样式 <span>{PRESENTATIONS[type].length} 种</span>
+        预设样式{' '}
+        <span>{(widget ? pluginPresentations(widget) : PRESENTATIONS[type]).length} 种</span>
       </summary>
       <div className="presentation-options" role="group" aria-label="预设样式">
-        {PRESENTATIONS[type].map((choice) => (
+        {(widget ? pluginPresentations(widget) : PRESENTATIONS[type]).map((choice) => (
           <Button
             key={choice.id}
             type="button"

@@ -27,6 +27,7 @@ type Runtime struct {
 	Manifest    Manifest
 	Digest      string
 	Binary      string
+	DataDir     string
 	Publish     func(Telemetry)
 	mu          sync.Mutex
 	frame       *Framer
@@ -44,7 +45,7 @@ type Runtime struct {
 	healthReply time.Time
 }
 
-func NewRuntime(s *store.Store, binary string, manifestBytes []byte) (*Runtime, error) {
+func NewRuntime(s *store.Store, binary string, manifestBytes []byte, persist ...bool) (*Runtime, error) {
 	m, err := ParseManifest(manifestBytes)
 	if err != nil {
 		return nil, err
@@ -52,8 +53,10 @@ func NewRuntime(s *store.Store, binary string, manifestBytes []byte) (*Runtime, 
 	r := &Runtime{Store: s, Manifest: m, Digest: security.Hash(string(manifestBytes)), Binary: binary, pending: map[string]chan Message{}, status: "stopped", grants: map[string]bool{}}
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
-	if _, err = s.DB.Exec("INSERT INTO plugins VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,manifest_digest=excluded.manifest_digest,data=excluded.data", m.ID, m.Version, "stopped", r.Digest, string(manifestBytes)); err != nil {
-		return nil, err
+	if len(persist) == 0 || persist[0] {
+		if _, err = s.DB.Exec("INSERT INTO plugins VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,manifest_digest=excluded.manifest_digest,data=excluded.data", m.ID, m.Version, "stopped", r.Digest, string(manifestBytes)); err != nil {
+			return nil, err
+		}
 	}
 	for _, p := range m.Permissions {
 		var granted bool
@@ -61,6 +64,27 @@ func NewRuntime(s *store.Store, binary string, manifestBytes []byte) (*Runtime, 
 		r.grants[p.ID] = granted
 	}
 	return r, nil
+}
+
+func (r *Runtime) PrepareGrants(consent []string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, cap := range consent {
+		if _, exists := r.grants[cap]; !exists {
+			return errors.New("permission not declared")
+		}
+		r.grants[cap] = true
+	}
+	return nil
+}
+
+func (r *Runtime) RequiredGranted() bool {
+	for _, permission := range r.Manifest.Permissions {
+		if permission.Required && !r.Granted(permission.ID) {
+			return false
+		}
+	}
+	return true
 }
 func (r *Runtime) Grant(cap string, granted bool) error {
 	r.switchMu.Lock()
@@ -76,7 +100,7 @@ func (r *Runtime) Grant(cap string, granted bool) error {
 			known = true
 		}
 	}
-	if !known || !KnownCapabilities[cap] {
+	if !known || (r.Manifest.SchemaVersion == 1 && !KnownCapabilities[cap]) {
 		return errors.New("capability not declared")
 	}
 	r.Store.Mu.Lock()
@@ -200,6 +224,12 @@ func (r *Runtime) supervise(ctx context.Context) {
 func (r *Runtime) run(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, r.Binary)
 	cmd.Env = []string{"SystemRoot=" + os.Getenv("SystemRoot"), "WINDIR=" + os.Getenv("WINDIR"), "PANESTRA_MANIFEST_DIGEST=" + r.Digest, "PANESTRA_PLUGIN_ID=" + r.Manifest.ID, "PANESTRA_PLUGIN_VERSION=" + r.Manifest.Version}
+	for _, key := range []string{"USERPROFILE", "LOCALAPPDATA", "APPDATA", "SystemDrive", "TEMP", "TMP", "PATH", "PATHEXT", "PANESTRA_CODEX_EXECUTABLE"} {
+		if value := os.Getenv(key); value != "" {
+			cmd.Env = append(cmd.Env, key+"="+value)
+		}
+	}
+	cmd.Env = append(cmd.Env, "PANESTRA_PLUGIN_DATA="+r.DataDir)
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -212,7 +242,7 @@ func (r *Runtime) run(ctx context.Context) error {
 	if err = cmd.Start(); err != nil {
 		return err
 	}
-	closeJob, err := AttachJob(cmd.Process.Pid)
+	closeJob, err := AttachJob(cmd.Process.Pid, r.Manifest.Engine.MaxChildren)
 	if err != nil {
 		cmd.Process.Kill()
 		cmd.Wait()
@@ -318,7 +348,7 @@ func (r *Runtime) run(ctx context.Context) error {
 			continue
 		}
 		if m.Method == "publish" {
-			if !r.Granted("system.metrics.read") {
+			if r.Manifest.SchemaVersion == 1 && !r.Granted("system.metrics.read") {
 				continue
 			}
 			var p struct {
@@ -328,7 +358,7 @@ func (r *Runtime) run(ctx context.Context) error {
 			if json.Unmarshal(m.Params, &p) != nil || !allowed[p.Source] {
 				return errors.New("unregistered telemetry topic")
 			}
-			if time.Since(last[p.Source]) < 250*time.Millisecond {
+			if r.Manifest.SchemaVersion == 1 && time.Since(last[p.Source]) < 250*time.Millisecond {
 				continue
 			}
 			last[p.Source] = time.Now()

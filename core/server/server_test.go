@@ -14,8 +14,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"panestra.local/panestra/core/backplane"
+	"panestra.local/panestra/core/plugins"
 	"panestra.local/panestra/core/protocol"
 	"panestra.local/panestra/core/security"
 	"panestra.local/panestra/core/store"
@@ -36,14 +36,18 @@ func setup(t *testing.T) (*Server, *httptest.Server, string) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pkcs8, _ := x509.MarshalPKCS8PrivateKey(key)
 	auth := security.NewAuth(s, &security.Identity{ServerID: "test-core", PrivateKey: pkcs8})
-	raw, _ := os.ReadFile("../../plugins/system/manifest.json")
-	plugin, err := backplane.NewRuntime(s, "unused-test-worker.exe", raw)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	manager, err := plugins.Open(ctx, s, dir, plugins.PublisherKey())
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	server := New(s, auth, plugin, dir, ctx)
+	if err = manager.Bootstrap("../../artifacts/plugin-seed"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(manager.StopAll)
+	server := New(s, auth, manager.Get("dev.panestra.system"), dir, ctx)
+	server.AttachPlugins(manager)
 	httpServer := httptest.NewTLSServer(server.Handler(http.NotFoundHandler()))
 	t.Cleanup(func() { server.Hub.Close(); httpServer.Close() })
 	dkey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

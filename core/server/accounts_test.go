@@ -2,14 +2,13 @@ package server
 
 import (
 	"encoding/json"
-	"panestra.local/panestra/core/adapters/accounts"
 	"strings"
 	"testing"
 )
 
 func TestAccountAuthorizationAndCredentialRedaction(t *testing.T) {
 	s, h, token := setup(t)
-	for _, id := range accounts.IDs {
+	for _, id := range []string{"glm", "deepseek"} {
 		base := "/api/v1/integrations/" + id
 		code, _ := api(t, h, "", "GET", base, nil)
 		if code != 401 {
@@ -24,7 +23,12 @@ func TestAccountAuthorizationAndCredentialRedaction(t *testing.T) {
 			t.Fatal("remote endpoint accepted", code)
 		}
 		code, data := api(t, h, token, "POST", base, map[string]any{"enabled": false, "apiKey": "fixture-private-key"})
-		var status accounts.Status
+		var status struct {
+			Enabled       bool
+			HasCredential bool
+			Windows       []any
+			Balances      []any
+		}
 		if json.Unmarshal(data, &status) != nil || code != 200 || !status.HasCredential || status.Enabled || strings.Contains(string(data), "fixture-private-key") {
 			t.Fatalf("unsafe credential response %d %s", code, data)
 		}
@@ -49,9 +53,9 @@ func TestAccountAuthorizationAndCredentialRedaction(t *testing.T) {
 			t.Fatal("credential revocation failed", code, string(data))
 		}
 		s.Hub.mu.Lock()
-		latest := s.Hub.latest[accounts.Topic(id)]
+		latest := s.Hub.latest["dev.panestra."+id+"/account.usage"]
 		s.Hub.mu.Unlock()
-		if latest.Value.(accounts.Status).HasCredential {
+		if latest.Value.(map[string]any)["hasCredential"] == true {
 			t.Fatal("revoked credential remains in telemetry")
 		}
 		var count int

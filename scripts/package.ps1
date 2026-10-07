@@ -1,15 +1,15 @@
-param([string]$Version = '0.1.25')
+param([string]$Version = '0.1.26')
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $workspace
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must contain three numeric components' }
 $destination = Join-Path $workspace "artifacts/Panestra-$Version-windows-x64"
-New-Item -ItemType Directory -Force (Join-Path $destination 'plugins/system') | Out-Null
+New-Item -ItemType Directory -Force (Join-Path $destination 'plugin-seed') | Out-Null
 Copy-Item -LiteralPath 'shell/desktop/target/release/panestra-desktop.exe' -Destination (Join-Path $destination 'Panestra.exe')
-foreach ($name in @('panestra-core.exe', 'system-plugin.exe', 'panestra-release.exe', 'panestra-sign.exe')) {
+foreach ($name in @('panestra-core.exe', 'panestra-release.exe', 'panestra-sign.exe')) {
     Copy-Item -LiteralPath (Join-Path $workspace "artifacts/$name") -Destination (Join-Path $destination $name)
 }
-Copy-Item -LiteralPath 'plugins/system/manifest.json' -Destination (Join-Path $destination 'plugins/system/manifest.json')
+Copy-Item -Path 'artifacts/plugin-seed/*' -Destination (Join-Path $destination 'plugin-seed') -Force
 Copy-Item -LiteralPath 'README.md' -Destination (Join-Path $destination 'README.md')
 Copy-Item -LiteralPath 'CHANGELOG.md' -Destination (Join-Path $destination 'CHANGELOG.md')
 Copy-Item -LiteralPath "shell/desktop/target/release/bundle/nsis/Panestra_${Version}_x64-setup.exe" -Destination "artifacts/Panestra-$Version-windows-x64-setup.exe"

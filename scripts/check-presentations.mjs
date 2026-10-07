@@ -14,7 +14,8 @@ for (const match of ui.matchAll(/'([^']+)': \[([\s\S]*?)\],/g)) {
   count += modes.length;
 }
 if (count === 0) throw new Error('No presentation capabilities found');
-for (const widget of JSON.parse(readFileSync('plugins/system/manifest.json', 'utf8')).widgets) {
+for (const widget of JSON.parse(readFileSync('core/testdata/system-manifest.json', 'utf8'))
+  .widgets) {
   const allowed = native.match(new RegExp(`"${widget.id}":\\s*\\{([^}]+)\\}`));
   const modes = [...(allowed?.[1] || '').matchAll(/"([^\"]+)"/g)].map((m) => m[1]);
   if (JSON.stringify(widget.presentations) !== JSON.stringify(modes))
