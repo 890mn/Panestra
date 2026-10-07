@@ -1,12 +1,13 @@
-<img src="./assets/branding/icon.png" width="92" align="left" alt="Panestra" />
+<img src="./assets/branding/icon.png" width="104" align="left" alt="Panestra" />
 
-# Panestra
-
-<sub><b>ONE CORE, EVERY DEVICE.</b></sub>
+<h1>
+  Panestra<br />
+  <sub>ONE CORE, EVERY DEVICE.</sub>
+</h1>
 
 <br clear="left" />
 
-A local-first personal control plane for the screens you already use.  
+**A local-first personal control plane for the screens you already use.**  
 让 Windows 成为核心，把状态、工具、媒体与自动化能力带到电脑、手机和平板。
 
 [快速开始](#快速开始) · [功能](#功能) · [接入能力](#接入能力) · [架构](#架构) · [安全](#安全) · [源码构建](#源码构建) · [更新日志](./CHANGELOG.md) · [Releases](https://github.com/890mn/Panestra/releases)
