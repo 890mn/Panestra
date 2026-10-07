@@ -148,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.19.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.20.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.19.png`,
+      path: `artifacts/connection-${label}-0.1.20.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -347,7 +347,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.19');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.20');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -832,6 +832,16 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
   };
   await navigate(desktop, '插件');
   await desktop.getByRole('button', { name: '查看网易云播放状态与设置' }).click();
+  await expect(desktop.locator('.music-detail-content .music-buttons button')).toHaveCount(3);
+  await expect(desktop.locator('.music-detail-content').getByLabel('播放进度')).toBeVisible();
+  const alignment = await desktop.locator('.music-detail-content').evaluate((el) => {
+    const cover = el.querySelector('.playback-art')!.getBoundingClientRect();
+    return [...el.querySelectorAll('.music-buttons button')].map((button) => {
+      const r = button.getBoundingClientRect();
+      return Math.abs(r.y + r.height / 2 - cover.y - cover.height / 2);
+    });
+  });
+  expect(alignment.every((difference) => difference <= 1)).toBe(true);
   await desktop.getByLabel('允许播放、切歌与调整进度').uncheck();
   await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
   await expect(desktop.getByTestId('netease-adapter').locator('.adapter-state')).toHaveText(

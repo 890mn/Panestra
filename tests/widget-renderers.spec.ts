@@ -106,7 +106,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.19',
+        version: '0.1.20',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,
@@ -345,6 +345,58 @@ test('音乐小卡保留直接播放，详情支持切歌与进度，编辑、�
   await expect(page.getByRole('button', { name: '网易云暂停', exact: true })).toBeDisabled();
   await expect(page.locator('.music-access')).toHaveText('未授权');
   expect(actions).toHaveLength(4);
+});
+
+test('音乐封面右侧保留三个居中按键，未知时长仍显示不可拖动的进度轨道', async ({ page }) => {
+  await page.goto(
+    'http://127.0.0.1:19519/?type=media-control&mode=cover&bp=tablet&width=1000&w=8&h=4&control',
+  );
+  const checkHeader = async () => {
+    const geometry = await page.locator('.widget-view').evaluate((el) => {
+      const cover = el.querySelector('.playback-art')!.getBoundingClientRect();
+      const buttons = [...el.querySelectorAll('.music-buttons button')].map((button) =>
+        button.getBoundingClientRect(),
+      );
+      return {
+        coverCenter: cover.y + cover.height / 2,
+        buttons: buttons.map((r) => ({ center: r.y + r.height / 2, x: r.x, width: r.width })),
+        coverRight: cover.right,
+        contentRight: el.getBoundingClientRect().right,
+        buttonsRight: buttons[buttons.length - 1].right,
+      };
+    });
+    expect(geometry.buttons).toHaveLength(3);
+    for (const button of geometry.buttons) {
+      expect(Math.abs(button.center - geometry.coverCenter)).toBeLessThanOrEqual(1);
+      expect(button.x).toBeGreaterThan(geometry.coverRight);
+      expect(button.width).toBe(44);
+    }
+    expect(Math.abs(geometry.buttonsRight - geometry.contentRight)).toBeLessThanOrEqual(1);
+  };
+  await checkHeader();
+  await expect(page.getByLabel('播放进度')).toBeEnabled();
+  await expect(page.locator('.music-time')).toHaveText('1:154:05');
+  await page.getByRole('button', { name: '查看网络流量与同步状态详情' }).click();
+  const detailAlignment = await page.locator('dialog .music-detail-content').evaluate((el) => {
+    const cover = el.querySelector('.playback-art')!.getBoundingClientRect();
+    return [...el.querySelectorAll('.music-buttons button')].map((button) => {
+      const r = button.getBoundingClientRect();
+      return Math.abs(r.y + r.height / 2 - cover.y - cover.height / 2);
+    });
+  });
+  expect(detailAlignment).toHaveLength(3);
+  expect(detailAlignment.every((difference) => difference <= 1)).toBe(true);
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.evaluate(() =>
+    (window as any).renderPreview(
+      'type=media-control&mode=cover&bp=tablet&width=650&w=4&h=4&control&noTime',
+    ),
+  );
+  await checkHeader();
+  await expect(page.getByLabel('播放进度')).toBeVisible();
+  await expect(page.getByLabel('播放进度')).toBeDisabled();
+  await expect(page.locator('.music-time')).toContainText('播放器未提供进度');
+  await page.screenshot({ path: 'artifacts/music-cover-layout.png' });
 });
 
 test('插件可视化使用真实数值，未知额度和余额不生成伪造图表', async ({ page }) => {

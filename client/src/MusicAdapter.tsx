@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowRight,
@@ -108,7 +108,7 @@ export function MusicControls({
   return (
     <div className={`music-actions ${small ? 'is-small' : ''}`}>
       {seek ? (
-        <label className="music-seek">
+        <label className={`music-seek ${duration ? '' : 'is-unavailable'}`}>
           <input
             aria-label="播放进度"
             type="range"
@@ -116,6 +116,11 @@ export function MusicControls({
             max={duration || 1}
             step={1}
             value={draft ?? status?.positionSeconds ?? 0}
+            style={
+              {
+                '--music-progress': `${duration ? Math.max(0, Math.min(100, ((draft ?? status?.positionSeconds ?? 0) / duration) * 100)) : 0}%`,
+              } as CSSProperties
+            }
             disabled={!allowed || busy || !status?.controls.seek || !duration}
             onChange={(event) => setDraft(Number(event.target.value))}
             onPointerUp={(event) => {
@@ -125,6 +130,8 @@ export function MusicControls({
             onKeyUp={(event) => {
               if (
                 allowed &&
+                status?.controls.seek &&
+                duration &&
                 [
                   'ArrowLeft',
                   'ArrowRight',
@@ -142,6 +149,7 @@ export function MusicControls({
           />
           <span className="music-time">
             <span>{time(draft ?? status?.positionSeconds)}</span>
+            {!duration ? <span>播放器未提供进度</span> : null}
             <span>{time(duration)}</span>
           </span>
         </label>
@@ -221,6 +229,7 @@ export function musicContents({
   width = 800,
   expanded = false,
   editing = false,
+  inlineControls = expanded,
 }: {
   status?: MediaStatus;
   online: boolean;
@@ -231,9 +240,9 @@ export function musicContents({
   width?: number;
   expanded?: boolean;
   editing?: boolean;
+  inlineControls?: boolean;
 }) {
-  const artwork =
-    !compact && width >= 210 && (height >= 240 || (mode === 'cover' && height >= 170) || expanded);
+  const artwork = !compact && width >= 240 && (height >= (width >= 380 ? 170 : 210) || expanded);
   return (
     <>
       <div
@@ -276,20 +285,16 @@ export function musicContents({
           />
         </div>
       ) : null}
-      {height >= (artwork ? 220 : 190) || expanded ? (
+      {height >= (inlineControls ? 135 : 190) || expanded ? (
         <div data-block="progress" className="music-progress">
-          {status?.durationSeconds ? (
-            <MusicControls
-              status={status}
-              online={online}
-              editing={editing}
-              seek
-              buttons={false}
-              inlineError={expanded}
-            />
-          ) : (
-            <span className="view-muted music-progress-unavailable">播放器未提供进度</span>
-          )}
+          <MusicControls
+            status={status}
+            online={online}
+            editing={editing}
+            seek
+            buttons={false}
+            inlineError={expanded}
+          />
         </div>
       ) : null}
       {(height >= 320 || expanded) && status?.album ? (
@@ -395,9 +400,8 @@ export function MusicAdapterCard() {
           wide
         >
           <div className="music-detail-content">
-            {musicContents({ status, online: state.online, mode: 'track', expanded: true })}
+            {musicContents({ status, online: state.online, mode: 'player', expanded: true })}
           </div>
-          <MusicControls status={status} online={state.online} inlineError />
           {status?.enabled && !status.allowControl ? (
             <div className="music-permission-note">
               <LockKeyhole size={18} />

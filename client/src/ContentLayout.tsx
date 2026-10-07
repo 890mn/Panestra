@@ -34,6 +34,7 @@ export function ContentLayout({
   width,
   height,
   editor,
+  playerLayout = false,
 }: {
   children: ReactNode;
   widget: Widget;
@@ -41,6 +42,7 @@ export function ContentLayout({
   width: number;
   height: number;
   editor?: ContentEditor;
+  playerLayout?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
@@ -166,7 +168,7 @@ export function ContentLayout({
   return (
     <div
       ref={ref}
-      className={`content-layout ${compact ? 'content-compact' : ''} ${editor ? 'content-editing' : ''}`}
+      className={`content-layout ${compact ? 'content-compact' : ''} ${editor ? 'content-editing' : ''} ${playerLayout ? 'music-player-layout' : ''}`}
       style={{ gridTemplateRows: rowTemplate }}
       data-compact={compact || undefined}
     >

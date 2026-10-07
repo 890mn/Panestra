@@ -66,6 +66,12 @@ export function WidgetView(
   const chartAllowed = !!expanded || size.h >= 145;
   const networkTrend = chartAllowed && mode !== 'rates';
   const accountWidth = size.w * ((props.profile?.blocks.account?.span || 12) / 12);
+  const musicPlayerLayout =
+    widget.type === 'media-control' &&
+    !Object.keys(props.profile?.blocks || {}).length &&
+    mode !== 'track' &&
+    size.w >= 240 &&
+    size.h >= 135;
   const split = networkTrend && mode === 'split' && size.h >= 225;
   const metricText = widget.source.startsWith('network.')
     ? rate(metric)
@@ -94,6 +100,7 @@ export function WidgetView(
             mode,
             expanded,
             editing: !!props.editing || !!props.contentEditor,
+            inlineControls: !!expanded || musicPlayerLayout,
           })
         : null}
       {widget.type === 'proxy-status'
@@ -373,16 +380,22 @@ export function WidgetView(
       data-presentation={mode}
       data-type={widget.type}
     >
-      {!expanded && (props.contentEditor || Object.keys(profile.blocks).length) ? (
+      {!expanded &&
+      (widget.type === 'media-control' ||
+        props.contentEditor ||
+        Object.keys(profile.blocks).length) ? (
         <ContentLayout
           widget={widget}
           profile={profile}
           width={size.w}
           height={size.h}
           editor={props.contentEditor}
+          playerLayout={musicPlayerLayout}
         >
           {contents}
         </ContentLayout>
+      ) : expanded && widget.type === 'media-control' && mode !== 'track' ? (
+        <div className="music-detail-content">{contents}</div>
       ) : (
         contents
       )}
