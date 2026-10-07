@@ -1,35 +1,15 @@
-<div align="center">
-
-<img src="./assets/branding/icon.png" width="112" alt="Panestra icon" />
+<img src="./assets/branding/icon.png" width="92" align="left" alt="Panestra" />
 
 # Panestra
 
-### ONE CORE, EVERY DEVICE.
+<sub><b>ONE CORE, EVERY DEVICE.</b></sub>
 
-**A local-first personal control plane for the screens you already use.**  
+<br clear="left" />
+
+A local-first personal control plane for the screens you already use.  
 让 Windows 成为核心，把状态、工具、媒体与自动化能力带到电脑、手机和平板。
 
-<br />
-
-[快速开始](#快速开始) ·
-[功能](#功能) ·
-[接入能力](#接入能力) ·
-[架构](#架构) ·
-[安全](#安全) ·
-[源码构建](#源码构建) ·
-[更新日志](./CHANGELOG.md) ·
-[Releases](https://github.com/890mn/Panestra/releases) ·
-[Issues](https://github.com/890mn/Panestra/issues)
-
-<br />
-
-<img src="https://img.shields.io/badge/status-early%20development-789887?style=flat-square" alt="early development" />
-<img src="https://img.shields.io/badge/Windows-x64-789887?style=flat-square&logo=windows11&logoColor=white" alt="Windows x64" />
-<img src="https://img.shields.io/badge/Android-10%2B-789887?style=flat-square&logo=android&logoColor=white" alt="Android 10+" />
-<img src="https://img.shields.io/badge/local--first-yes-789887?style=flat-square" alt="local-first" />
-<img src="https://img.shields.io/badge/Tauri-v2-789887?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" />
-
-</div>
+[快速开始](#快速开始) · [功能](#功能) · [接入能力](#接入能力) · [架构](#架构) · [安全](#安全) · [源码构建](#源码构建) · [更新日志](./CHANGELOG.md) · [Releases](https://github.com/890mn/Panestra/releases)
 
 > [!NOTE]
 > Panestra 仍处于早期开发阶段。当前主要面向 **Windows x64** 与 **Android 10+ ARM64**，接口、插件能力与 UI 仍可能快速变化。
