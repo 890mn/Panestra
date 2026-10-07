@@ -31,7 +31,7 @@ func blank(c Config) Status {
 	if c.Enabled {
 		state, message = "connecting", "正在读取网易云音乐媒体会话"
 	}
-	return Status{Enabled: c.Enabled, AllowControl: c.AllowControl, Reading: Reading{State: state, Message: message}}
+	return Status{Enabled: c.Enabled, AllowControl: c.AllowControl, TimelinePort: c.TimelinePort, Reading: Reading{State: state, Message: message}}
 }
 func NewService(ctx context.Context, dir string, publish func(Status, uint64)) *Service {
 	return newService(ctx, dir, publish, NewMedia(ctx))
@@ -41,10 +41,13 @@ func newService(ctx context.Context, dir string, publish func(Status, uint64), m
 	failed := false
 	if raw, err := os.ReadFile(s.filename); err == nil {
 		plain, err := security.Unprotect(raw)
-		if err != nil || json.Unmarshal(plain, &s.config) != nil {
+		if err != nil || json.Unmarshal(plain, &s.config) != nil || !validTimelinePort(s.config.TimelinePort) {
 			s.config = Config{}
 			failed = true
 		}
+	}
+	if configurable, ok := media.(timelineConfigurer); ok {
+		configurable.ConfigureTimeline(s.config.TimelinePort)
 	}
 	s.status = blank(s.config)
 	if failed {
@@ -126,8 +129,11 @@ func save(filename string, c Config) error {
 	return os.Rename(file.Name(), filename)
 }
 func (s *Service) Configure(change Change) (Status, error) {
-	if change.Enabled == nil && change.AllowControl == nil {
+	if change.Enabled == nil && change.AllowControl == nil && change.TimelinePort == nil {
 		return Status{}, fmt.Errorf("未提供设置变更")
+	}
+	if change.TimelinePort != nil && !validTimelinePort(*change.TimelinePort) {
+		return Status{}, fmt.Errorf("本机进度端口需为 1024–65535，设为 0 可关闭")
 	}
 	s.mu.Lock()
 	next := s.config
@@ -136,6 +142,9 @@ func (s *Service) Configure(change Change) (Status, error) {
 	}
 	if change.AllowControl != nil {
 		next.AllowControl = *change.AllowControl
+	}
+	if change.TimelinePort != nil {
+		next.TimelinePort = *change.TimelinePort
 	}
 	if !next.Enabled {
 		next.AllowControl = false
@@ -150,6 +159,9 @@ func (s *Service) Configure(change Change) (Status, error) {
 		s.cancel = nil
 	}
 	s.config = next
+	if configurable, ok := s.media.(timelineConfigurer); ok {
+		configurable.ConfigureTimeline(next.TimelinePort)
+	}
 	s.status = blank(next)
 	s.lastAttempt = time.Time{}
 	s.emitLocked()

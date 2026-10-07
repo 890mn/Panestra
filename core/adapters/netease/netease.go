@@ -26,6 +26,9 @@ type Reading struct {
 	Artist          string   `json:"artist"`
 	Album           string   `json:"album"`
 	ArtworkDataURL  string   `json:"artworkDataUrl,omitempty"`
+	TrackID         string   `json:"trackId,omitempty"`
+	TimelineSource  string   `json:"timelineSource,omitempty"`
+	TimelineMessage string   `json:"timelineMessage,omitempty"`
 	Playback        string   `json:"playback"`
 	PositionSeconds *float64 `json:"positionSeconds"`
 	DurationSeconds *float64 `json:"durationSeconds"`
@@ -34,6 +37,7 @@ type Reading struct {
 type Status struct {
 	Enabled      bool   `json:"enabled"`
 	AllowControl bool   `json:"allowControl"`
+	TimelinePort int    `json:"timelinePort"`
 	UpdatedAt    string `json:"updatedAt,omitempty"`
 	Stale        bool   `json:"stale"`
 	Refreshing   bool   `json:"refreshing"`
@@ -42,14 +46,17 @@ type Status struct {
 type Config struct {
 	Enabled      bool `json:"enabled"`
 	AllowControl bool `json:"allowControl"`
+	TimelinePort int  `json:"timelinePort"`
 }
 type Change struct {
 	Enabled      *bool `json:"enabled"`
 	AllowControl *bool `json:"allowControl"`
+	TimelinePort *int  `json:"timelinePort"`
 }
 type Action struct {
 	Action          string   `json:"action"`
 	PositionSeconds *float64 `json:"positionSeconds,omitempty"`
+	TrackID         string   `json:"trackId,omitempty"`
 }
 type Error struct{ State, Message string }
 
@@ -68,7 +75,7 @@ func validReading(reading Reading) error {
 	if reading.State != "ready" {
 		return fail("unavailable", "Windows 媒体接口暂不可用")
 	}
-	for _, value := range []string{reading.Title, reading.Artist, reading.Album} {
+	for _, value := range []string{reading.Title, reading.Artist, reading.Album, reading.TrackID} {
 		if len(value) > 4096 || strings.ContainsRune(value, '\x00') {
 			return fmt.Errorf("媒体信息无效")
 		}
@@ -102,6 +109,9 @@ func validReading(reading Reading) error {
 	return nil
 }
 func validAction(action Action) error {
+	if len(action.TrackID) > 512 || strings.ContainsRune(action.TrackID, '\x00') {
+		return fail("unavailable", "歌曲标识无效")
+	}
 	switch action.Action {
 	case "toggle", "previous", "next":
 		if action.PositionSeconds != nil {
@@ -116,3 +126,7 @@ func validAction(action Action) error {
 	}
 	return nil
 }
+
+func validTimelinePort(port int) bool { return port == 0 || port >= 1024 && port <= 65535 }
+
+type timelineConfigurer interface{ ConfigureTimeline(int) }

@@ -51,6 +51,16 @@ Clash Verge 可在「插件 → Clash Verge → 状态与设置」由 Owner 启�
 
 控制播放需要 Owner 单独授权，Operator 可操作，Viewer 保持只读。小卡保留播放按键，完整详情提供切歌、播放进度和专辑信息；编辑布局和离线时禁用控制
 
+部分网易云版本不向 Windows 提供时间轴，可在状态与设置中启用「使用本机进度通道」，默认端口为 19228。关闭网易云后，在电脑上用以下参数启动播放器，再保存 Panestra 设置
+
+```powershell
+& 'C:\实际安装目录\cloudmusic.exe' --remote-debugging-address=127.0.0.1 --remote-debugging-port=19228
+```
+
+通道只监听本机，通过原生播放事件同步当前位置，松手后调用播放器的跳转并回读确认。此方式依赖网易云内部接口，目前实测版本为 3.1.33.205244；版本不兼容时会禁用进度控制，播放与切歌继续使用系统媒体接口。启动参数需要在每次启动网易云时保留，Panestra 不会自动重启播放器或改写其快捷方式
+
+接口参考：[BetterNCM 播放器适配源码](https://github.com/BetterNCM/BetterNCM-Plugins/blob/master/plugins-data/LibFrontendPlay/index.js)、[CloudMusic Desktop MCP 本机通道方案](https://github.com/Seraph310/cloudmusic-desktop-mcp)
+
 实现依据：[Windows 官方系统媒体会话接口](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager)
 
 ALAS 可在「插件 → ALAS → 状态与设置」填写电脑上的安装目录、WebUI 端口与实例名称，生成桥接启动文件后，先停止原有 ALAS，再使用生成的文件启动。启动方式保留 ALAS 原有的自动运行和重载设置，不修改安装目录；重启会中断当前任务
@@ -160,6 +170,10 @@ Release 正文用于新版本更新说明。推送源码、创建标签和公开
 Core 数据默认保留在本机，设备通过 HTTPS / WSS 通信。Windows 使用 DPAPI、Android 使用 Keystore 保存身份。配对需要电脑批准，插件操作受设备角色和授权范围限制
 
 ## 更新说明
+
+### 0.1.21
+
+新增可选的网易云本机进度通道，支持真实时间轴、触屏拖动跳转与结果确认，最小化播放器后仍持续同步
 
 ### 0.1.20
 

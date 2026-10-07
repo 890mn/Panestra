@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowRight,
@@ -47,6 +47,33 @@ const time = (seconds: number | null | undefined) =>
     ? '—'
     : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
+function usePlaybackPosition(status: MediaStatus | undefined, active: boolean) {
+  const [position, setPosition] = useState(status?.positionSeconds ?? 0);
+  const actual = status?.positionSeconds ?? 0;
+  const duration = status?.durationSeconds ?? 0;
+  const playing =
+    active &&
+    !!status?.timelineSource &&
+    !status?.stale &&
+    status?.playback === 'Playing' &&
+    duration > 0;
+  useEffect(() => {
+    setPosition(actual);
+    if (!playing) return;
+    const started = performance.now();
+    const timer = window.setInterval(() => {
+      const elapsed = (performance.now() - started) / 1000;
+      if (elapsed > 4) {
+        window.clearInterval(timer);
+        return;
+      }
+      setPosition(Math.min(duration, actual + elapsed));
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [actual, duration, playing, status?.updatedAt, status?.trackId]);
+  return playing ? position : actual;
+}
+
 export function MusicControls({
   status,
   online,
@@ -68,6 +95,9 @@ export function MusicControls({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [draft, setDraft] = useState<number | null>(null);
+  const pending = useRef(false);
+  const drag = useRef<{ pointerId: number; trackId?: string } | null>(null);
+  const position = usePlaybackPosition(status, online && seek);
   const allowed =
     online &&
     status?.enabled &&
@@ -76,18 +106,21 @@ export function MusicControls({
     !status.stale &&
     !editing &&
     ['owner', 'operator'].includes(state.device?.role || '');
-  const perform = async (action: string, positionSeconds?: number) => {
+  const perform = async (action: string, positionSeconds?: number, trackId = status?.trackId) => {
+    if (pending.current) return;
+    pending.current = true;
     setBusy(true);
     setError('');
     try {
       await core.api('/integrations/netease/actions', {
         action,
-        ...(positionSeconds === undefined ? {} : { positionSeconds }),
+        ...(positionSeconds === undefined ? {} : { positionSeconds, trackId }),
       });
     } catch (err) {
       setError(connectionErrorText(err));
     } finally {
       setBusy(false);
+      pending.current = false;
       setDraft(null);
     }
   };
@@ -115,17 +148,24 @@ export function MusicControls({
             min={0}
             max={duration || 1}
             step={1}
-            value={draft ?? status?.positionSeconds ?? 0}
+            value={draft ?? position}
             style={
               {
-                '--music-progress': `${duration ? Math.max(0, Math.min(100, ((draft ?? status?.positionSeconds ?? 0) / duration) * 100)) : 0}%`,
+                '--music-progress': `${duration ? Math.max(0, Math.min(100, ((draft ?? position) / duration) * 100)) : 0}%`,
               } as CSSProperties
             }
             disabled={!allowed || busy || !status?.controls.seek || !duration}
+            onPointerDown={(event) => {
+              if (!allowed || busy || !status?.controls.seek || !duration) return;
+              drag.current = { pointerId: event.pointerId, trackId: status.trackId };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
             onChange={(event) => setDraft(Number(event.target.value))}
             onPointerUp={(event) => {
-              if (allowed && status?.controls.seek && duration)
-                void perform('seek', Number(event.currentTarget.value));
+              const current = drag.current;
+              drag.current = null;
+              if (current && allowed && !busy && status?.controls.seek && duration)
+                void perform('seek', Number(event.currentTarget.value), current.trackId);
             }}
             onKeyUp={(event) => {
               if (
@@ -145,10 +185,22 @@ export function MusicControls({
               )
                 void perform('seek', Number(event.currentTarget.value));
             }}
-            onPointerCancel={() => setDraft(null)}
+            onPointerCancel={() => {
+              drag.current = null;
+              setDraft(null);
+            }}
+            onLostPointerCapture={() => {
+              if (drag.current) {
+                drag.current = null;
+                setDraft(null);
+              }
+            }}
+            onBlur={() => {
+              if (!pending.current && !drag.current) setDraft(null);
+            }}
           />
           <span className="music-time">
-            <span>{time(draft ?? status?.positionSeconds)}</span>
+            <span>{time(draft ?? (duration ? position : null))}</span>
             {!duration ? <span>播放器未提供进度</span> : null}
             <span>{time(duration)}</span>
           </span>
@@ -327,6 +379,8 @@ export function MusicAdapterCard() {
   const status = state.telemetry[NETEASE_TOPIC]?.value as MediaStatus | undefined;
   const [detail, setDetail] = useState(false),
     [allowControl, setAllowControl] = useState(false),
+    [localTimeline, setLocalTimeline] = useState(false),
+    [timelinePort, setTimelinePort] = useState('19228'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const owner = state.device?.role === 'owner';
@@ -384,6 +438,8 @@ export function MusicAdapterCard() {
         aria-label="查看网易云播放状态与设置"
         onClick={() => {
           setAllowControl(status?.allowControl ?? false);
+          setLocalTimeline(!!status?.timelinePort);
+          setTimelinePort(String(status?.timelinePort || 19228));
           setDetail(true);
         }}
       >
@@ -425,6 +481,7 @@ export function MusicAdapterCard() {
           <p className="subtle">
             {status?.message || '在 Core 电脑上打开网易云音乐，并在播放器设置中启用系统媒体控制'}
           </p>
+          {status?.timelineMessage ? <p className="subtle">{status.timelineMessage}</p> : null}
           <div className="adapter-boundary">
             <ShieldCheck size={18} />
             <p>只读取已识别的网易云会话，不操作其他播放器</p>
@@ -439,7 +496,11 @@ export function MusicAdapterCard() {
               className="account-configuration"
               onSubmit={(event) => {
                 event.preventDefault();
-                void request('', { enabled: true, allowControl });
+                void request('', {
+                  enabled: true,
+                  allowControl,
+                  timelinePort: localTimeline ? Number(timelinePort) : 0,
+                });
               }}
             >
               <label className="permission-row">
@@ -450,6 +511,36 @@ export function MusicAdapterCard() {
                   onChange={(event) => setAllowControl(event.target.checked)}
                 />
               </label>
+              <label className="permission-row">
+                <span>使用本机进度通道</span>
+                <input
+                  type="checkbox"
+                  checked={localTimeline}
+                  onChange={(event) => setLocalTimeline(event.target.checked)}
+                />
+              </label>
+              {localTimeline ? (
+                <>
+                  <label>
+                    本机进度端口
+                    <input
+                      type="number"
+                      min={1024}
+                      max={65535}
+                      required
+                      value={timelinePort}
+                      onChange={(event) => setTimelinePort(event.target.value)}
+                    />
+                  </label>
+                  <p className="subtle">在电脑上关闭网易云后，使用以下参数启动播放器，再保存设置</p>
+                  <code className="music-launch-arguments">
+                    --remote-debugging-address=127.0.0.1 --remote-debugging-port={timelinePort}
+                  </code>
+                  <p className="subtle">
+                    通道仅连接本机，提供真实进度与拖动跳转，关闭后仍可使用系统播放控制
+                  </p>
+                </>
+              ) : null}
               <div className="button-row">
                 <Button className="primary" type="submit" pending={busy} disabled={!state.online}>
                   保存并启用读取

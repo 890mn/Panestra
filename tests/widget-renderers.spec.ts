@@ -106,7 +106,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.20',
+        version: '0.1.21',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,
@@ -335,6 +335,7 @@ test('音乐小卡保留直接播放，详情支持切歌与进度，编辑、�
   await expect.poll(() => actions.length).toBe(4);
   expect(actions[3].action).toBe('seek');
   expect(actions[3].positionSeconds).toBe(76);
+  expect(actions[3].trackId).toBe('test-track');
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   for (const suffix of ['&edit', '&offline', '&role=viewer']) {
     await page.evaluate((query) => (window as any).renderPreview(query), query + suffix);
@@ -345,6 +346,52 @@ test('音乐小卡保留直接播放，详情支持切歌与进度，编辑、�
   await expect(page.getByRole('button', { name: '网易云暂停', exact: true })).toBeDisabled();
   await expect(page.locator('.music-access')).toHaveText('未授权');
   expect(actions).toHaveLength(4);
+});
+
+test('音乐拖动松手只发送一次，取消不跳转，切歌后的请求仍携带原歌曲标识', async ({ page }) => {
+  const actions: Record<string, unknown>[] = [];
+  await page.route('**/api/v1/integrations/netease/actions', async (route) => {
+    actions.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+  const query = 'type=media-control&mode=player&bp=tablet&width=1000&w=8&h=4&control';
+  await page.goto('http://127.0.0.1:19519/?' + query);
+  const slider = page.getByLabel('播放进度');
+  const box = (await slider.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 });
+  expect(actions).toHaveLength(0);
+  await page.mouse.up();
+  await expect.poll(() => actions.length).toBe(1);
+  expect(actions[0].trackId).toBe('test-track');
+  expect(Number(actions[0].positionSeconds)).toBeGreaterThan(130);
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2);
+  await page.mouse.down();
+  await slider.dispatchEvent('pointercancel', {
+    pointerId: 1,
+    pointerType: 'mouse',
+    bubbles: true,
+  });
+  await page.mouse.up();
+  expect(actions).toHaveLength(1);
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.evaluate((query) => (window as any).renderPreview(query + '&track=next-track'), query);
+  await page.mouse.up();
+  await expect.poll(() => actions.length).toBe(2);
+  expect(actions[1].trackId).toBe('test-track');
+});
+
+test('真实音乐时间轴播放时补间，暂停后停表', async ({ page }) => {
+  const query = 'type=media-control&mode=player&bp=tablet&width=1000&w=8&h=4&control&timeline';
+  await page.clock.install();
+  await page.goto('http://127.0.0.1:19519/?' + query);
+  await page.clock.fastForward(1500);
+  expect(Number(await page.getByLabel('播放进度').inputValue())).toBeGreaterThan(76);
+  await page.evaluate((query) => (window as any).renderPreview(query + '&paused'), query);
+  await page.clock.fastForward(1500);
+  await expect(page.getByLabel('播放进度')).toHaveValue('75');
 });
 
 test('音乐封面右侧保留三个居中按键，未知时长仍显示不可拖动的进度轨道', async ({ page }) => {

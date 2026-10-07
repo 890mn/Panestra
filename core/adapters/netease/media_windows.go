@@ -33,7 +33,7 @@ type nativeMedia struct {
 func NewMedia(ctx context.Context) Media {
 	media := &nativeMedia{parent: ctx}
 	go func() { <-ctx.Done(); media.Close() }()
-	return media
+	return &timelineMedia{standard: media}
 }
 func encodedScript(script string) string {
 	units := utf16.Encode([]rune(script))

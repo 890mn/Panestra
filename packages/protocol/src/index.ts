@@ -141,6 +141,10 @@ export const NETEASE_TOPIC = `${NETEASE}/media.status`;
 export interface MediaStatus {
   enabled: boolean;
   allowControl: boolean;
+  timelinePort?: number;
+  trackId?: string;
+  timelineSource?: 'local' | 'smtc';
+  timelineMessage?: string;
   state: string;
   message: string;
   title: string;
