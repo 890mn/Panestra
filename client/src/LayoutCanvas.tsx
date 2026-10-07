@@ -207,6 +207,23 @@ export function LayoutCanvas({
   useEffect(() => {
     if (!editing || (saving && drag.current)) cancel();
   }, [editing, saving]);
+  useEffect(() => {
+    if (!editing) return;
+    const inspector = canvas.current
+      ?.closest('.layout-workbench')
+      ?.querySelector('.layout-inspector');
+    if (!inspector) return;
+    const observer = new ResizeObserver(() => {
+      const current = drag.current;
+      if (current)
+        current.viewportBottom =
+          getComputedStyle(inspector).position === 'fixed'
+            ? Math.min(innerHeight, inspector.getBoundingClientRect().top)
+            : innerHeight;
+    });
+    observer.observe(inspector);
+    return () => observer.disconnect();
+  }, [editing]);
   const save = async (next: Layout[], baseline = records) => {
     if (saving || !editing) return;
     try {

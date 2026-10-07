@@ -365,12 +365,22 @@
 }
 .layout-inspector-title {
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
+  box-shadow: 0 -16px 0 var(--panel);
+  padding-block: 8px;
 }
 .layout-inspector-title .inspector-toggle {
   margin-left: auto;
 }
 .layout-inspector-body[hidden] {
   display: none;
+}
+.widget-card.editable,
+.content-editing [data-part] {
+  scroll-margin-top: 100px;
 }
 .layout-tools-fieldset {
   border: 0;
