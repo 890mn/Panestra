@@ -21,6 +21,53 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await server?.close();
 });
+test('内部内容触摸滑动不会改动预设，独立手柄才触发移位', async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 1100, height: 760 },
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  const session = await context.newCDPSession(page);
+  try {
+    await page.goto(
+      'http://127.0.0.1:19519/?type=metric-card&bp=tablet&width=900&w=8&h=5&edit&inner=value&custom',
+    );
+    const block = page.locator('.widget-card').first().locator('[data-part=value]');
+    const handle = block.locator('.part-move');
+    await expect(handle).toBeVisible();
+    const swipe = async (start: { x: number; y: number }, dx: number, dy: number) => {
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ ...start, id: 1 }],
+      });
+      for (let i = 1; i <= 10; i++) {
+        await session.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [{ x: start.x + (dx * i) / 10, y: start.y + (dy * i) / 10, id: 1 }],
+        });
+        await page.waitForTimeout(20);
+      }
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    };
+    const content = (await block.boundingBox())!;
+    await swipe({ x: content.x + content.width / 2, y: content.y + content.height / 2 }, 3, -100);
+    expect(await page.evaluate(() => (window as any).lastInnerChanges)).toBeUndefined();
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.waitForTimeout(400);
+    const originalColumn = await block.evaluate(
+      (element) => Number(getComputedStyle(element).gridColumnStart) - 1,
+    );
+    const grip = (await handle.boundingBox())!;
+    await swipe({ x: grip.x + 22, y: grip.y + 22 }, originalColumn ? -100 : 100, 0);
+    const changes = await page.evaluate(() => (window as any).lastInnerChanges);
+    expect(changes.value.column).not.toBe(originalColumn);
+    expect(grip.width).toBe(44);
+    expect(grip.height).toBe(44);
+  } finally {
+    await session.detach();
+    await context.close();
+  }
+});
 test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏移或内部滚动', async ({ page }) => {
   test.setTimeout(300000);
   const failures: string[] = [];
@@ -106,7 +153,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.22',
+        version: '0.1.23',
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,

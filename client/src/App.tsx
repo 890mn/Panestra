@@ -18,13 +18,13 @@ import {
   Check,
   Code2,
   Cpu,
-  Maximize2,
   Download,
   Grip,
   HardDrive,
   LayoutDashboard,
   LockKeyhole,
   Menu,
+  PanelLeftClose,
   Monitor,
   Moon,
   MoreHorizontal,
@@ -90,6 +90,8 @@ import { LayoutCanvas, type EditorActions } from './LayoutCanvas';
 import { Brand, SLOGAN } from './Brand';
 import { AppUpdates } from './AppUpdates';
 import { DesktopServicePanel } from './DesktopServicePanel';
+import { ResizeGrip } from './ResizeGrip';
+import { useSidebar } from './useSidebar';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
@@ -130,7 +132,7 @@ export function App() {
   const [modal, setModal] = useState('');
   const [configuration, setConfiguration] = useState<Entity<Widget> | null>(null);
   const [notice, setNotice] = useState('');
-  const [sidebar, setSidebar] = useState(false);
+  const sidebar = useSidebar(width < 768);
   const [undo, setUndo] = useState<
     Array<{
       pageId: string;
@@ -376,8 +378,14 @@ export function App() {
     );
   const system = state.telemetry[`${SYSTEM}/system.info`]?.value as SystemInfo | undefined;
   return (
-    <div className="app-shell">
-      <aside className={`sidebar ${sidebar ? 'open' : ''}`}>
+    <div className={`app-shell ${sidebar.visible ? '' : 'sidebar-collapsed'}`}>
+      <aside
+        id="main-navigation"
+        aria-label="主导航"
+        className={`sidebar ${sidebar.visible ? 'open' : ''}`}
+        inert={!sidebar.visible}
+        {...sidebar.bindings}
+      >
         <div className="brand">
           <Brand slogan onError={(error) => notify(errorText(error))} />
         </div>
@@ -404,7 +412,7 @@ export function App() {
               onClick={() => {
                 setActivePage(page.id);
                 setSection('workspace');
-                setSidebar(false);
+                sidebar.dismissMobile();
               }}
             >
               <LayoutDashboard size={18} />
@@ -427,7 +435,7 @@ export function App() {
               className={`nav-item ${section === item.id ? 'active' : ''}`}
               onClick={() => {
                 setSection(item.id);
-                setSidebar(false);
+                sidebar.dismissMobile();
               }}
             >
               {item.icon}
@@ -446,22 +454,21 @@ export function App() {
           </div>
         </div>
       </aside>
-      {sidebar ? (
-        <Button
-          className="sidebar-backdrop"
-          aria-label="关闭菜单"
-          onClick={() => setSidebar(false)}
-        />
+      {sidebar.visible && width < 768 ? (
+        <Button className="sidebar-backdrop" aria-label="关闭菜单" onClick={sidebar.close} />
       ) : null}
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumbs">
             <Button
-              className="icon-button mobile-menu"
-              aria-label="打开菜单"
-              onClick={() => setSidebar(true)}
+              ref={sidebar.toggle}
+              className="icon-button sidebar-toggle"
+              aria-label={sidebar.visible && width >= 768 ? '收起侧栏' : '打开菜单'}
+              aria-controls="main-navigation"
+              aria-expanded={sidebar.visible}
+              onClick={sidebar.visible ? sidebar.close : sidebar.open}
             >
-              <Menu size={20} />
+              {sidebar.visible && width >= 768 ? <PanelLeftClose size={20} /> : <Menu size={20} />}
             </Button>
             <span className="topbar-context-icon">
               {section === 'workspace' ? (
@@ -1238,9 +1245,8 @@ export const WidgetCard = memo(function WidgetCard(props: {
             </span>
             <button
               className="widget-detail-trigger"
-              {...(editing ? editor.move : {})}
               aria-label={editing ? `选择${widget.data.title}` : `查看${widget.data.title}详情`}
-              onClick={editing ? editor.move.onClick : () => setDetail(true)}
+              onClick={editing ? editor.select : () => setDetail(true)}
             >
               <h3 title={widget.data.title}>{widget.data.title}</h3>
             </button>
@@ -1274,7 +1280,7 @@ export const WidgetCard = memo(function WidgetCard(props: {
             aria-label={`调整${widget.data.title}尺寸`}
             {...editor.resize}
           >
-            <Maximize2 size={18} />
+            <ResizeGrip />
           </Button>
         ) : null}
       </article>

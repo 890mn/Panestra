@@ -591,7 +591,8 @@ export function LayoutCanvas({
                   : '松手保存位置 · 滑到屏幕边缘可继续滚动 · Esc 取消'
                 : saving
                   ? '正在保存整组布局…'
-                  : hint || '拖动标题或卡片内容移动，右下角调整大小，点选卡片后可调整位置与样式'}
+                  : hint ||
+                    '滑动卡片内容滚动页面，拖动圆点手柄移动，右下角调整大小，点选卡片编辑样式'}
             </p>
             {!geometryPending && selectedWidget && selectedLayout && profile ? (
               <ProfileControls
@@ -662,6 +663,7 @@ export function LayoutCanvas({
                   ? {
                       onPointerDown: (event) => {
                         if (
+                          event.pointerType !== 'mouse' ||
                           (event.target as HTMLElement).closest('button,a,input,select,textarea') ||
                           contentEditing
                         )

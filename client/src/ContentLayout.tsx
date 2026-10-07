@@ -10,10 +10,11 @@ import {
   type ReactNode,
   type PointerEvent,
 } from 'react';
-import { Maximize2 } from 'lucide-react';
+import { Grip } from 'lucide-react';
 import type { Widget, WidgetBlock, WidgetProfile } from '../../packages/protocol/src';
 import { orderedBlocks, placeBlocks } from '../../packages/widget-schema/src/presentation';
 import { Button } from './components';
+import { ResizeGrip } from './ResizeGrip';
 
 export type ContentEditor = {
   selected: string;
@@ -197,7 +198,13 @@ export function ContentLayout({
                       : 'center',
               } as CSSProperties
             }
-            onPointerDown={(event) => start(event, block.id, 'move')}
+            onPointerDown={(event) => {
+              if (event.pointerType === 'mouse' && !(event.target as HTMLElement).closest('button'))
+                start(event, block.id, 'move');
+            }}
+            onClick={(event) => {
+              if (!(event.target as HTMLElement).closest('button')) editor?.select(block.id);
+            }}
             onPointerMove={move}
             onPointerUp={(event) => finish(event)}
             onPointerCancel={(event) => finish(event, true)}
@@ -208,6 +215,18 @@ export function ContentLayout({
             {parts.find((part) => part.props['data-block'] === block.id)}
             {resizable ? (
               <Button
+                className="part-move icon-button"
+                aria-label={`移动${block.label}内容`}
+                onPointerDown={(event) => start(event, block.id, 'move')}
+                onPointerMove={move}
+                onPointerUp={(event) => finish(event)}
+                onPointerCancel={(event) => finish(event, true)}
+              >
+                <Grip size={16} />
+              </Button>
+            ) : null}
+            {resizable ? (
+              <Button
                 className="part-resize icon-button"
                 aria-label={`调整${block.label}宽度`}
                 onPointerDown={(event) => start(event, block.id, 'resize')}
@@ -215,7 +234,7 @@ export function ContentLayout({
                 onPointerUp={(event) => finish(event)}
                 onPointerCancel={(event) => finish(event, true)}
               >
-                <Maximize2 size={16} />
+                <ResizeGrip size={16} />
               </Button>
             ) : null}
           </div>

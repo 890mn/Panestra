@@ -239,7 +239,9 @@ function renderPreview(query: string) {
                 ? {
                     selected: params.get('inner') || BLOCKS[type][0].id,
                     select: () => {},
-                    change: () => {},
+                    change: (blocks) => {
+                      (window as any).lastInnerChanges = blocks;
+                    },
                   }
                 : undefined,
               profile: params.has('custom')

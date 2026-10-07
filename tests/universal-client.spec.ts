@@ -148,7 +148,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.22.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.23.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -159,7 +159,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.22.png`,
+      path: `artifacts/connection-${label}-0.1.23.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -330,6 +330,84 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   expect(errors).toEqual([]);
 });
 
+test('触屏滚动不改变布局，左栏只响应横向收起，图标与键盘可恢复导航', async () => {
+  const originalViewport = tablet.viewportSize()!;
+  await tablet.setViewportSize({ width: 900, height: 760 });
+  const session = await tablet.context().newCDPSession(tablet);
+  const swipe = async (start: { x: number; y: number }, dx: number, dy: number) => {
+    await session.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ ...start, id: 1 }],
+    });
+    for (let i = 1; i <= 12; i++) {
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: start.x + (dx * i) / 12, y: start.y + (dy * i) / 12, id: 1 }],
+      });
+      await tablet.waitForTimeout(25);
+    }
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  try {
+    await tablet.getByRole('button', { name: '总览', exact: true }).click();
+    await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
+    if (await tablet.getByRole('button', { name: '收起编辑面板', exact: true }).isVisible())
+      await tablet.getByRole('button', { name: '收起编辑面板', exact: true }).click();
+    const cpu = tablet.getByTestId('widget-cpu');
+    const layouts = () =>
+      tablet.locator('.widget-card').evaluateAll((cards) =>
+        cards.map((card) => ({
+          id: card.getAttribute('data-testid'),
+          style: card.getAttribute('style'),
+        })),
+      );
+    const before = await layouts();
+    for (const selector of ['.widget-content', '.widget-detail-trigger']) {
+      await tablet.evaluate(() => scrollTo(0, 0));
+      await tablet.waitForTimeout(300);
+      const box = (await cpu.locator(selector).boundingBox())!;
+      const scroll = await tablet.evaluate(() => scrollY);
+      await swipe({ x: box.x + box.width / 2, y: box.y + Math.min(box.height / 2, 100) }, 5, -120);
+      await expect.poll(() => tablet.evaluate(() => scrollY)).toBeGreaterThan(scroll + 40);
+      expect(await layouts()).toEqual(before);
+      await tablet.waitForTimeout(400);
+    }
+    const sidebar = tablet.getByRole('complementary', { name: '主导航', exact: true });
+    await swipe({ x: 150, y: 270 }, -5, -90);
+    await expect(sidebar).toBeVisible();
+    const mainBefore = await tablet.locator('.main-shell').boundingBox();
+    const settings = (await sidebar
+      .getByRole('button', { name: '设置', exact: true })
+      .boundingBox())!;
+    await swipe({ x: settings.x + settings.width - 30, y: settings.y + 22 }, -130, 8);
+    await expect(sidebar).toBeHidden();
+    await expect(tablet.locator('.breadcrumbs')).toContainText('总览');
+    await expect.poll(async () => (await tablet.locator('.main-shell').boundingBox())!.x).toBe(0);
+    expect(mainBefore!.x).toBeGreaterThan(0);
+    await tablet.getByRole('button', { name: '打开菜单', exact: true }).click();
+    await expect(sidebar).toBeVisible();
+    await expect(tablet.getByRole('button', { name: '收起侧栏', exact: true })).toBeFocused();
+    await tablet.getByRole('button', { name: '收起侧栏', exact: true }).press('Enter');
+    await expect(sidebar).toBeHidden();
+    await tablet.reload();
+    await tablet.getByTestId('widget-cpu').waitFor();
+    await expect(sidebar).toBeHidden();
+    await tablet.getByRole('button', { name: '打开菜单', exact: true }).click();
+    await expect(sidebar).toBeVisible();
+    await expect
+      .poll(async () => (await tablet.locator('.main-shell').boundingBox())!.x)
+      .toBe(mainBefore!.x);
+    await phone.getByRole('button', { name: '打开菜单', exact: true }).click();
+    await phone.getByRole('button', { name: '关闭菜单', exact: true }).press('Escape');
+    await expect(phone.getByRole('complementary', { name: '主导航', exact: true })).toBeHidden();
+    await expect(phone.getByRole('button', { name: '打开菜单', exact: true })).toBeFocused();
+    expect(errors).toEqual([]);
+  } finally {
+    await session.detach();
+    await tablet.setViewportSize(originalViewport);
+  }
+});
+
 test('全局一致性：三种屏幕、黑白主题、适配目录与按键反馈', async () => {
   for (const [label, surface] of [
     ['desktop', desktop],
@@ -347,7 +425,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.22');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.23');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -677,19 +755,10 @@ test('原位预览、内部排布与每个尺寸独立保存和取消', async ()
   await tablet.getByLabel('内容占用列数').fill('6');
   const block = cpu.locator('[data-part=value]');
   await block.scrollIntoViewIfNeeded();
-  const rect = await block.boundingBox();
-  const cdp = await tablet.context().newCDPSession(tablet);
-  await cdp.send('Input.dispatchTouchEvent', {
-    type: 'touchStart',
-    touchPoints: [{ x: rect!.x + 8, y: rect!.y + 10, id: 1 }],
-  });
-  await cdp.send('Input.dispatchTouchEvent', {
-    type: 'touchMove',
-    touchPoints: [{ x: rect!.x + 70, y: rect!.y + 10, id: 1 }],
-  });
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  // This half-width block uses the inspector rather than overlaying a touch handle on its value.
+  await expect(block.locator('.part-move')).toHaveCount(0);
+  await tablet.getByLabel('内容左侧列').fill('1');
   await expect(tablet.getByLabel('内容左侧列')).not.toHaveValue('0');
-  await cdp.detach();
   await tablet.screenshot({ path: 'artifacts/layout-live-content-editor.png', fullPage: true });
   await tablet.getByRole('button', { name: '保存当前尺寸预设', exact: true }).click();
   await expect(
@@ -923,7 +992,7 @@ test('ALAS：生成只读桥接、Owner 配置权限与跨设备状态组件', a
   expect(errors).toEqual([]);
 });
 
-test('自由编辑：尺寸位置实时预览、应用与取消、小卡整面触摸拖动及面板收起', async () => {
+test('自由编辑：尺寸位置实时预览、应用与取消、小卡手柄拖动及面板收起', async () => {
   for (const surface of [desktop, tablet]) {
     const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
     if (await menu.isVisible()) await menu.click();
@@ -959,7 +1028,7 @@ test('自由编辑：尺寸位置实时预览、应用与取消、小卡整面�
   await expect(tablet.locator('.layout-inspector-body')).toBeHidden();
   await cpu.scrollIntoViewIfNeeded();
   const before = await cpu.evaluate((el) => (el as HTMLElement).style.left);
-  const box = await cpu.locator('.widget-content').boundingBox();
+  const box = await cpu.locator('.layout-title-move').boundingBox();
   const step = await tablet.locator('.widget-canvas').evaluate((el) => (el.clientWidth + 16) / 8);
   const session = await tablet.context().newCDPSession(tablet);
   try {

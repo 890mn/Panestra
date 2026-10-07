@@ -314,7 +314,7 @@
   }
 }
 .widget-card.editable {
-  touch-action: none;
+  touch-action: auto;
   user-select: none;
   -webkit-user-select: none;
 }
