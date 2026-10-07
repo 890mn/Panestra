@@ -385,6 +385,6 @@ Panestra 目前仍以快速迭代为主。
 
 **ONE CORE, EVERY DEVICE.**
 
-Built around one idea: **everything can become a surface capability.**
+Built around one idea: **everything can be a plugin.**
 
 </div>
