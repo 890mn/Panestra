@@ -17,6 +17,12 @@ let tabletContext: BrowserContext;
 let coreData = '';
 let errors: string[] = [];
 let stoppingCore = false;
+async function openWorkspace(surface: Page) {
+  await expect(surface.locator('.topbar')).toBeVisible();
+  const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
+  if (await menu.isVisible()) await menu.click();
+  await surface.getByRole('button', { name: '主机工作区', exact: true }).click();
+}
 async function startCore() {
   stoppingCore = false;
   processCore = spawn(
@@ -150,7 +156,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.30.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.31.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -161,7 +167,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.30.png`,
+      path: `artifacts/connection-${label}-0.1.31.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -171,13 +177,14 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await desktop.getByLabel('首次认领码').fill(bootstrap);
   await desktop.getByLabel('此设备名称').fill('测试桌面');
   await desktop.getByRole('button', { name: '建立并进入工作空间' }).click();
+  await desktop.getByRole('button', { name: '主机工作区', exact: true }).click();
   await expect(desktop.getByTestId('widget-cpu')).toBeVisible();
   await desktop.getByRole('button', { name: '插件', exact: true }).click();
   await desktop.getByRole('button', { name: '查看System Monitor状态与设置' }).click();
   await desktop.getByLabel('读取系统指标').check();
   await desktop.getByRole('button', { name: '授权并启用' }).click();
   await desktop.getByRole('button', { name: '关闭', exact: true }).click();
-  await desktop.getByRole('button', { name: '总览', exact: true }).click();
+  await desktop.getByRole('button', { name: '主机工作区', exact: true }).click();
   await expect(desktop.getByTestId('widget-cpu').locator('.metric-value')).not.toContainText('—', {
     timeout: 15000,
   });
@@ -212,6 +219,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await phone.getByRole('button', { name: '发送配对请求' }).click();
   await expect(desktop.getByText('测试手机 请求连接')).toBeVisible({ timeout: 15000 });
   await desktop.getByRole('button', { name: '允许查看与编辑' }).click();
+  await openWorkspace(phone);
   await expect(phone.getByTestId('widget-cpu')).toBeVisible({ timeout: 15000 });
   await phone.screenshot({
     path: 'artifacts/mobile-day.png',
@@ -228,8 +236,9 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await tablet.getByRole('button', { name: '发送配对请求' }).click();
   await expect(desktop.getByText('测试平板 请求连接')).toBeVisible({ timeout: 15000 });
   await desktop.getByRole('button', { name: '允许查看与编辑' }).click();
+  await openWorkspace(tablet);
   await expect(tablet.getByTestId('widget-cpu')).toBeVisible({ timeout: 15000 });
-  await desktop.getByRole('button', { name: '总览', exact: true }).click();
+  await desktop.getByRole('button', { name: '主机工作区', exact: true }).click();
   await phone.getByRole('button', { name: '配置处理器', exact: true }).click();
   await phone.getByLabel('名称', { exact: true }).fill('共同的处理器');
   await phone.getByRole('button', { name: '保存配置' }).click();
@@ -264,6 +273,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await desktop.getByRole('button', { name: '重做布局', exact: true }).click();
   await expect(desktop.getByTestId('widget-cpu')).toHaveCSS('top', '672px');
   await phone.reload();
+  await openWorkspace(phone);
   await expect(
     phone.getByTestId('widget-cpu').getByRole('heading', { name: '共同的处理器' }),
   ).toBeVisible();
@@ -280,7 +290,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await phone.getByRole('button', { name: '验证并连接', exact: true }).click();
   await expect(phone.locator('dialog[open]')).not.toBeVisible();
   await phone.getByRole('button', { name: '打开菜单', exact: true }).click();
-  await phone.getByRole('button', { name: '总览', exact: true }).click();
+  await phone.getByRole('button', { name: '主机工作区', exact: true }).click();
   const originalFingerprint = fingerprint;
   await stopCore();
   await expect(desktop.locator('.offline-banner')).toBeVisible();
@@ -354,7 +364,7 @@ test('触屏滚动不改变布局，左栏只响应横向收起，图标与键�
     await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   };
   try {
-    await tablet.getByRole('button', { name: '总览', exact: true }).click();
+    await tablet.getByRole('button', { name: '主机工作区', exact: true }).click();
     await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
     if (await tablet.getByRole('button', { name: '收起编辑面板', exact: true }).isVisible())
       await tablet.getByRole('button', { name: '收起编辑面板', exact: true }).click();
@@ -386,7 +396,7 @@ test('触屏滚动不改变布局，左栏只响应横向收起，图标与键�
       .boundingBox())!;
     await swipe({ x: settings.x + settings.width - 30, y: settings.y + 22 }, -130, 8);
     await expect(sidebar).toBeHidden();
-    await expect(tablet.locator('.breadcrumbs')).toContainText('总览');
+    await expect(tablet.locator('.breadcrumbs')).toContainText('主机工作区');
     await expect.poll(async () => (await tablet.locator('.main-shell').boundingBox())!.x).toBe(0);
     expect(mainBefore!.x).toBeGreaterThan(0);
     await tablet.getByRole('button', { name: '打开菜单', exact: true }).click();
@@ -395,13 +405,14 @@ test('触屏滚动不改变布局，左栏只响应横向收起，图标与键�
     await tablet.getByRole('button', { name: '收起侧栏', exact: true }).press('Enter');
     await expect(sidebar).toBeHidden();
     await tablet.reload();
-    await tablet.getByTestId('widget-cpu').waitFor();
+    await tablet.locator('.aggregate-widget').first().waitFor();
     await expect(sidebar).toBeHidden();
     await tablet.getByRole('button', { name: '打开菜单', exact: true }).click();
     await expect(sidebar).toBeVisible();
     await expect
       .poll(async () => (await tablet.locator('.main-shell').boundingBox())!.x)
       .toBe(mainBefore!.x);
+    await tablet.getByRole('button', { name: '主机工作区', exact: true }).click();
     await phone.getByRole('button', { name: '打开菜单', exact: true }).click();
     await phone.getByRole('button', { name: '关闭菜单', exact: true }).press('Escape');
     await expect(phone.getByRole('complementary', { name: '主导航', exact: true })).toBeHidden();
@@ -430,7 +441,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.30');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.31');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -528,7 +539,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
         fullPage: true,
         animations: 'disabled',
       });
-      for (const route of ['设备与连接', '总览']) {
+      for (const route of ['设备与连接', '主机工作区']) {
         await navigate(route);
         expect(
           await surface.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -572,14 +583,14 @@ test('Codex 适配：权限、多额度桶、空值、组件同步和停用清�
   await expect(tablet.getByRole('button', { name: '停用读取', exact: true })).toHaveCount(0);
   await tablet.getByRole('button', { name: '刷新额度', exact: true }).click();
   await tablet.getByRole('button', { name: '关闭', exact: true }).click();
-  await navigate(desktop, '总览');
+  await navigate(desktop, '主机工作区');
   await desktop.getByRole('button', { name: '添加组件', exact: true }).click();
   await desktop.getByRole('button', { name: /Codex 额度.*添加/ }).click();
   await desktop.getByRole('button', { name: '浏览', exact: true }).click();
   await expect(desktop.locator('.widget-card[data-widget-type="codex-usage"]')).toContainText(
     '63%',
   );
-  await navigate(tablet, '总览');
+  await navigate(tablet, '主机工作区');
   await expect(tablet.locator('.widget-card[data-widget-type="codex-usage"]')).toContainText('63%');
   await desktop.screenshot({ path: 'artifacts/codex-test-workspace.png', fullPage: true });
   await navigate(desktop, '插件');
@@ -604,7 +615,7 @@ test('Codex 适配：权限、多额度桶、空值、组件同步和停用清�
 });
 
 test('触摸编辑：拖动交换、整组撤销、缩放、取消和标题避让', async () => {
-  await tablet.getByRole('button', { name: '总览', exact: true }).click();
+  await tablet.getByRole('button', { name: '主机工作区', exact: true }).click();
   await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
   await tablet.getByLabel('布局断点').selectOption('tablet');
   expect(
@@ -734,7 +745,7 @@ test('预制尺寸与呈现：配置同步、摘要详情与尺寸整组撤销',
   await expect(dialog).not.toBeVisible();
   await expect(cpu).toHaveCSS('height', '320px');
   await expect(cpu.locator('.widget-view')).toHaveAttribute('data-presentation', 'gauge');
-  await desktop.getByRole('button', { name: '总览', exact: true }).click();
+  await desktop.getByRole('button', { name: '主机工作区', exact: true }).click();
   await desktop.getByRole('button', { name: '浏览', exact: true }).click();
   await expect(desktop.getByTestId('widget-cpu').locator('.widget-view')).toHaveAttribute(
     'data-presentation',
@@ -780,6 +791,7 @@ test('原位预览、内部排布与每个尺寸独立保存和取消', async ()
     tablet.getByRole('button', { name: '保存当前尺寸预设', exact: true }),
   ).toBeDisabled();
   await tablet.reload();
+  await openWorkspace(tablet);
   await expect(tablet.locator('.live-pill')).toContainText('实时同步', { timeout: 20000 });
   await expect(cpu.locator('.widget-view')).toHaveAttribute('data-presentation', 'segments');
   await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
@@ -906,7 +918,7 @@ test('并发预设修改不覆盖较新的远端样式，冲突后仍可取消�
   for (const surface of [desktop, tablet]) {
     const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
     if (await menu.isVisible()) await menu.click();
-    await surface.getByRole('button', { name: '总览', exact: true }).click();
+    await surface.getByRole('button', { name: '主机工作区', exact: true }).click();
   }
   const cpu = tablet.getByTestId('widget-cpu');
   await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
@@ -1000,11 +1012,11 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
   ).toBeDisabled();
   await tablet.getByRole('button', { name: '关闭', exact: true }).click();
   await desktop.getByRole('button', { name: '关闭', exact: true }).click();
-  await navigate(desktop, '总览');
+  await navigate(desktop, '主机工作区');
   await desktop.getByRole('button', { name: '添加组件', exact: true }).click();
   await desktop.getByRole('button', { name: /网易云播放.*添加/ }).click();
   await desktop.getByRole('button', { name: '浏览', exact: true }).click();
-  await navigate(tablet, '总览');
+  await navigate(tablet, '主机工作区');
   await expect(tablet.locator('[data-widget-type="media-control"]')).toHaveCount(1);
   await expect(
     tablet.locator('[data-widget-type="media-control"] .music-buttons button').first(),
@@ -1044,11 +1056,11 @@ test('ALAS：生成只读桥接、Owner 配置权限与跨设备状态组件', a
   await expect(tablet.getByRole('dialog').locator('.alas-status')).not.toContainText('运行中');
   await tablet.getByRole('button', { name: '关闭', exact: true }).click();
   await desktop.getByRole('button', { name: '关闭', exact: true }).click();
-  await navigate(desktop, '总览');
+  await navigate(desktop, '主机工作区');
   await desktop.getByRole('button', { name: '添加组件', exact: true }).click();
   await desktop.getByRole('button', { name: /ALAS 任务状态.*添加/ }).click();
   await desktop.getByRole('button', { name: '浏览', exact: true }).click();
-  await navigate(tablet, '总览');
+  await navigate(tablet, '主机工作区');
   await expect(tablet.locator('[data-widget-type="task-status"]')).toHaveCount(1);
   await navigate(desktop, '插件');
   await desktop.getByRole('button', { name: '查看ALAS状态与设置' }).click();
@@ -1063,7 +1075,7 @@ test('自由编辑：尺寸位置实时预览、应用与取消、小卡手柄�
   for (const surface of [desktop, tablet]) {
     const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
     if (await menu.isVisible()) await menu.click();
-    await surface.getByRole('button', { name: '总览', exact: true }).click();
+    await surface.getByRole('button', { name: '主机工作区', exact: true }).click();
   }
   const cpu = tablet.getByTestId('widget-cpu');
   await tablet.getByRole('button', { name: '编辑布局', exact: true }).click();
@@ -1132,7 +1144,7 @@ test('编辑面板浮动且可移位，切换编辑保持三端画布和内容�
   for (const surface of [desktop, tablet, phone]) {
     const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
     if (await menu.isVisible()) await menu.click();
-    await surface.getByRole('button', { name: '总览', exact: true }).click();
+    await surface.getByRole('button', { name: '主机工作区', exact: true }).click();
     await surface.getByRole('button', { name: '浏览', exact: true }).click();
     const measure = () =>
       surface.locator('.widget-canvas').evaluate((el) => {
@@ -1227,7 +1239,7 @@ test('独立插件包：停用与卸载持久化、离线下载重装、权限�
         }))
         .sort((a, b) => String(a.id).localeCompare(String(b.id))),
     );
-  await desktop.getByRole('button', { name: '总览', exact: true }).click();
+  await desktop.getByRole('button', { name: '主机工作区', exact: true }).click();
   await desktop.getByRole('button', { name: '编辑布局', exact: true }).click();
   await desktop.getByLabel('布局断点').selectOption('desktop');
   await desktop.getByRole('button', { name: '浏览', exact: true }).click();
@@ -1265,7 +1277,7 @@ test('独立插件包：停用与卸载持久化、离线下载重装、权限�
   await expect(desktop.getByRole('dialog')).toContainText('dev.panestra.codex');
   await desktop.getByRole('button', { name: '确认安装', exact: true }).click();
   await expect(desktop.locator('.adapter-card')).toHaveCount(7);
-  await desktop.getByRole('button', { name: '总览', exact: true }).click();
+  await desktop.getByRole('button', { name: '主机工作区', exact: true }).click();
   await expect.poll(geometry).toEqual(before);
   expect(errors).toEqual([]);
 });

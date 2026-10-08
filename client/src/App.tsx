@@ -74,7 +74,8 @@ import {
   sameGeometry,
   type LayoutRecord,
 } from '../../packages/widget-schema/src';
-import { core } from './core';
+import { core, coreFleet } from './core';
+import { hostName, type CoreHost } from './core-fleet';
 import { canScanPairing, discover, localCoreInfo, native, scanPairing } from './platform';
 import { loopbackEndpoint, parsePairingCode } from './pairing';
 import { connectionErrorText } from './connection-errors';
@@ -97,6 +98,7 @@ import { ResizeGrip } from './ResizeGrip';
 import { useSidebar } from './useSidebar';
 import { PresentationChoices } from './PresentationChoices';
 import { CoreConnections } from './CoreConnections';
+import { CoreOverview } from './CoreOverview';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
@@ -120,6 +122,7 @@ type Theme = { mode: 'day' | 'night' | 'system'; accent: string };
 let initialized = false;
 export function App() {
   const state = useSyncExternalStore(core.subscribe, core.getSnapshot);
+  const hosts = useSyncExternalStore(coreFleet.subscribe, coreFleet.getSnapshot);
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       return JSON.parse(
@@ -130,7 +133,8 @@ export function App() {
     }
   });
   const [activePage, setActivePage] = useState('page-overview');
-  const [section, setSection] = useState('workspace');
+  const [section, setSection] = useState('aggregate');
+  const previousHost = useRef<string | undefined>(undefined);
   const [editing, setEditing] = useState(false);
   const [preview, setPreview] = useState<Breakpoint | 'auto'>('auto');
   const [width, setWidth] = useState(window.innerWidth);
@@ -158,6 +162,8 @@ export function App() {
     (e) => e.kind === 'page' && !e.deleted,
   ) as unknown as Entity<Page>[];
   const currentPage = pages.find((e) => e.id === activePage) || pages[0];
+  const workspaceTitle =
+    currentPage?.data.title === '总览' ? '主机工作区' : currentPage?.data.title;
   const widgets = (state.snapshot?.entities || []).filter(
     (e) => e.kind === 'widget' && !e.deleted && e.data.pageId === currentPage?.id,
   ) as unknown as Entity<Widget>[];
@@ -197,7 +203,7 @@ export function App() {
   }, [theme]);
   useEffect(() => {
     const resume = () => {
-      if (document.visibilityState === 'visible') core.resume();
+      if (document.visibilityState === 'visible') coreFleet.resume();
     };
     window.addEventListener('online', resume);
     document.addEventListener('visibilitychange', resume);
@@ -217,7 +223,9 @@ export function App() {
     setEditing(false);
     setConfiguration(null);
     setActivePage('page-overview');
-    setSection('workspace');
+    if (previousHost.current && previousHost.current !== state.endpoint?.serverId)
+      setSection('workspace');
+    previousHost.current = state.endpoint?.serverId;
   }, [state.endpoint?.serverId]);
   const perform = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -228,6 +236,13 @@ export function App() {
     } finally {
       setBusy(false);
     }
+  };
+  const openHost = async (host: CoreHost) => {
+    await perform(async () => {
+      if (!host.active && host.state.endpoint) await core.switchEndpoint(host.state.endpoint);
+      setSection('workspace');
+      setActivePage('page-overview');
+    });
   };
   const layoutEntity = (id: string) =>
     state.snapshot?.entities.find(
@@ -409,7 +424,7 @@ export function App() {
         />
       </Modal>
     ) : null;
-  if (!state.snapshot && !state.device)
+  if (!state.snapshot && !state.device && !state.endpoint)
     return (
       <>
         <ConnectScreen
@@ -450,6 +465,18 @@ export function App() {
           </Button>
         </div>
         <nav aria-label="页面">
+          <Button
+            className={`nav-item ${section === 'aggregate' ? 'active' : ''}`}
+            onClick={() => {
+              setSection('aggregate');
+              setEditing(false);
+              sidebar.dismissMobile();
+            }}
+          >
+            <LayoutDashboard size={18} />
+            <span>总览</span>
+            {section === 'aggregate' ? <span className="active-dot" /> : null}
+          </Button>
           {pages.map((page) => (
             <Button
               key={page.id}
@@ -465,7 +492,7 @@ export function App() {
               }}
             >
               <LayoutDashboard size={18} />
-              <span>{page.data.title}</span>
+              <span>{page.data.title === '总览' ? '主机工作区' : page.data.title}</span>
               {section === 'workspace' && currentPage?.id === page.id ? (
                 <span className="active-dot" />
               ) : null}
@@ -502,7 +529,7 @@ export function App() {
           >
             <span className={`status-light ${state.online ? '' : 'offline'}`} />
             <div>
-              <strong>{system?.hostname || 'Panestra Core'}</strong>
+              <strong>{system?.hostname || hostName(state)}</strong>
               <small>
                 {state.online
                   ? '已连接 · HTTPS / WSS'
@@ -532,7 +559,7 @@ export function App() {
               {sidebar.visible && width >= 768 ? <PanelLeftClose size={20} /> : <Menu size={20} />}
             </Button>
             <span className="topbar-context-icon">
-              {section === 'workspace' ? (
+              {section === 'workspace' || section === 'aggregate' ? (
                 <LayoutDashboard size={18} />
               ) : section === 'plugins' ? (
                 <Plug size={18} />
@@ -543,22 +570,36 @@ export function App() {
               )}
             </span>
             <strong>
-              {section === 'workspace'
-                ? currentPage?.data.title
-                : section === 'plugins'
-                  ? '插件'
-                  : section === 'devices'
-                    ? '设备与连接'
-                    : '设置'}
+              {section === 'aggregate'
+                ? '总览'
+                : section === 'workspace'
+                  ? workspaceTitle
+                  : section === 'plugins'
+                    ? '插件'
+                    : section === 'devices'
+                      ? '设备与连接'
+                      : '设置'}
             </strong>
             <span className="topbar-mode">
-              {section === 'workspace' ? (editing ? '布局编辑' : '工作区') : '管理'}
+              {section === 'aggregate'
+                ? '全部主机'
+                : section === 'workspace'
+                  ? editing
+                    ? '布局编辑'
+                    : hostName(state)
+                  : '管理'}
             </span>
           </div>
           <div className="topbar-right">
             <span className="live-pill">
-              <span className={`status-light ${state.online ? '' : 'offline'}`} />
-              {state.online ? '实时同步' : '离线'}
+              <span
+                className={`status-light ${(section === 'aggregate' ? hosts.some((host) => host.state.online) : state.online) ? '' : 'offline'}`}
+              />
+              {section === 'aggregate'
+                ? `${hosts.filter((host) => host.state.online).length} / ${hosts.length} 台在线`
+                : state.online
+                  ? '实时同步'
+                  : '离线'}
             </span>
             <span className="separator" />
             <Button
@@ -571,7 +612,7 @@ export function App() {
           </div>
         </header>
         <main>
-          {!state.online ? (
+          {!state.online && section !== 'aggregate' ? (
             <div className="offline-banner" role="status">
               <WifiOff size={18} />
               <span>{state.error || '正在重新连接 Core，离线期间只读，操作不会排队'}</span>
@@ -595,12 +636,19 @@ export function App() {
               </Button>
             </div>
           ) : null}
+          {section === 'aggregate' ? (
+            <CoreOverview
+              breakpoint={breakpoint}
+              openHost={(host) => void openHost(host)}
+              manage={openConnections}
+            />
+          ) : null}
           {section === 'workspace' ? (
             <>
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">YOUR PERSONAL CONTROL PLANE</div>
-                  <h1>{currentPage?.data.title || '工作空间'}</h1>
+                  <h1>{workspaceTitle || '工作空间'}</h1>
                   <p>一个核心，让每块屏幕各得其所</p>
                 </div>
                 <div className="surface-orbit" title="同一工作空间支持不同屏幕">

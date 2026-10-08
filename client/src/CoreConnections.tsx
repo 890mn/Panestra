@@ -11,7 +11,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { Endpoint } from '../../packages/protocol/src';
-import { core } from './core';
+import { core, coreFleet } from './core';
+import { hostName } from './core-fleet';
 import { connectionErrorText } from './connection-errors';
 import { Button } from './components';
 import './core-connections.css';
@@ -36,6 +37,7 @@ export function CoreConnections({
   repairing?: boolean;
 }) {
   const state = useSyncExternalStore(core.subscribe, core.getSnapshot);
+  const hosts = useSyncExternalStore(coreFleet.subscribe, coreFleet.getSnapshot);
   const [view, setView] = useState<'list' | 'add' | 'repair' | 'address' | 'remote'>(
     repairing ? 'repair' : 'list',
   );
@@ -45,7 +47,10 @@ export function CoreConnections({
   const [error, setError] = useState('');
   const [pending, setPending] = useState('');
   const groups = new Map<string, Endpoint[]>();
-  for (const endpoint of [...(state.endpoint ? [state.endpoint] : []), ...state.knownEndpoints]) {
+  for (const endpoint of [
+    ...hosts.flatMap((host) => (host.state.endpoint ? [host.state.endpoint] : [])),
+    ...state.knownEndpoints,
+  ]) {
     const group = groups.get(endpoint.serverId) || [];
     if (!group.some((item) => item.uri === endpoint.uri)) group.push(endpoint);
     groups.set(endpoint.serverId, group);
@@ -84,11 +89,12 @@ export function CoreConnections({
       ) : null}
       {view === 'list' ? (
         <>
-          <p className="connection-intro">每个 Core 保留自己的工作空间、插件和设备权限</p>
+          <p className="connection-intro">不同主机分别配对并保持连接，总览同时显示全部主机的数据</p>
           <div className="saved-core-list">
             {[...groups].map(([id, endpoints]) => {
               const current = id === state.endpoint?.serverId;
-              const endpoint = endpoints[0];
+              const host = hosts.find((host) => host.id === id);
+              const endpoint = host?.state.endpoint || endpoints[0];
               const open = expanded === id;
               return (
                 <section className="saved-core" data-current={current || undefined} key={id}>
@@ -98,7 +104,11 @@ export function CoreConnections({
                     </span>
                     <div className="saved-core-title">
                       <strong>
-                        {current && currentName ? currentName : addressName(endpoint)}
+                        {current && currentName
+                          ? currentName
+                          : host
+                            ? hostName(host.state)
+                            : addressName(endpoint)}
                       </strong>
                       <small>
                         {current
@@ -107,14 +117,23 @@ export function CoreConnections({
                             : state.connecting
                               ? '当前 Core · 正在重连'
                               : '当前 Core · 离线缓存'
-                          : '已配对 Core'}
+                          : host?.state.online
+                            ? '已配对 · 在线'
+                            : host?.state.pairingRequired
+                              ? '已配对 · 需要重新授权'
+                              : host?.state.connecting
+                                ? '已配对 · 正在连接'
+                                : '已配对 · 离线'}
                       </small>
                     </div>
-                    {current && state.pairingRequired ? (
+                    {(current && state.pairingRequired) || host?.state.pairingRequired ? (
                       <Button
                         className="secondary"
                         disabled={state.switching}
-                        onClick={() => navigate('repair')}
+                        onClick={() => {
+                          setTarget(endpoint);
+                          navigate('repair');
+                        }}
                       >
                         重新配对
                       </Button>
@@ -215,13 +234,16 @@ export function CoreConnections({
           <p className="connection-intro">
             在另一台电脑打开配对窗口，扫描二维码或填写地址、身份指纹与配对码
           </p>
-          {addCore(onConnected, view === 'repair' ? state.endpoint || undefined : undefined)}
+          {addCore(
+            onConnected,
+            view === 'repair' ? target || state.endpoint || undefined : undefined,
+          )}
         </>
       ) : view === 'address' ? (
         <form className="form-stack" onSubmit={submit}>
           <h3>添加连接地址</h3>
           <p className="connection-intro">
-            为同一个 Core 保存局域网或远程映射地址，验证身份后沿用已有配对
+            这是同一台主机的备用地址，会沿用已有身份与配对；连接另一台主机请返回「添加新 Core」
           </p>
           <label>
             HTTPS 地址
@@ -269,13 +291,13 @@ export function CoreConnections({
               <code>19443</code>
             </li>
             <li>
-              返回 Core 列表，为已配对的 Core 添加 <code>https://127.0.0.1:19443</code> 连接地址
+              在 Panestra 选择「添加新 Core」，填写远端主机的身份指纹、配对码和{' '}
+              <code>https://127.0.0.1:19443</code>
             </li>
           </ol>
           <p>端口请以实际配置为准，HTTPS 与实时同步共用同一个 TCP 映射</p>
           <p>
-            首次在这台设备连接时，选择「添加新
-            Core」，在远端电脑打开配对窗口获取身份指纹和配对码，并批准请求
+            首次在这台设备连接时，在远端电脑打开配对窗口获取身份指纹和配对码，并批准请求；同一台已配对的远端主机可直接添加连接地址
           </p>
           <div className="connection-note">
             <ShieldCheck size={16} />

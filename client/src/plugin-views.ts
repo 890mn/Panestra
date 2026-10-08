@@ -6,9 +6,12 @@ import {
   SIZE_PRESETS,
   sourcesFor,
 } from '../../packages/widget-schema/src/presentation';
-import { core } from './core';
-export const widgetDefinition = (widget?: Widget) =>
-  core.state.plugins
+import { core, type InstalledPlugin } from './core';
+export const widgetDefinition = (
+  widget?: Widget,
+  plugins: InstalledPlugin[] = core.state.plugins,
+) =>
+  plugins
     .find((plugin) => plugin.id === widget?.pluginId)
     ?.manifest.widgets.find((item) => item.id === widget?.type);
 const definition = widgetDefinition;

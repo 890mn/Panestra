@@ -328,6 +328,7 @@ pub async fn request(
     let url = endpoint_url(&endpoint, &path)?;
     let client = reqwest::Client::builder()
         .use_preconfigured_tls(tls(&fingerprint)?)
+        .no_proxy()
         .redirect(reqwest::redirect::Policy::none())
         .timeout(Duration::from_secs(10))
         .build()
@@ -341,7 +342,7 @@ pub async fn request(
             req = req.header(k, v);
         }
     }
-    let response = req.body(body).send().await.map_err(|e| e.to_string())?;
+    let response = req.body(body).send().await.map_err(|e| format!("{e:#}"))?;
     let status = response.status().as_u16();
     if response.content_length().unwrap_or(0) > 8 * 1024 * 1024 {
         return Err("Response too large".into());

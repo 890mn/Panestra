@@ -23,6 +23,8 @@ async function startCore(port: number): Promise<TestCore> {
       mkdtempSync(path.resolve('.tools/connection-tests/core-')),
       '--listen',
       `127.0.0.1:${port}`,
+      '--plugin-seed',
+      path.resolve('artifacts/plugin-seed'),
       '--origins',
       origin,
       '--parent-stdio',
@@ -167,6 +169,135 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
   const secondID = await page.evaluate(
     () => (window as any).connectionCore.state.endpoint.serverId,
   );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as any).connectionFleet.getSnapshot().filter((host: any) => host.state.online)
+            .length,
+      ),
+    )
+    .toBe(2);
+  await page.getByRole('button', { name: '总览', exact: true }).click();
+  await expect(page.locator('.aggregate-host')).toHaveCount(2);
+  await expect(page.locator(`[data-host-id="${firstID}"]`)).toContainText('First Core workspace');
+  await page.evaluate(async () => {
+    const hosts = (window as any).connectionFleet.getSnapshot();
+    for (const host of hosts) {
+      const pageEntity = host.state.snapshot.entities.find((entity: any) => entity.kind === 'page');
+      await host.client.command(pageEntity, 'page.update', {
+        title: host.active ? 'Second Core workspace' : 'First Core workspace',
+      });
+      const processor = host.state.snapshot.entities.find(
+        (entity: any) => entity.id === 'widget-cpu',
+      );
+      host.client.patch({
+        telemetry: {
+          'system/name': {
+            topic: 'system/name',
+            value: { hostname: host.active ? 'Travel PC' : 'Home PC' },
+          },
+          [`${processor.data.pluginId}/${processor.data.source}`]: {
+            topic: `${processor.data.pluginId}/${processor.data.source}`,
+            value: host.active ? 71 : 13,
+          },
+        },
+      });
+    }
+  });
+  await expect(page.locator(`[data-host-id="${firstID}"] .aggregate-host-name`)).toContainText(
+    'Home PC',
+  );
+  await expect(page.locator(`[data-host-id="${secondID}"] .aggregate-host-name`)).toContainText(
+    'Travel PC',
+  );
+  await expect(page.locator(`[data-host-id="${secondID}"]`)).toContainText('Second Core workspace');
+  await expect(page.locator(`[data-host-id="${firstID}"] .metric-value`).first()).toContainText(
+    '13',
+  );
+  await expect(page.locator(`[data-host-id="${secondID}"] .metric-value`).first()).toContainText(
+    '71',
+  );
+  await page.evaluate(async () => {
+    const hosts = (window as any).connectionFleet.getSnapshot();
+    (window as any).aggregateControlCalls = [];
+    (window as any).aggregateOriginalRequests = [];
+    for (const host of hosts) {
+      const plugin = host.state.plugins.find((item: any) =>
+        item.manifest.sources.some((source: any) => source.id === 'media.status'),
+      );
+      await host.client.command({ id: 'aggregate-music', rev: 0 }, 'widget.create', {
+        pageId: 'page-overview',
+        type: 'media-control',
+        title: 'Music controls',
+        pluginId: plugin.id,
+        source: 'media.status',
+      });
+      (window as any).aggregateOriginalRequests.push({
+        client: host.client,
+        request: host.client.pluginRequest,
+      });
+      host.client.pluginRequest = async (id: string, operation: string, body: any) => {
+        (window as any).aggregateControlCalls.push({ hostId: host.id, id, operation, body });
+      };
+      host.client.patch({
+        telemetry: {
+          ...host.client.state.telemetry,
+          [`${plugin.id}/media.status`]: {
+            topic: `${plugin.id}/media.status`,
+            value: {
+              enabled: true,
+              allowControl: true,
+              state: 'ready',
+              stale: false,
+              playback: 'paused',
+              title: 'Scoped song',
+              artist: 'Test artist',
+              album: 'Test album',
+              message: '',
+              refreshing: false,
+              controls: { toggle: true, previous: true, next: true, seek: true },
+              durationSeconds: 180,
+              positionSeconds: 30,
+              updatedAt: new Date().toISOString(),
+              trackId: host.id,
+            },
+          },
+        },
+      });
+    }
+  });
+  for (const id of [firstID, secondID]) {
+    const card = page.getByTestId(`aggregate-${id}-aggregate-music`);
+    await card.getByRole('button', { name: '网易云下一首', exact: true }).click();
+    await expect
+      .poll(() => page.evaluate(() => (window as any).aggregateControlCalls.at(-1)?.hostId))
+      .toBe(id);
+  }
+  await page.evaluate((id) => {
+    const host = (window as any).connectionFleet.getSnapshot().find((item: any) => item.id === id);
+    host.client.patch({ device: { ...host.client.state.device, role: 'viewer' } });
+  }, firstID);
+  await expect(
+    page
+      .getByTestId(`aggregate-${firstID}-aggregate-music`)
+      .getByRole('button', { name: '网易云下一首', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page
+      .getByTestId(`aggregate-${secondID}-aggregate-music`)
+      .getByRole('button', { name: '网易云下一首', exact: true }),
+  ).toBeEnabled();
+  await page.evaluate(() => {
+    for (const { client, request } of (window as any).aggregateOriginalRequests)
+      client.pluginRequest = request;
+  });
+  await page.screenshot({ path: 'artifacts/multi-core-overview-day.png', fullPage: true });
+  expect((await page.evaluate(() => (window as any).readActiveCore())).serverId).toBe(secondID);
+  await page
+    .locator(`[data-host-id="${secondID}"]`)
+    .getByRole('button', { name: '打开工作区', exact: true })
+    .click();
   expect(firstID).not.toBe(secondID);
   await expect(page.getByText('First Core workspace', { exact: true })).toHaveCount(0);
   const entry = page.getByRole('button', { name: '管理 Core 连接', exact: true });
@@ -186,7 +317,7 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
   await expect(page.locator('.core-remote-guide')).toContainText('首次在这台设备连接时');
   await page.getByRole('button', { name: '返回 Core 列表', exact: true }).click();
   await page
-    .locator('.saved-core', { hasText: '127.0.0.1:19521' })
+    .locator('.saved-core', { hasText: 'Home PC' })
     .getByRole('button', { name: '切换', exact: true })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -297,5 +428,43 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
     await page.evaluate(() => (window as any).connectionCore.state.history['old/private']),
   ).toBeUndefined();
   await expect(page.getByText('First Core workspace', { exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+  await page.getByRole('button', { name: '总览', exact: true }).click();
+  await expect(page.locator('.aggregate-host')).toHaveCount(2);
+  await page.evaluate((id) => {
+    (window as any).connectionFleet
+      .getSnapshot()
+      .find((host: any) => host.id === id)
+      .client.disconnect();
+  }, firstID);
+  await expect(page.locator(`[data-host-id="${firstID}"]`)).toHaveAttribute('data-online', 'false');
+  await expect(page.locator(`[data-host-id="${secondID}"]`)).toHaveAttribute('data-online', 'true');
+  await expect(page.locator(`[data-host-id="${firstID}"]`)).toContainText('缓存');
+  await page.screenshot({ path: 'artifacts/multi-core-overview-night.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'artifacts/multi-core-overview-mobile.png', fullPage: true });
+  await page.evaluate(() => (window as any).connectionFleet.resume());
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as any).connectionFleet.getSnapshot().filter((host: any) => host.state.online)
+            .length,
+      ),
+    )
+    .toBe(2);
+  await page.reload();
+  await expect(page.locator('.aggregate-host')).toHaveCount(2);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as any).connectionFleet.getSnapshot().filter((host: any) => host.state.online)
+            .length,
+      ),
+    )
+    .toBe(2);
+  expect((await page.evaluate(() => (window as any).readActiveCore())).serverId).toBe(secondID);
   expect(errors).toEqual([]);
 });

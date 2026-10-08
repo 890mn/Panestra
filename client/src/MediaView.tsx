@@ -14,7 +14,7 @@ import {
   LockKeyhole,
 } from 'lucide-react';
 import { type MediaStatus } from '../../packages/protocol/src';
-import { core } from './core';
+import { useCoreClient } from './CoreScope';
 import { Button, Modal } from './components';
 import { connectionErrorText } from './connection-errors';
 import { PlaybackArt } from './AdapterVisuals';
@@ -93,6 +93,7 @@ export function MusicControls({
   buttons?: boolean;
   inlineError?: boolean;
 }) {
+  const core = useCoreClient();
   const state = useSyncExternalStore(core.subscribe, core.getSnapshot);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),

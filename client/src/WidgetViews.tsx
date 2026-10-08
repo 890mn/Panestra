@@ -17,6 +17,7 @@ import { ContentLayout, type ContentEditor } from './ContentLayout';
 import { windowLabel, CodexUsage, statusLabel } from './QuotaView';
 import { Sparkline, QuotaRing, HalfDial, SegmentMeter, SampleBars } from './AdapterVisuals';
 import { widgetDefinition } from './plugin-views';
+import { useCoreClient } from './CoreScope';
 
 export type ViewProps = {
   widget: Widget;
@@ -43,6 +44,7 @@ const rate = (value: number | undefined) =>
 export function WidgetView(
   props: ViewProps & { expanded?: boolean; profile?: WidgetProfile; contentEditor?: ContentEditor },
 ) {
+  const client = useCoreClient();
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
@@ -55,7 +57,10 @@ export function WidgetView(
     return () => observer.disconnect();
   }, []);
   const { data, history, rxHistory, txHistory, online, expanded } = props;
-  const widget = { ...widgetDefinition(props.widget)?.defaults, ...props.widget };
+  const widget = {
+    ...widgetDefinition(props.widget, client.state.plugins)?.defaults,
+    ...props.widget,
+  };
   const mode = props.profile?.presentation || widget.presentation || 'auto';
   const area = (props.profile?.chartStyle || widget.chartStyle) === 'area';
   const short = !expanded && size.h < 120;

@@ -1,4 +1,5 @@
-import { get, set } from 'idb-keyval';
+import { get, set, update } from 'idb-keyval';
+import { CoreFleet } from './core-fleet';
 import type {
   APIError,
   CanonicalEvent,
@@ -15,7 +16,7 @@ import type { PluginManifest } from './plugin-schema';
 import { deviceKey, discover, native, realtime, sign, transport } from './platform';
 import { connectionErrorText, pairingRequired } from './connection-errors';
 
-type State = {
+export type CoreState = {
   snapshot: Snapshot | null;
   device: Device | null;
   identity: Identity | null;
@@ -32,7 +33,9 @@ type State = {
 };
 export type InstalledPlugin = Plugin & { manifest: PluginManifest; enabled: boolean };
 export class CoreClient {
-  state: State = {
+  constructor(readonly persistActive = true) {}
+  beforeActivate?: (endpoint: Endpoint) => void;
+  state: CoreState = {
     snapshot: null,
     device: null,
     identity: null,
@@ -64,7 +67,7 @@ export class CoreClient {
     return () => this.listeners.delete(fn);
   };
   getSnapshot = () => this.state;
-  patch(value: Partial<State>) {
+  patch(value: Partial<CoreState>) {
     // A newly accepted Core must never inherit another computer's quota or metrics.
     if (
       value.endpoint &&
@@ -103,17 +106,23 @@ export class CoreClient {
     if (epoch !== this.sessionEpoch) return;
     this.patch({ knownEndpoints: known || (endpoint ? [endpoint] : []) });
     if (endpoint) {
-      const snapshot = await get<Snapshot>(`panestra.snapshot.v1:${endpoint.serverId}`);
-      const plugins = await get<InstalledPlugin[]>('panestra.plugins.v1:' + endpoint.serverId);
+      await this.connectSaved(endpoint);
+    }
+  }
+  async connectSaved(endpoint: Endpoint) {
+    const epoch = this.sessionEpoch;
+    const [snapshot, plugins] = await Promise.all([
+      get<Snapshot>('panestra.snapshot.v1:' + endpoint.serverId),
+      get<InstalledPlugin[]>('panestra.plugins.v1:' + endpoint.serverId),
+    ]);
+    if (epoch !== this.sessionEpoch) return;
+    this.patch({ endpoint, snapshot: snapshot || null, plugins: plugins || [] });
+    try {
+      await this.login();
+    } catch (e) {
       if (epoch !== this.sessionEpoch) return;
-      this.patch({ endpoint, snapshot: snapshot || null, plugins: plugins || [] });
-      try {
-        await this.login();
-      } catch (e) {
-        if (epoch !== this.sessionEpoch) return;
-        this.patch({ error: connectionErrorText(e) });
-        this.scheduleReconnect();
-      }
+      this.patch({ error: connectionErrorText(e) });
+      this.scheduleReconnect();
     }
   }
   async switchEndpoint(candidate: Endpoint) {
@@ -188,6 +197,7 @@ export class CoreClient {
         get<Snapshot>('panestra.snapshot.v1:' + endpoint.serverId),
         get<InstalledPlugin[]>('panestra.plugins.v1:' + endpoint.serverId),
       ]);
+      this.beforeActivate?.(endpoint);
       this.disconnect();
       this.patch({ endpoint, identity });
       this.patch({
@@ -481,12 +491,12 @@ export class CoreClient {
     this.token = token;
     this.patch({ device, pairingRequired: false, error: '' });
     const ep = this.state.endpoint!;
-    await set('panestra.active.v1', ep);
+    if (this.persistActive) await set('panestra.active.v1', ep);
     if (epoch !== this.sessionEpoch) return;
-    const known = (await get<Endpoint[]>('panestra.endpoints.v1')) || [];
-    if (epoch !== this.sessionEpoch) return;
-    const endpoints = [ep, ...known.filter((e) => e.uri !== ep.uri)].slice(0, 32);
-    await set('panestra.endpoints.v1', endpoints);
+    await update<Endpoint[]>('panestra.endpoints.v1', (known = []) =>
+      [ep, ...known.filter((e) => e.uri !== ep.uri)].slice(0, 32),
+    );
+    const endpoints = (await get<Endpoint[]>('panestra.endpoints.v1')) || [ep];
     if (epoch !== this.sessionEpoch) return;
     this.patch({ knownEndpoints: endpoints });
     clearTimeout(this.refreshTimer);
@@ -749,3 +759,4 @@ export class CoreClient {
   }
 }
 export const core = new CoreClient();
+export const coreFleet = new CoreFleet(core);
