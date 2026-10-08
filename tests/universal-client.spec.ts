@@ -1,3 +1,4 @@
+import { version } from '../package.json';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -156,7 +157,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.31.png`,
+        path: `artifacts/connection-${label}-${mode}-${version}.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -167,7 +168,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.31.png`,
+      path: `artifacts/connection-${label}-${version}.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -441,7 +442,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.31');
+      await expect(surface.locator('.about-version')).toHaveText(`v${version}`);
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {

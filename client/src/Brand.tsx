@@ -1,9 +1,11 @@
 import { version } from '../package.json';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowLeft, ExternalLink, Github, History, Monitor, Smartphone } from 'lucide-react';
 import { native, openProjectGitHub } from './platform';
 import { Button, Modal } from './components';
 import { ReleaseNotes } from './ReleaseNotes';
+import { useTheme } from './theme';
+import { UranusPortal } from './Uranus23';
 
 export const SLOGAN = 'ONE CORE, EVERY DEVICE.';
 export const PROJECT_URL = 'https://github.com/890mn/Panestra';
@@ -17,7 +19,25 @@ export function Brand({
   showVersion?: boolean;
   onError?: (error: unknown) => void;
 }) {
-  const [view, setView] = useState<'about' | 'logs' | null>(null);
+  const [view, setView] = useState<'about' | 'logs' | 'uranus23' | null>(null);
+  const { theme, setTheme } = useTheme();
+  const taps = useRef({ count: 0, time: 0 });
+  const [hint, setHint] = useState('');
+  const discover = () => {
+    const now = Date.now();
+    taps.current = {
+      count: now - taps.current.time < 4000 ? taps.current.count + 1 : 1,
+      time: now,
+    };
+    if (theme.unlocked || taps.current.count >= 7) {
+      setTheme((current) => ({ ...current, unlocked: true }));
+      taps.current.count = 0;
+      setHint('');
+      setView('uranus23');
+    } else if (taps.current.count >= 3) {
+      setHint(`再轻触 ${7 - taps.current.count} 次，看看星环的另一边`);
+    }
+  };
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState('');
   const openGitHub = async () => {
@@ -41,6 +61,8 @@ export function Brand({
         aria-haspopup="dialog"
         onClick={() => {
           setError('');
+          setHint('');
+          taps.current.count = 0;
           setView('about');
         }}
       >
@@ -55,11 +77,15 @@ export function Brand({
       {showVersion ? <span className="brand-version">v{version}</span> : null}
       {view ? (
         <Modal
-          title={view === 'about' ? '关于 Panestra' : '更新日志'}
+          title={
+            view === 'uranus23' ? '天王星 23°' : view === 'about' ? '关于 Panestra' : '更新日志'
+          }
           close={() => setView(null)}
           wide
         >
-          {view === 'logs' ? (
+          {view === 'uranus23' ? (
+            <UranusPortal close={() => setView(null)} />
+          ) : view === 'logs' ? (
             <>
               <Button className="secondary" onClick={() => setView('about')}>
                 <ArrowLeft size={18} />
@@ -77,8 +103,20 @@ export function Brand({
                   </h3>
                   <p>{SLOGAN}</p>
                 </div>
-                <span className="about-version mono">v{version}</span>
+                <Button
+                  className="about-version mono"
+                  aria-label={`版本 v${version}`}
+                  title="这里藏着一点偏航"
+                  onClick={discover}
+                >
+                  v{version}
+                </Button>
               </div>
+              {hint ? (
+                <p className="uranus-discovery-hint" role="status">
+                  {hint}
+                </p>
+              ) : null}
               <p className="about-description">
                 让 Windows 电脑成为核心，在手机和平板上查看状态、调整布局与操作组件
               </p>
@@ -107,6 +145,11 @@ export function Brand({
                 </div>
               </dl>
               <div className="about-actions">
+                {theme.unlocked ? (
+                  <Button className="secondary" onClick={() => setView('uranus23')}>
+                    天王星 23°
+                  </Button>
+                ) : null}
                 <Button className="primary" pending={opening} onClick={() => void openGitHub()}>
                   <Github size={18} />
                   GitHub 项目

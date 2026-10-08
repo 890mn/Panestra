@@ -1125,7 +1125,7 @@ input[type='checkbox'] {
   font-size: 11px;
   padding: 10px 2px 0;
 }
-.theme-option > span:last-child > svg:last-child {
+.theme-option > span:last-child > svg:last-child:not(:first-child) {
   margin-left: auto;
 }
 .theme-preview {

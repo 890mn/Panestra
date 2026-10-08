@@ -1,0 +1,334 @@
+/* The 23-degree ring is a visual motif, not a claim about Uranus's axial tilt. */
+:root[data-experience='uranus23'] {
+  --bg: #eef3f6;
+  --sidebar: #f4f8faf5;
+  --panel: #f9fcfdf5;
+  --panel-soft: #eaf1f5;
+  --text: #1b2b36;
+  --muted: #566570;
+  --line: #cbd7df;
+  --hover: #e2ecf1;
+  --control-border: #b5c5cf;
+  --control-idle: #738895;
+  --control-ink: #243d4c;
+  --shadow: 0 5px 20px #263e5010;
+  --uranus-sky: url('/uranus23/day.webp');
+  --uranus-horizon-veil: linear-gradient(90deg, #f4f8faed, #f4f8fa96 38%, #f4f8fa00 72%);
+}
+:root[data-experience='uranus23'][data-theme='night'] {
+  --bg: #080c10;
+  --sidebar: #0c131bf5;
+  --panel: #111b24f5;
+  --panel-soft: #1b2a35;
+  --text: #e8f0f5;
+  --muted: #a9b9c5;
+  --line: #354754;
+  --hover: #243641;
+  --control-border: #4b6575;
+  --control-idle: #91a8b6;
+  --control-ink: #e1eef5;
+  --shadow: 0 5px 20px #0004;
+  --uranus-sky: url('/uranus23/night.webp');
+  --uranus-horizon-veil: linear-gradient(90deg, #080c10ed, #080c1096 38%, #080c1000 72%);
+}
+:root[data-experience='uranus23'] #root {
+  isolation: isolate;
+}
+.uranus-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse at 85% 8%,
+      color-mix(in srgb, var(--muted) 12%, transparent),
+      transparent 65%
+    ),
+    var(--bg);
+}
+:root[data-experience='uranus23'] .connect-screen {
+  background: transparent;
+}
+:root[data-experience='uranus23'] .topbar {
+  background: var(--sidebar);
+}
+:root[data-experience='uranus23'] .sidebar,
+:root[data-experience='uranus23'] .widget-card,
+:root[data-experience='uranus23'] .panel,
+:root[data-experience='uranus23'] .connect-card {
+  box-shadow: var(--shadow);
+}
+:root[data-experience='uranus23'] .connect-story .brand-art {
+  background: var(--uranus-sky) center / cover;
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  margin-block: 24px;
+}
+:root[data-experience='uranus23'] .connect-story .brand-art img {
+  display: none;
+}
+.uranus-horizon {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 32px;
+  min-height: 208px;
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  margin-bottom: 30px;
+  overflow: hidden;
+  background:
+    var(--uranus-horizon-veil),
+    var(--uranus-sky) center 47% / cover;
+  box-shadow: var(--shadow);
+  animation: uranus-arrive 450ms ease-out;
+}
+.uranus-eyebrow {
+  display: block;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.uranus-horizon h2 {
+  margin-block: 12px 6px;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+.uranus-horizon h2 > span {
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  vertical-align: middle;
+}
+.uranus-horizon p {
+  font-size: 12px;
+}
+.uranus-view-button {
+  flex-shrink: 0;
+}
+.uranus-portal {
+  padding-top: 8px;
+}
+.uranus-landscape {
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  position: relative;
+  overflow: hidden;
+  background: #d4e3ed url('/uranus23/day.webp') center / cover;
+  color: #203746;
+}
+.uranus-landscape.night {
+  background: #080c10 url('/uranus23/night-detail.webp') center / cover;
+  color: #edf6fa;
+}
+.uranus-coordinate {
+  position: absolute;
+  top: 12px;
+  left: 20px;
+  font-family: 'Bahnschrift', 'DIN Alternate', 'Cascadia Code', sans-serif;
+  font-size: clamp(42px, 9vw, 80px);
+  font-weight: 300;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+.uranus-landscape-caption {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  font:
+    10px 'Cascadia Code',
+    Consolas,
+    monospace;
+  letter-spacing: 0.08em;
+  border-radius: 4px;
+  background: #071019d9;
+  color: #e8f0f5;
+  padding: 8px 10px;
+}
+.uranus-portal-copy {
+  padding-block: 23px 16px;
+}
+.uranus-portal-copy h3 {
+  font-size: clamp(23px, 4vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  margin-block: 8px 10px;
+}
+.uranus-portal-copy p {
+  font-size: 13px;
+}
+.uranus-scene-switch,
+.uranus-portal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.uranus-scene-switch {
+  margin-bottom: 20px;
+}
+.uranus-scene-switch > button {
+  flex: 1;
+}
+.uranus-portal-note {
+  font-size: 11px;
+  margin-top: 16px;
+}
+.uranus-settings {
+  margin: 0 25px 24px;
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  background: var(--panel-soft);
+}
+.uranus-settings > div {
+  flex: 1;
+}
+.uranus-settings p {
+  font-size: 12px;
+  margin-top: 5px;
+}
+.uranus-orbit-mark {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  color: var(--text);
+}
+.uranus-orbit-mark i {
+  width: 25px;
+  height: 25px;
+  background: var(--text);
+  border-radius: 50%;
+}
+.uranus-orbit-mark::after {
+  content: '';
+  position: absolute;
+  width: 43px;
+  height: 15px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  transform: rotate(-23deg);
+}
+.about-version.control {
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--text);
+  min-height: var(--control-height);
+}
+.about-version.control:hover {
+  border-color: var(--accent);
+}
+.uranus-discovery-hint {
+  font-size: 12px;
+  color: var(--text);
+}
+:root[data-experience='uranus23'] .theme-option.day .theme-preview {
+  background: #eef3f6 url('/uranus23/day-small.webp') center / cover;
+}
+:root[data-experience='uranus23'] .theme-option.night .theme-preview {
+  background: #080c10 url('/uranus23/night-small.webp') center / cover;
+}
+:root[data-experience='uranus23'] .theme-option.system .theme-preview {
+  background:
+    url('/uranus23/day-small.webp') left center / 50% 100% no-repeat,
+    url('/uranus23/night-small.webp') right center / 50% 100% no-repeat;
+}
+:root[data-experience='uranus23'] .theme-preview::before,
+:root[data-experience='uranus23'] .theme-preview::after {
+  display: none;
+}
+:root[data-experience='uranus23'] .theme-preview i {
+  background: #f9fcfdc9;
+  border-color: #cbd7df;
+}
+:root[data-experience='uranus23'] .theme-option.night .theme-preview i,
+:root[data-experience='uranus23'] .theme-option.system .theme-preview i:last-child {
+  background: #111b24d9;
+  border-color: #4b6575;
+}
+@keyframes uranus-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 767px) {
+  :root[data-experience='uranus23'] {
+    --uranus-sky: url('/uranus23/day-small.webp');
+  }
+  :root[data-experience='uranus23'][data-theme='night'] {
+    --uranus-sky: url('/uranus23/night-small.webp');
+  }
+  .uranus-horizon {
+    min-height: 190px;
+    padding: 20px;
+    gap: 12px;
+    margin-bottom: 24px;
+    background-position:
+      center,
+      58% center;
+  }
+  .uranus-horizon h2 {
+    font-size: 30px;
+  }
+  .uranus-horizon h2 > span {
+    display: block;
+    margin-top: 6px;
+  }
+  .uranus-settings {
+    margin-inline: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .uranus-settings > div {
+    min-width: 150px;
+  }
+  .uranus-settings > button {
+    width: 100%;
+  }
+  .uranus-coordinate {
+    left: 12px;
+    top: 10px;
+  }
+  .uranus-landscape-caption {
+    font-size: 8px;
+    bottom: 8px;
+    right: 8px;
+  }
+  .uranus-portal-actions > button {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .uranus-horizon {
+    animation: none;
+  }
+}
+@media (prefers-contrast: more) {
+  :root[data-experience='uranus23'] {
+    --panel: #fff;
+    --sidebar: #f4f8fa;
+    --muted: #374953;
+  }
+  :root[data-experience='uranus23'][data-theme='night'] {
+    --panel: #111b24;
+    --sidebar: #0c131b;
+    --muted: #c7d7e0;
+  }
+}

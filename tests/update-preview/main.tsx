@@ -1,6 +1,8 @@
 import { createRoot } from 'react-dom/client';
 import '../../client/src/styles.css';
 import '../../client/src/controls.css';
+import '../../client/src/uranus23.css';
+import { ThemeProvider } from '../../client/src/theme';
 
 // This is a standalone browser fixture, not an installed native application.
 if (new URLSearchParams(location.search).has('native')) {
@@ -42,11 +44,13 @@ const [{ AppUpdates }, { Brand }, { compareVersions }, { DesktopServicePanel }] 
 );
 (window as any).compareVersions = compareVersions;
 createRoot(document.getElementById('root')!).render(
-  <main style={{ padding: 24 }}>
-    <div className="brand">
-      <Brand slogan showVersion />
-    </div>
-    <AppUpdates />
-    {new URLSearchParams(location.search).has('service') ? <DesktopServicePanel /> : null}
-  </main>,
+  <ThemeProvider>
+    <main style={{ padding: 24 }}>
+      <div className="brand">
+        <Brand slogan showVersion />
+      </div>
+      <AppUpdates />
+      {new URLSearchParams(location.search).has('service') ? <DesktopServicePanel /> : null}
+    </main>
+  </ThemeProvider>,
 );

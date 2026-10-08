@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { version } from '../package.json';
 import { createServer, type ViteDevServer } from 'vite';
 import path from 'node:path';
 import { writeFileSync } from 'node:fs';
@@ -153,7 +154,7 @@ test('每种呈现、预制尺寸及自由尺寸均完整适配，无卡片偏�
     JSON.stringify(
       {
         status: 'passed',
-        version: '0.1.31',
+        version,
         combinations: checks,
         breakpoints: ['desktop', 'tablet', 'mobile'],
         allAllowedGridSizes: true,

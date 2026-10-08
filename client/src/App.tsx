@@ -99,6 +99,8 @@ import { useSidebar } from './useSidebar';
 import { PresentationChoices } from './PresentationChoices';
 import { CoreConnections } from './CoreConnections';
 import { CoreOverview } from './CoreOverview';
+import { useTheme, type Theme } from './theme';
+import { UranusHorizon, UranusSettings } from './Uranus23';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
@@ -118,20 +120,11 @@ const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
     <Network size={size} />
   );
 const errorText = connectionErrorText;
-type Theme = { mode: 'day' | 'night' | 'system'; accent: string };
 let initialized = false;
 export function App() {
   const state = useSyncExternalStore(core.subscribe, core.getSnapshot);
   const hosts = useSyncExternalStore(coreFleet.subscribe, coreFleet.getSnapshot);
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem('panestra.theme.v1') || '{"mode":"day","accent":"#719b87"}',
-      );
-    } catch {
-      return { mode: 'day', accent: '#719b87' };
-    }
-  });
+  const { theme, setTheme, resolved, toggleTheme } = useTheme();
   const [activePage, setActivePage] = useState('page-overview');
   const [section, setSection] = useState('aggregate');
   const previousHost = useRef<string | undefined>(undefined);
@@ -189,18 +182,6 @@ export function App() {
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
   }, []);
-  useEffect(() => {
-    const m = window.matchMedia('(prefers-color-scheme: dark)');
-    const apply = () => {
-      document.documentElement.dataset.theme =
-        theme.mode === 'system' ? (m.matches ? 'night' : 'day') : theme.mode;
-      document.documentElement.style.setProperty('--accent', theme.accent);
-    };
-    apply();
-    m.addEventListener('change', apply);
-    localStorage.setItem('panestra.theme.v1', JSON.stringify(theme));
-    return () => m.removeEventListener('change', apply);
-  }, [theme]);
   useEffect(() => {
     const resume = () => {
       if (document.visibilityState === 'visible') coreFleet.resume();
@@ -428,9 +409,9 @@ export function App() {
     return (
       <>
         <ConnectScreen
-          theme={theme}
+          night={resolved === 'night'}
           manageCores={state.knownEndpoints.length ? openConnections : undefined}
-          toggleTheme={() => setTheme({ ...theme, mode: theme.mode === 'night' ? 'day' : 'night' })}
+          toggleTheme={toggleTheme}
         />
         {connectionDialog}
         {notice ? (
@@ -604,14 +585,15 @@ export function App() {
             <span className="separator" />
             <Button
               className="icon-button"
-              aria-label={theme.mode === 'night' ? '切换白昼' : '切换黑夜'}
-              onClick={() => setTheme({ ...theme, mode: theme.mode === 'night' ? 'day' : 'night' })}
+              aria-label={resolved === 'night' ? '切换白昼' : '切换黑夜'}
+              onClick={toggleTheme}
             >
-              {theme.mode === 'night' ? <Sun size={19} /> : <Moon size={19} />}
+              {resolved === 'night' ? <Sun size={19} /> : <Moon size={19} />}
             </Button>
           </div>
         </header>
         <main>
+          <UranusHorizon />
           {!state.online && section !== 'aggregate' ? (
             <div className="offline-banner" role="status">
               <WifiOff size={18} />
@@ -955,11 +937,11 @@ export function App() {
 }
 
 function ConnectScreen({
-  theme,
+  night,
   toggleTheme,
   manageCores,
 }: {
-  theme: Theme;
+  night: boolean;
   toggleTheme: () => void;
   manageCores?: () => void;
 }) {
@@ -970,7 +952,7 @@ function ConnectScreen({
           <Brand showVersion />
         </div>
         <Button className="icon-button" aria-label="切换主题" onClick={toggleTheme}>
-          {theme.mode === 'night' ? <Sun size={20} /> : <Moon size={20} />}
+          {night ? <Sun size={20} /> : <Moon size={20} />}
         </Button>
       </header>
       <main className="connect-layout">
@@ -1980,18 +1962,31 @@ function SettingsPanel({
       <SectionHeading
         eyebrow="MAKE THIS SPACE YOURS"
         title="按你的习惯"
-        description="白昼与黑夜，两种底色，雾绿只是点缀，颜色由你选择"
+        description={
+          theme.experience === 'uranus23'
+            ? '在冰昼与永夜之间，留下你的日常'
+            : '白昼与黑夜，两种底色，雾绿只是点缀，颜色由你选择'
+        }
       />
       <div className="panel">
         <div className="panel-title">
           <h2>外观</h2>
           <span className="subtle">此设备的偏好</span>
         </div>
+        <UranusSettings />
         <div className="theme-options">
           {(
             [
-              { mode: 'day', title: '白昼', icon: <Sun size={19} /> },
-              { mode: 'night', title: '黑夜', icon: <Moon size={19} /> },
+              {
+                mode: 'day',
+                title: theme.experience === 'uranus23' ? '冰昼' : '白昼',
+                icon: <Sun size={19} />,
+              },
+              {
+                mode: 'night',
+                title: theme.experience === 'uranus23' ? '永夜' : '黑夜',
+                icon: <Moon size={19} />,
+              },
               { mode: 'system', title: '跟随系统', icon: <Monitor size={19} /> },
             ] as const
           ).map((t) => (
