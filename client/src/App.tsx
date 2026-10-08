@@ -16,6 +16,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Check,
+  ChevronUp,
   Code2,
   Cpu,
   Download,
@@ -56,6 +57,7 @@ import type {
   Breakpoint,
   Device,
   Entity,
+  Endpoint,
   Layout,
   Page,
   Plugin,
@@ -94,6 +96,7 @@ import { DesktopServicePanel } from './DesktopServicePanel';
 import { ResizeGrip } from './ResizeGrip';
 import { useSidebar } from './useSidebar';
 import { PresentationChoices } from './PresentationChoices';
+import { CoreConnections } from './CoreConnections';
 
 const iconSize = 18;
 const Icon = ({ source, size = iconSize }: { source: string; size?: number }) =>
@@ -132,6 +135,11 @@ export function App() {
   const [preview, setPreview] = useState<Breakpoint | 'auto'>('auto');
   const [width, setWidth] = useState(window.innerWidth);
   const [modal, setModal] = useState('');
+  const connectionFocus = useRef<HTMLElement | null>(null);
+  const openConnections = () => {
+    connectionFocus.current = document.activeElement as HTMLElement;
+    setModal('connect');
+  };
   const [configuration, setConfiguration] = useState<Entity<Widget> | null>(null);
   const [notice, setNotice] = useState('');
   const sidebar = useSidebar(width < 768);
@@ -203,6 +211,14 @@ export function App() {
     const timer = setTimeout(() => setNotice(''), 5500);
     return () => clearTimeout(timer);
   }, [notice]);
+  useEffect(() => {
+    setUndo([]);
+    setRedo([]);
+    setEditing(false);
+    setConfiguration(null);
+    setActivePage('page-overview');
+    setSection('workspace');
+  }, [state.endpoint?.serverId]);
   const perform = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     try {
@@ -366,13 +382,42 @@ export function App() {
     setModal('');
     notify('组件已添加，其他在线设备 会同步更新');
   };
+  const systemPlugin = state.plugins.find((plugin) =>
+    plugin.manifest.sources.some((source) => source.id === 'system.info'),
+  );
+  const system = state.telemetry[`${systemPlugin?.id}/system.info`]?.value as
+    SystemInfo | undefined;
+  const connectionDialog =
+    modal === 'connect' || modal === 'repair' ? (
+      <Modal
+        title="Core 连接"
+        returnFocus={connectionFocus.current}
+        close={() => {
+          if (!state.switching) setModal('');
+        }}
+      >
+        <CoreConnections
+          currentName={system?.hostname}
+          repairing={modal === 'repair'}
+          addCore={(done, endpoint) => (
+            <ConnectForm adding initialEndpoint={endpoint} onSuccess={done} />
+          )}
+          onConnected={() => {
+            setModal('');
+            notify('Core 已连接');
+          }}
+        />
+      </Modal>
+    ) : null;
   if (!state.snapshot && !state.device)
     return (
       <>
         <ConnectScreen
           theme={theme}
+          manageCores={state.knownEndpoints.length ? openConnections : undefined}
           toggleTheme={() => setTheme({ ...theme, mode: theme.mode === 'night' ? 'day' : 'night' })}
         />
+        {connectionDialog}
         {notice ? (
           <div role="status" className="toast">
             {notice}
@@ -380,11 +425,7 @@ export function App() {
         ) : null}
       </>
     );
-  const systemPlugin = state.plugins.find((plugin) =>
-    plugin.manifest.sources.some((source) => source.id === 'system.info'),
-  );
-  const system = state.telemetry[`${systemPlugin?.id}/system.info`]?.value as
-    SystemInfo | undefined;
+
   return (
     <div className={`app-shell ${sidebar.visible ? '' : 'sidebar-collapsed'}`}>
       <aside
@@ -452,14 +493,26 @@ export function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="core-status">
+          <Button
+            className="core-status"
+            aria-label="管理 Core 连接"
+            aria-haspopup="dialog"
+            aria-expanded={modal === 'connect' || modal === 'repair'}
+            onClick={openConnections}
+          >
             <span className={`status-light ${state.online ? '' : 'offline'}`} />
             <div>
               <strong>{system?.hostname || 'Panestra Core'}</strong>
-              <small>{state.online ? '已连接 · HTTPS / WSS' : '离线 · 缓存只读'}</small>
+              <small>
+                {state.online
+                  ? '已连接 · HTTPS / WSS'
+                  : state.connecting
+                    ? '正在重连 · 缓存只读'
+                    : '离线 · 缓存只读'}
+              </small>
             </div>
-            <ShieldCheck size={17} />
-          </div>
+            <ChevronUp size={17} />
+          </Button>
         </div>
       </aside>
       {sidebar.visible && width < 768 ? (
@@ -531,7 +584,13 @@ export function App() {
                   重新连接
                 </Button>
               ) : null}
-              <Button className="secondary" onClick={() => setModal('connect')}>
+              <Button
+                className="secondary"
+                onClick={() => {
+                  openConnections();
+                  if (state.pairingRequired) setModal('repair');
+                }}
+              >
                 {state.pairingRequired ? '重新配对' : '连接其他 Core'}
               </Button>
             </div>
@@ -723,7 +782,7 @@ export function App() {
               owner={owner}
               online={state.online}
               notify={notify}
-              onConnect={() => setModal('connect')}
+              onConnect={openConnections}
             />
           ) : null}
           {section === 'settings' ? (
@@ -833,11 +892,7 @@ export function App() {
           </div>
         </Modal>
       ) : null}
-      {modal === 'connect' ? (
-        <Modal title="连接 Core" close={() => setModal('')}>
-          <ConnectForm onSuccess={() => setModal('')} />
-        </Modal>
-      ) : null}
+      {connectionDialog}
       {notice ? (
         <div className="toast" role="status">
           <Check size={17} />
@@ -851,7 +906,15 @@ export function App() {
   );
 }
 
-function ConnectScreen({ theme, toggleTheme }: { theme: Theme; toggleTheme: () => void }) {
+function ConnectScreen({
+  theme,
+  toggleTheme,
+  manageCores,
+}: {
+  theme: Theme;
+  toggleTheme: () => void;
+  manageCores?: () => void;
+}) {
   return (
     <div className="connect-screen">
       <header>
@@ -893,29 +956,46 @@ function ConnectScreen({ theme, toggleTheme }: { theme: Theme; toggleTheme: () =
           <h2>从一台电脑开始</h2>
           <p className="modal-description">建立主机或配对此设备</p>
           <ConnectForm />
+          {manageCores ? (
+            <Button className="secondary full" onClick={manageCores}>
+              管理已配对 Core
+            </Button>
+          ) : null}
         </div>
       </main>
     </div>
   );
 }
-function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
+function ConnectForm({
+  onSuccess,
+  adding = false,
+  initialEndpoint,
+}: {
+  onSuccess?: () => void;
+  adding?: boolean;
+  initialEndpoint?: Endpoint;
+}) {
   const onSuccessRef = useRef(onSuccess);
   useEffect(() => {
     onSuccessRef.current = onSuccess;
   }, [onSuccess]);
   const state = useSyncExternalStore(core.subscribe, core.getSnapshot);
   const [uri, setURI] = useState(
-    state.endpoint?.uri ||
-      (location.protocol === 'https:' ? location.origin : 'https://localhost:9443'),
+    adding
+      ? initialEndpoint?.uri || ''
+      : state.endpoint?.uri ||
+          (location.protocol === 'https:' ? location.origin : 'https://localhost:9443'),
   );
-  const [fingerprint, setFingerprint] = useState(state.endpoint?.publicKeyHash || '');
+  const [fingerprint, setFingerprint] = useState(
+    adding ? initialEndpoint?.publicKeyHash || '' : state.endpoint?.publicKeyHash || '',
+  );
   const [name, setName] = useState(
     native ? '星序设备' : /Android|iPhone/.test(navigator.userAgent) ? '我的手机' : '我的电脑',
   );
   const [code, setCode] = useState('');
   const [scanned, setScanned] = useState<{ serverId: string; expiresAt: string } | null>(null);
   const [bootstrap, setBootstrap] = useState(
-    !state.endpoint && !/Android/.test(navigator.userAgent),
+    !adding && !state.endpoint && !/Android/.test(navigator.userAgent),
   );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -929,7 +1009,7 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
       .catch((e) => setError(errorText(e)));
   }, []);
   useEffect(() => {
-    if (!native) return;
+    if (!native || adding) return;
     let attempts = 0;
     const timer = setInterval(() => {
       void localCoreInfo().then((info) => {
@@ -946,7 +1026,7 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
       if (++attempts > 15) clearInterval(timer);
     }, 500);
     return () => clearInterval(timer);
-  }, []);
+  }, [adding]);
   useEffect(() => {
     if (!pending) return;
     let stopped = false;

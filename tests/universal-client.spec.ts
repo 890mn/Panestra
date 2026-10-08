@@ -150,7 +150,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       expect(badge.color).toBe(badge.backdrop);
       expect(badge.radius).toBe('6px');
       await surface.screenshot({
-        path: `artifacts/connection-${label}-${mode}-0.1.29.png`,
+        path: `artifacts/connection-${label}-${mode}-0.1.30.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -161,7 +161,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
       `${label} 连接页`,
     ).toBe(true);
     await surface.screenshot({
-      path: `artifacts/connection-${label}-0.1.29.png`,
+      path: `artifacts/connection-${label}-0.1.30.png`,
       fullPage: true,
       animations: 'disabled',
     });
@@ -275,8 +275,9 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await phone.getByRole('button', { name: '打开菜单', exact: true }).click();
   await phone.getByRole('button', { name: '设备与连接', exact: true }).click();
   await phone.getByRole('button', { name: '连接其他 Core', exact: true }).click();
-  await phone.getByLabel('配对码', { exact: true }).fill('EXISTINGDEVICE');
-  await phone.getByRole('button', { name: '发送配对请求', exact: true }).click();
+  await phone.getByRole('button', { name: '添加连接地址', exact: true }).click();
+  await phone.getByLabel('HTTPS 地址', { exact: true }).fill(endpoint);
+  await phone.getByRole('button', { name: '验证并连接', exact: true }).click();
   await expect(phone.locator('dialog[open]')).not.toBeVisible();
   await phone.getByRole('button', { name: '打开菜单', exact: true }).click();
   await phone.getByRole('button', { name: '总览', exact: true }).click();
@@ -429,7 +430,7 @@ test('全局一致性：三种屏幕、黑白主题、适配目录与按键反�
       const menu = surface.getByRole('button', { name: '打开菜单', exact: true });
       if (await menu.isVisible()) await menu.click();
       await surface.getByRole('button', { name: '关于 Panestra', exact: true }).click();
-      await expect(surface.locator('.about-version')).toHaveText('v0.1.29');
+      await expect(surface.locator('.about-version')).toHaveText('v0.1.30');
       await expect(surface.locator('.about-content')).toContainText('星序');
       const projectLink = surface.getByRole('button', { name: 'GitHub 项目', exact: true });
       if (label === 'desktop' && theme === '白昼') {
@@ -975,7 +976,7 @@ test('网易云：真实 Windows 会话读取、只读权限、组件同步与�
   await desktop.getByLabel('允许播放与切歌控制').uncheck();
   await desktop.getByRole('button', { name: '保存并启用读取', exact: true }).click();
   await expect(desktop.getByTestId('netease-adapter').locator('.adapter-state')).toHaveText(
-    /未找到播放器|已接入/,
+    /未找到服务|已接入/,
     { timeout: 15000 },
   );
   for (const name of ['网易云上一首', '网易云下一首'])

@@ -22,6 +22,8 @@ type State = {
   endpoint: Endpoint | null;
   online: boolean;
   connecting: boolean;
+  switching: boolean;
+  knownEndpoints: Endpoint[];
   pairingRequired: boolean;
   error: string;
   telemetry: Record<string, Telemetry>;
@@ -37,6 +39,8 @@ export class CoreClient {
     endpoint: null,
     online: false,
     connecting: false,
+    switching: false,
+    knownEndpoints: [],
     pairingRequired: false,
     error: '',
     telemetry: {},
@@ -74,24 +78,128 @@ export class CoreClient {
       clearTimeout(this.refreshTimer);
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
-      value = { ...value, online: false, snapshot: null, telemetry: {}, history: {}, plugins: [] };
+      this.token = '';
+      this.loginTask = undefined;
+      value = {
+        online: false,
+        device: null,
+        identity: null,
+        snapshot: null,
+        telemetry: {},
+        history: {},
+        plugins: [],
+        ...value,
+      };
     }
     this.state = { ...this.state, ...value };
     this.listeners.forEach((fn) => fn());
   }
   async init() {
-    const endpoint = await get<Endpoint>('panestra.active.v1');
+    const epoch = this.sessionEpoch;
+    const [endpoint, known] = await Promise.all([
+      get<Endpoint>('panestra.active.v1'),
+      get<Endpoint[]>('panestra.endpoints.v1'),
+    ]);
+    if (epoch !== this.sessionEpoch) return;
+    this.patch({ knownEndpoints: known || (endpoint ? [endpoint] : []) });
     if (endpoint) {
       const snapshot = await get<Snapshot>(`panestra.snapshot.v1:${endpoint.serverId}`);
       const plugins = await get<InstalledPlugin[]>('panestra.plugins.v1:' + endpoint.serverId);
+      if (epoch !== this.sessionEpoch) return;
       this.patch({ endpoint, snapshot: snapshot || null, plugins: plugins || [] });
       try {
         await this.login();
       } catch (e) {
+        if (epoch !== this.sessionEpoch) return;
         this.patch({ error: connectionErrorText(e) });
         this.scheduleReconnect();
       }
     }
+  }
+  async switchEndpoint(candidate: Endpoint) {
+    if (this.state.switching) throw { message: '正在切换 Core，请稍后重试' };
+    const known =
+      this.state.knownEndpoints.find((item) => item.serverId === candidate.serverId) ||
+      (this.state.endpoint?.serverId === candidate.serverId ? this.state.endpoint : undefined);
+    if (!known || known.publicKeyHash !== candidate.publicKeyHash)
+      throw { message: '请先配对此 Core，再切换连接' };
+    let url: URL;
+    try {
+      url = new URL(candidate.uri);
+    } catch {
+      throw { message: '请填写完整的 HTTPS 地址，例如 https://127.0.0.1:19443' };
+    }
+    if (url.pathname !== '/' || url.search || url.hash)
+      throw { message: 'Core 地址只填写 HTTPS 主机和端口，不包含路径' };
+    this.patch({ switching: true });
+    try {
+      // Verify and authenticate the candidate before replacing the current connection.
+      const { identity, uri } = await this.identity(candidate.uri, known.publicKeyHash);
+      if (identity.serverId !== known.serverId) throw { message: '连接地址对应的 Core 身份不匹配' };
+      const key = await deviceKey();
+      const challenge = await transport<{ id: string; message: string }>(
+        uri,
+        '/api/v1/auth/challenge',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deviceId: key.deviceId,
+            publicKey: key.publicKey,
+            purpose: 'login',
+          }),
+        },
+        known.publicKeyHash,
+      );
+      const result = await transport<{ token: string; device: Device }>(
+        uri,
+        '/api/v1/auth/login',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            challengeId: challenge.id,
+            signature: await sign(challenge.message),
+          }),
+        },
+        known.publicKeyHash,
+      );
+      await this.activateSession(
+        { ...candidate, uri, lastSuccess: new Date().toISOString() },
+        identity,
+        result.token,
+        result.device,
+      );
+    } finally {
+      this.patch({ switching: false });
+    }
+  }
+  private async activateSession(
+    endpoint: Endpoint,
+    identity: Identity,
+    token: string,
+    device: Device,
+  ) {
+    const old = this.state.endpoint;
+    if (old?.uri !== endpoint.uri || old?.serverId !== endpoint.serverId) {
+      if (old && this.state.snapshot)
+        await set('panestra.snapshot.v1:' + old.serverId, this.state.snapshot);
+      const [snapshot, plugins] = await Promise.all([
+        get<Snapshot>('panestra.snapshot.v1:' + endpoint.serverId),
+        get<InstalledPlugin[]>('panestra.plugins.v1:' + endpoint.serverId),
+      ]);
+      this.disconnect();
+      this.patch({ endpoint, identity });
+      this.patch({
+        snapshot: snapshot || null,
+        plugins: plugins || [],
+        telemetry: {},
+        history: {},
+        error: '',
+        pairingRequired: false,
+      });
+    } else this.patch({ endpoint, identity });
+    await this.acceptSession(token, device);
   }
   async identity(uri: string, fingerprint: string) {
     const url = new URL(uri);
@@ -191,8 +299,12 @@ export class CoreClient {
           },
           fingerprint,
         );
-        this.patch({ endpoint: { ...prior, uri: verified.uri }, identity: verified.identity });
-        await this.acceptSession(session.token, session.device);
+        await this.activateSession(
+          { ...prior, uri: verified.uri },
+          verified.identity,
+          session.token,
+          session.device,
+        );
         return;
       } catch (error) {
         // Only an explicit missing/revoked-device response permits a NEW pairing
@@ -238,8 +350,7 @@ export class CoreClient {
       lastSuccess: new Date().toISOString(),
     };
     if (bootstrap) {
-      this.patch({ endpoint, identity: verified.identity });
-      await this.acceptSession(result.token!, result.device!);
+      await this.activateSession(endpoint, verified.identity, result.token!, result.device!);
     } else {
       this.pairingEndpoint = endpoint;
       this.pairingIdentity = verified.identity;
@@ -261,10 +372,10 @@ export class CoreClient {
         { headers: { Authorization: 'Bearer ' + result.token } },
         endpoint.publicKeyHash,
       );
-      this.patch({ endpoint, identity: this.pairingIdentity || this.state.identity });
+      const identity = this.pairingIdentity || this.state.identity!;
       this.pairingEndpoint = undefined;
       this.pairingIdentity = undefined;
-      await this.acceptSession(result.token, device);
+      await this.activateSession(endpoint, identity, result.token, device);
     }
     if (result.status === 'denied') throw { message: 'Core 已拒绝此次配对' };
     return result.status;
@@ -325,6 +436,7 @@ export class CoreClient {
       });
       await this.acceptSession(result.token, result.device);
     } catch (error) {
+      if (epoch !== this.sessionEpoch) return;
       if (pairingRequired(error)) {
         this.disconnect();
         this.patch({ pairingRequired: true, error: connectionErrorText(error) });
@@ -345,29 +457,38 @@ export class CoreClient {
               known.push({ ...ep, uri: candidate.uri });
         }
         for (const candidate of known.slice(0, 8)) {
+          if (epoch !== this.sessionEpoch) return;
           this.patch({ endpoint: candidate });
           try {
             await this.authenticate(true, epoch);
             return;
           } catch (candidateError) {
+            if (epoch !== this.sessionEpoch) return;
             if (pairingRequired(candidateError))
               throw candidateError; /* Keep the saved identity pin for every candidate. */
           }
         }
+        if (epoch !== this.sessionEpoch) return;
         this.patch({ endpoint: ep });
       }
       throw error;
     } finally {
-      this.patch({ connecting: false });
+      if (epoch === this.sessionEpoch) this.patch({ connecting: false });
     }
   }
   async acceptSession(token: string, device: Device) {
+    const epoch = this.sessionEpoch;
     this.token = token;
     this.patch({ device, pairingRequired: false, error: '' });
     const ep = this.state.endpoint!;
     await set('panestra.active.v1', ep);
+    if (epoch !== this.sessionEpoch) return;
     const known = (await get<Endpoint[]>('panestra.endpoints.v1')) || [];
-    await set('panestra.endpoints.v1', [ep, ...known.filter((e) => e.uri !== ep.uri)].slice(0, 8));
+    if (epoch !== this.sessionEpoch) return;
+    const endpoints = [ep, ...known.filter((e) => e.uri !== ep.uri)].slice(0, 32);
+    await set('panestra.endpoints.v1', endpoints);
+    if (epoch !== this.sessionEpoch) return;
+    this.patch({ knownEndpoints: endpoints });
     clearTimeout(this.refreshTimer);
     this.refreshTimer = setTimeout(
       () => {
@@ -380,7 +501,8 @@ export class CoreClient {
   async api<T>(path: string, body?: unknown): Promise<T> {
     const ep = this.state.endpoint;
     if (!ep) throw { message: '请先连接 Core' };
-    return transport<T>(
+    const epoch = this.sessionEpoch;
+    const result = await transport<T>(
       ep.uri,
       '/api/v1' + path,
       {
@@ -390,6 +512,8 @@ export class CoreClient {
       },
       ep.publicKeyHash,
     );
+    if (epoch !== this.sessionEpoch) throw { message: 'Core 已切换，旧连接的操作已取消' };
+    return result;
   }
   async loadPlugins() {
     const plugins = await this.api<InstalledPlugin[]>('/plugins');
@@ -425,7 +549,7 @@ export class CoreClient {
     const ep = this.state.endpoint!;
     await this.loadPlugins();
     if (generation !== this.generation) return;
-    this.stopSocket = await realtime(
+    const stop = await realtime(
       ep.uri,
       ep.publicKeyHash,
       this.token,
@@ -489,6 +613,8 @@ export class CoreClient {
         }
       },
     );
+    if (generation !== this.generation) stop();
+    else this.stopSocket = stop;
   }
   scheduleReconnect() {
     if (this.state.pairingRequired || this.reconnectTimer) return;
@@ -498,7 +624,9 @@ export class CoreClient {
     );
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = undefined;
+      const epoch = this.sessionEpoch;
       void this.login().catch((error) => {
+        if (epoch !== this.sessionEpoch) return;
         this.patch({ error: connectionErrorText(error) });
         this.scheduleReconnect();
       });
@@ -508,7 +636,9 @@ export class CoreClient {
     if (!this.state.endpoint || this.state.online || this.state.pairingRequired) return;
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
+    const epoch = this.sessionEpoch;
     void this.login().catch((error) => {
+      if (epoch !== this.sessionEpoch) return;
       this.patch({ error: connectionErrorText(error) });
       this.scheduleReconnect();
     });
@@ -610,10 +740,12 @@ export class CoreClient {
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
     this.reconnectAttempt = 0;
+    this.loginTask = undefined;
+    clearTimeout(this.cacheTimer);
     clearTimeout(this.refreshTimer);
     this.stopSocket?.();
     this.token = '';
-    this.patch({ online: false, device: null });
+    this.patch({ online: false, connecting: false, device: null });
   }
 }
 export const core = new CoreClient();
