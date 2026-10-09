@@ -307,10 +307,8 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
   await page.getByRole('button', { name: '添加新 Core', exact: true }).click();
   await expect(page.getByLabel('Core 地址', { exact: true })).toHaveValue('');
   await expect(page.getByLabel(/^Core 身份指纹/)).toHaveValue('');
-  await expect(page.getByRole('button', { name: '配对此设备', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(page.getByRole('list', { name: '连接步骤' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '建立主机', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '返回 Core 列表', exact: true }).click();
   await page.getByRole('button', { name: '通过 UU 远程连接', exact: true }).click();
   await expect(page.locator('.core-remote-guide')).toContainText('https://127.0.0.1:19443');
@@ -454,8 +452,22 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
       ),
     )
     .toBe(2);
+  await page.getByRole('button', { name: '添加或管理主机', exact: true }).click();
+  await page
+    .locator('.saved-core[data-current]')
+    .getByRole('button', { name: /^重命名 Core/ })
+    .click();
+  await page.getByLabel('Core 备注名称').fill('远程工作站');
+  await page.getByRole('button', { name: '保存名称', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator(`[data-host-id="${secondID}"] .aggregate-host-name`)).toContainText(
+    '远程工作站',
+  );
   await page.reload();
   await expect(page.locator('.aggregate-host')).toHaveCount(2);
+  await expect(page.locator(`[data-host-id="${secondID}"] .aggregate-host-name`)).toContainText(
+    '远程工作站',
+  );
   await expect
     .poll(() =>
       page.evaluate(

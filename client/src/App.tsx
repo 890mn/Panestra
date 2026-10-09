@@ -46,7 +46,6 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import QRCode from 'qrcode';
 import type {
   APIError,
   CodexStatus,
@@ -55,7 +54,6 @@ import type {
   MediaStatus,
   AlasStatus,
   Breakpoint,
-  Device,
   Entity,
   Endpoint,
   Layout,
@@ -76,7 +74,15 @@ import {
 } from '../../packages/widget-schema/src';
 import { core, coreFleet } from './core';
 import { hostName, type CoreHost } from './core-fleet';
-import { canScanPairing, discover, localCoreInfo, native, scanPairing } from './platform';
+import {
+  canScanPairing,
+  discover,
+  localCoreInfo,
+  native,
+  scanPairing,
+  probeEndpoint,
+  deviceKey,
+} from './platform';
 import { loopbackEndpoint, parsePairingCode } from './pairing';
 import { connectionErrorText } from './connection-errors';
 import { Button, ButtonPreview, Modal } from './components';
@@ -98,6 +104,7 @@ import { ResizeGrip } from './ResizeGrip';
 import { useSidebar } from './useSidebar';
 import { PresentationChoices } from './PresentationChoices';
 import { CoreConnections } from './CoreConnections';
+import { DevicesPanel } from './DevicesPanel';
 import { CoreOverview } from './CoreOverview';
 import { useTheme, type Theme } from './theme';
 import { UranusHorizon, UranusSettings } from './Uranus23';
@@ -809,6 +816,7 @@ export function App() {
           ) : null}
           {section === 'devices' ? (
             <DevicesPanel
+              key={state.endpoint?.serverId}
               owner={owner}
               online={state.online}
               notify={notify}
@@ -1031,12 +1039,28 @@ function ConnectForm({
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState('');
   const [connectionTest, setConnectionTest] = useState<{ key: string; text: string } | null>(null);
+  const [portTest, setPortTest] = useState<{ uri: string; text: string } | null>(null);
+  const testPort = async () => {
+    setBusy(true);
+    setError('');
+    setPortTest(null);
+    try {
+      await probeEndpoint(uri.trim());
+      setPortTest({ uri: uri.trim(), text: '端口已接受连接，下一步核对 Core 身份指纹' });
+    } catch (error) {
+      setError(errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  };
   const connectionTestKey = uri.trim() + '|' + fingerprint.replace(/\s|:/g, '').toLowerCase();
   const testConnection = async () => {
     setError('');
+    setPortTest(null);
     setConnectionTest(null);
     setBusy(true);
     try {
+      if (native) await probeEndpoint(uri.trim());
       const result = await core.identity(
         uri.trim(),
         fingerprint.replace(/\s|:/g, '').toLowerCase(),
@@ -1054,6 +1078,19 @@ function ConnectForm({
   const [candidates, setCandidates] = useState<
     Array<{ uri: string; name: string; serverIdHint?: string }>
   >([]);
+  useEffect(() => {
+    if (!native) return;
+    let stopped = false;
+    void deviceKey()
+      .then((key) => {
+        if (!stopped && key.deviceName)
+          setName((current) => (current === '星序设备' ? key.deviceName!.slice(0, 40) : current));
+      })
+      .catch(() => {});
+    return () => {
+      stopped = true;
+    };
+  }, []);
   useEffect(() => {
     void discover()
       .then(setCandidates)
@@ -1142,6 +1179,7 @@ function ConnectForm({
     try {
       if (scanned && Date.parse(scanned.expiresAt) <= Date.now())
         throw new Error('配对二维码已过期，请在电脑重新点击“添加设备”');
+      if (native) await probeEndpoint(uri.trim());
       const id = await core.claim(
         uri.trim(),
         fingerprint.replace(/\s|:/g, '').toLowerCase(),
@@ -1160,26 +1198,38 @@ function ConnectForm({
   };
   return (
     <form onSubmit={submit} className="form-stack">
-      <div className="segmented">
-        <Button
-          type="button"
-          selected={bootstrap}
-          disabled={busy || Boolean(pending)}
-          className={bootstrap ? 'selected' : ''}
-          onClick={() => setBootstrap(true)}
-        >
-          建立主机
-        </Button>
-        <Button
-          type="button"
-          selected={!bootstrap}
-          disabled={busy || Boolean(pending)}
-          className={!bootstrap ? 'selected' : ''}
-          onClick={() => setBootstrap(false)}
-        >
-          配对此设备
-        </Button>
-      </div>
+      {adding ? (
+        <ol className="connection-steps" aria-label="连接步骤">
+          <li data-active={(!pending && connectionTest?.key !== connectionTestKey) || undefined}>
+            1 检查地址
+          </li>
+          <li data-active={(!pending && connectionTest?.key === connectionTestKey) || undefined}>
+            2 核对身份
+          </li>
+          <li data-active={Boolean(pending) || undefined}>3 主机批准</li>
+        </ol>
+      ) : (
+        <div className="segmented">
+          <Button
+            type="button"
+            selected={bootstrap}
+            disabled={busy || Boolean(pending)}
+            className={bootstrap ? 'selected' : ''}
+            onClick={() => setBootstrap(true)}
+          >
+            建立主机
+          </Button>
+          <Button
+            type="button"
+            selected={!bootstrap}
+            disabled={busy || Boolean(pending)}
+            className={!bootstrap ? 'selected' : ''}
+            onClick={() => setBootstrap(false)}
+          >
+            配对此设备
+          </Button>
+        </div>
+      )}
       {canScanPairing ? (
         <Button
           type="button"
@@ -1209,13 +1259,40 @@ function ConnectForm({
       <label>
         Core 地址
         <input
+          aria-label="Core 地址"
           required
           type="url"
           value={uri}
           onChange={(e) => setURI(e.target.value)}
           placeholder="https://192.168.1.10:9443"
         />
+        {adding ? (
+          <small className="connection-address-note">
+            {loopbackEndpoint(uri)
+              ? '127.0.0.1 / localhost 指当前设备，连接远端主机必须先在当前设备启动相应的端口映射'
+              : '局域网填写目标电脑的 IP 与 Core 端口；远程连接填写映射服务在当前设备提供的地址'}
+          </small>
+        ) : null}
       </label>
+      {native && adding ? (
+        <>
+          <Button
+            type="button"
+            className="secondary full"
+            disabled={busy || Boolean(pending) || !uri.trim()}
+            onClick={() => void testPort()}
+          >
+            <Wifi size={17} />
+            检测地址端口
+          </Button>
+          {portTest?.uri === uri.trim() ? (
+            <div className="connection-test-result" role="status">
+              {portTest.text}
+              <small>端口可达不代表是正确 Core，后续仍须验证 SHA-256</small>
+            </div>
+          ) : null}
+        </>
+      ) : null}
       <label>
         Core 身份指纹
         <input
@@ -1226,7 +1303,7 @@ function ConnectForm({
           placeholder="本机 Core 显示的 SHA-256 指纹"
           spellCheck={false}
         />
-        <small>使用 Core 本机显示的指纹，发现结果仅提供地址</small>
+        <small>复制目标主机「设备与连接」显示的完整 SHA-256，发现结果仅提供地址</small>
       </label>
       <div className="form-row">
         <label>
@@ -1241,7 +1318,14 @@ function ConnectForm({
         </label>
         <label>
           此设备名称
-          <input required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            aria-label="此设备名称"
+            required
+            maxLength={40}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          {adding ? <small>目标 Core 将用这个名称显示当前设备</small> : null}
         </label>
       </div>
       <Button
@@ -1675,271 +1759,6 @@ function SectionHeading({
       <h1>{title}</h1>
       <p>{description}</p>
     </div>
-  );
-}
-function DevicesPanel({
-  owner,
-  online,
-  notify,
-  onConnect,
-}: {
-  owner: boolean;
-  online: boolean;
-  notify: (s: string) => void;
-  onConnect: () => void;
-}) {
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [windowData, setWindowData] = useState<{
-    code: string;
-    expiresAt: string;
-    fingerprint: string;
-    endpoints?: string[];
-  } | null>(null);
-  const [pending, setPending] = useState<Array<{ id: string; name: string; keyHash: string }>>([]);
-  const [qr, setQR] = useState('');
-  const [qrEndpoint, setQREndpoint] = useState('');
-  const [remote, setRemote] = useState(false);
-  const [revoke, setRevoke] = useState<Device | null>(null);
-  const reload = () =>
-    core
-      .api<Device[]>('/devices')
-      .then(setDevices)
-      .catch((e) => notify(errorText(e)));
-  useEffect(() => {
-    if (owner && online) void reload();
-  }, [owner, online]);
-  useEffect(() => {
-    if (!windowData || !online) return;
-    let stopped = false;
-    const timer = setInterval(() => {
-      if (Date.now() > Date.parse(windowData.expiresAt)) {
-        setWindowData(null);
-        return;
-      }
-      void core
-        .api<typeof pending>('/pairing/pending')
-        .then((p) => {
-          if (!stopped) setPending(p);
-        })
-        .catch((e) => notify(errorText(e)));
-    }, 4000);
-    return () => {
-      stopped = true;
-      clearInterval(timer);
-    };
-  }, [windowData, online]);
-  const openWindow = async () => {
-    try {
-      const result = await core.api<NonNullable<typeof windowData>>('/pairing/window', { remote });
-      setWindowData(result);
-      const ep = core.state.endpoint!;
-      const address = loopbackEndpoint(ep.uri) ? result.endpoints?.[0] || ep.uri : ep.uri;
-      setQREndpoint(address);
-      setQR(
-        await QRCode.toDataURL(
-          JSON.stringify({
-            schemaVersion: 1,
-            endpoint: address,
-            serverId: ep.serverId,
-            fingerprint: result.fingerprint,
-            code: result.code,
-            expiresAt: result.expiresAt,
-          }),
-          { width: 220, margin: 2 },
-        ),
-      );
-    } catch (e) {
-      notify(errorText(e));
-    }
-  };
-  const approve = async (id: string, accept: boolean, role: string) => {
-    try {
-      await core.api('/pairing/approve', { id, approve: accept, role });
-      setPending((p) => p.filter((v) => v.id !== id));
-      if (accept) setWindowData(null);
-      await reload();
-      notify(accept ? '设备已配对' : '已拒绝配对请求');
-    } catch (e) {
-      notify(errorText(e));
-    }
-  };
-  return (
-    <>
-      <SectionHeading
-        eyebrow="EVERY DEVICE, ONE WORKSPACE"
-        title="你的所有屏幕"
-        description="发现提供地址，设备密钥确认身份，权限决定可以执行的操作"
-      />
-      <div className="panel endpoint-panel">
-        <div className="machine-icon">
-          <Monitor size={26} />
-        </div>
-        <div>
-          <h3>{core.state.identity?.serverId || 'Panestra Core'}</h3>
-          <p className="mono">{core.state.endpoint?.uri}</p>
-        </div>
-        <span className="status-chip">
-          <ShieldCheck size={15} />
-          身份已固定
-        </span>
-        <Button className="secondary" onClick={onConnect}>
-          连接其他 Core
-        </Button>
-      </div>
-      <div className="panel">
-        <div className="panel-title">
-          <h2>已信任设备</h2>
-          {owner ? (
-            <Button
-              className="primary compact"
-              disabled={!online}
-              onClick={() => void openWindow()}
-            >
-              <Plus size={16} />
-              添加设备
-            </Button>
-          ) : null}
-        </div>
-        {owner ? (
-          <>
-            <label className="remote-toggle">
-              <input
-                type="checkbox"
-                checked={remote}
-                onChange={(e) => setRemote(e.target.checked)}
-              />
-              此次允许远程配对（仍须在 Core 本机开启）
-            </label>
-            <div className="device-list">
-              {devices.map((d) => (
-                <div className="device-row" key={d.id}>
-                  <span className="device-type">
-                    {/手机|Phone|Android/i.test(d.name) ? (
-                      <Smartphone size={22} />
-                    ) : /平板|Tablet/i.test(d.name) ? (
-                      <Tablet size={22} />
-                    ) : (
-                      <Monitor size={22} />
-                    )}
-                  </span>
-                  <div className="device-details">
-                    <strong>
-                      {d.name}
-                      {d.id === core.state.device?.id ? (
-                        <span className="badge">当前设备</span>
-                      ) : null}
-                    </strong>
-                    <span>
-                      {d.revokedAt
-                        ? '已撤销'
-                        : '最近连接 ' + new Date(d.lastSeenAt).toLocaleString('zh-CN')}
-                    </span>
-                  </div>
-                  <span className="badge">{d.role}</span>
-                  <Button
-                    className="icon-button danger-text"
-                    aria-label={`撤销${d.name}`}
-                    disabled={!online || Boolean(d.revokedAt) || d.id === core.state.device?.id}
-                    onClick={() => setRevoke(d)}
-                  >
-                    <Trash2 size={17} />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="panel-empty">
-            只有 Owner 可以管理设备，当前角色：{core.state.device?.role || '离线'}
-          </p>
-        )}
-      </div>
-      {windowData ? (
-        <div className="panel pairing-panel">
-          <div>{qr ? <img src={qr} alt="包含地址、Core 指纹与一次性配对码的二维码" /> : null}</div>
-          <div>
-            <h2>在新设备上完成配对</h2>
-            <p>配对窗口持续 2 分钟，使用局域网地址连接，并核对以下指纹</p>
-            <label>
-              二维码连接地址
-              <select
-                aria-label="二维码连接地址"
-                value={qrEndpoint}
-                onChange={(e) => {
-                  const address = e.target.value;
-                  setQREndpoint(address);
-                  void QRCode.toDataURL(
-                    JSON.stringify({
-                      schemaVersion: 1,
-                      endpoint: address,
-                      serverId: core.state.endpoint!.serverId,
-                      fingerprint: windowData.fingerprint,
-                      code: windowData.code,
-                      expiresAt: windowData.expiresAt,
-                    }),
-                    { width: 220, margin: 2 },
-                  ).then(setQR);
-                }}
-              >
-                {Array.from(new Set([qrEndpoint, ...(windowData.endpoints || [])])).map(
-                  (address) => (
-                    <option key={address} value={address}>
-                      {address}
-                    </option>
-                  ),
-                )}
-              </select>
-            </label>
-            <span className="pairing-code">{windowData.code}</span>
-            <p className="mono fingerprint">{windowData.fingerprint}</p>
-            <small>
-              手机选择“扫描电脑配对二维码”即可填入连接信息；多网卡时请选择手机可访问的局域网地址
-            </small>
-          </div>
-        </div>
-      ) : null}
-      {pending.map((p) => (
-        <div className="panel pending-panel" key={p.id}>
-          <h3>{p.name} 请求连接</h3>
-          <p>设备公钥指纹</p>
-          <p className="mono fingerprint">{p.keyHash}</p>
-          <div className="button-row">
-            <Button className="secondary" onClick={() => void approve(p.id, false, 'viewer')}>
-              拒绝
-            </Button>
-            <Button className="secondary" onClick={() => void approve(p.id, true, 'viewer')}>
-              允许查看
-            </Button>
-            <Button className="primary" onClick={() => void approve(p.id, true, 'operator')}>
-              允许查看与编辑
-            </Button>
-          </div>
-        </div>
-      ))}
-      <div className="quiet-note">
-        <Wifi size={18} />
-        <p>LAN、DNS、Tailscale 或其他隧道仅改变地址，每条连接都使用相同的 TLS 身份与授权校验</p>
-      </div>
-      {revoke ? (
-        <Modal title="撤销设备" close={() => setRevoke(null)}>
-          <p>撤销「{revoke.name}」后，它的会话会立即断开，之后无法再次认证</p>
-          <Button
-            className="danger"
-            onClick={() => {
-              void core
-                .api(`/devices/${encodeURIComponent(revoke.id)}/revoke`, {})
-                .then(() => {
-                  setRevoke(null);
-                  return reload();
-                })
-                .catch((e) => notify(errorText(e)));
-            }}
-          >
-            确认撤销
-          </Button>
-        </Modal>
-      ) : null}
-    </>
   );
 }
 function SettingsPanel({

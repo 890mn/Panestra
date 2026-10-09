@@ -40,7 +40,26 @@ const invoke = async <T>(command: string, args?: Record<string, unknown>): Promi
 interface DeviceKey {
   deviceId: string;
   publicKey: string;
+  deviceName?: string;
   privateKey?: CryptoKey;
+}
+export async function probeEndpoint(endpoint: string): Promise<void> {
+  const url = new URL(endpoint);
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash
+  )
+    throw new Error('地址只填写 HTTPS 主机和端口，不包含凭据或路径');
+  if (!native) throw new Error('浏览器无法单独检测 TCP 端口，请填写身份指纹后使用测试连接');
+  try {
+    await invoke('plugin:panestra-bridge|probe_endpoint', { endpoint: url.origin });
+  } catch (error) {
+    throw connectionFailure(error, url.origin, '/probe-endpoint', false);
+  }
 }
 const b64 = (bytes: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
 export async function deviceKey(): Promise<DeviceKey> {

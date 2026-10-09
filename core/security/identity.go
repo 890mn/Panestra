@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"panestra.local/panestra/core/protocol"
 	"path/filepath"
 	"time"
 )
@@ -135,5 +136,5 @@ func (i *Identity) PublicProof(nonce string) (map[string]any, error) {
 	sig := make([]byte, 64)
 	r.FillBytes(sig[:32])
 	s.FillBytes(sig[32:])
-	return map[string]any{"serverId": i.ServerID, "fingerprint": i.Fingerprint(), "apiVersion": 1, "coreVersion": "0.1.1", "publicKey": base64.StdEncoding.EncodeToString(pub), "proof": message, "signature": base64.StdEncoding.EncodeToString(sig), "pairingRequired": true}, nil
+	return map[string]any{"serverId": i.ServerID, "fingerprint": i.Fingerprint(), "apiVersion": 1, "coreVersion": protocol.CoreVersion, "capabilities": []string{"device-management", "pairing-close"}, "publicKey": base64.StdEncoding.EncodeToString(pub), "proof": message, "signature": base64.StdEncoding.EncodeToString(sig), "pairingRequired": true}, nil
 }

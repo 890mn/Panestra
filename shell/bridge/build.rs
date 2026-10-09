@@ -4,6 +4,7 @@ const COMMANDS: &[&str] = &[
     "sign",
     "discover",
     "request",
+    "probe_endpoint",
     "connect",
     "disconnect",
     "open_github",

@@ -8,11 +8,13 @@ import {
   Link2,
   Monitor,
   Plus,
+  Pencil,
   ShieldCheck,
 } from 'lucide-react';
 import type { Endpoint } from '../../packages/protocol/src';
 import { core, coreFleet } from './core';
 import { hostName } from './core-fleet';
+import { coreName, saveCoreName } from './core-names';
 import { connectionErrorText } from './connection-errors';
 import { Button } from './components';
 import './core-connections.css';
@@ -46,6 +48,8 @@ export function CoreConnections({
   const [uri, setURI] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState('');
+  const [renaming, setRenaming] = useState('');
+  const [name, setName] = useState('');
   const groups = new Map<string, Endpoint[]>();
   for (const endpoint of [
     ...hosts.flatMap((host) => (host.state.endpoint ? [host.state.endpoint] : [])),
@@ -104,11 +108,12 @@ export function CoreConnections({
                     </span>
                     <div className="saved-core-title">
                       <strong>
-                        {current && currentName
-                          ? currentName
-                          : host
-                            ? hostName(host.state)
-                            : addressName(endpoint)}
+                        {coreName(id) ||
+                          (current && currentName
+                            ? currentName
+                            : host
+                              ? hostName(host.state)
+                              : addressName(endpoint))}
                       </strong>
                       <small>
                         {current
@@ -126,6 +131,20 @@ export function CoreConnections({
                                 : '已配对 · 离线'}
                       </small>
                     </div>
+                    <Button
+                      className="icon-button"
+                      aria-label={
+                        '重命名 Core ' +
+                        (coreName(id) || (host ? hostName(host.state) : addressName(endpoint)))
+                      }
+                      disabled={state.switching}
+                      onClick={() => {
+                        setRenaming(renaming === id ? '' : id);
+                        setName(coreName(id) || '');
+                      }}
+                    >
+                      <Pencil size={16} />
+                    </Button>
                     {(current && state.pairingRequired) || host?.state.pairingRequired ? (
                       <Button
                         className="secondary"
@@ -153,6 +172,34 @@ export function CoreConnections({
                       </Button>
                     )}
                   </div>
+                  {renaming === id ? (
+                    <form
+                      className="core-name-form form-stack"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void saveCoreName(id, name)
+                          .then(() => {
+                            core.patch({});
+                            setRenaming('');
+                          })
+                          .catch((error) => setError(connectionErrorText(error)));
+                      }}
+                    >
+                      <label>
+                        Core 备注名称
+                        <input
+                          maxLength={40}
+                          value={name}
+                          onChange={(event) => setName(event.target.value)}
+                          placeholder="例如：家中电脑、远程工作站"
+                        />
+                      </label>
+                      <small>只修改此设备上的显示名称，留空恢复主机名称</small>
+                      <Button className="secondary" type="submit">
+                        保存名称
+                      </Button>
+                    </form>
+                  ) : null}
                   <Button
                     className="core-address-toggle"
                     aria-expanded={open}
@@ -295,6 +342,14 @@ export function CoreConnections({
               <code>https://127.0.0.1:19443</code>
             </li>
           </ol>
+          <div className="connection-note">
+            <Link2 size={16} />
+            <span>
+              先确认 UU 中映射显示已启动，再检测本地端口
+              <br />
+              如果提示端口拒绝，说明这台电脑的映射尚未监听或本地端口填错，此时指纹和配对码尚未参与验证
+            </span>
+          </div>
           <p>端口请以实际配置为准，HTTPS 与实时同步共用同一个 TCP 映射</p>
           <p>
             首次在这台设备连接时，在远端电脑打开配对窗口获取身份指纹和配对码，并批准请求；同一台已配对的远端主机可直接添加连接地址

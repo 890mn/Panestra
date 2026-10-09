@@ -15,6 +15,7 @@ import type { Plugin } from '../../packages/protocol/src';
 import type { PluginManifest } from './plugin-schema';
 import { deviceKey, discover, native, realtime, sign, transport } from './platform';
 import { connectionErrorText, pairingRequired } from './connection-errors';
+import { loadCoreNames } from './core-names';
 
 export type CoreState = {
   snapshot: Snapshot | null;
@@ -98,6 +99,7 @@ export class CoreClient {
     this.listeners.forEach((fn) => fn());
   }
   async init() {
+    await loadCoreNames();
     const epoch = this.sessionEpoch;
     const [endpoint, known] = await Promise.all([
       get<Endpoint>('panestra.active.v1'),
@@ -215,6 +217,8 @@ export class CoreClient {
     const url = new URL(uri);
     if (url.protocol !== 'https:' || url.username || url.password)
       throw { message: '请使用不含凭据的 HTTPS 地址' };
+    if (url.pathname !== '/' || url.search || url.hash)
+      throw { message: 'Core 地址只填写 HTTPS 主机和端口，不包含路径' };
     if (!/^[0-9a-f]{64}$/i.test(fingerprint))
       throw { message: '请填写本机 Core 显示的 64 位身份指纹' };
     const nonce = crypto.randomUUID();

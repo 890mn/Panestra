@@ -190,7 +190,7 @@ class PanestraBridgePlugin(private val activity: Activity) : Plugin(activity) {
             val prefs = activity.getSharedPreferences("panestra.identity", Context.MODE_PRIVATE)
             val id = prefs.getString("deviceId", null) ?: UUID.randomUUID().toString().also { prefs.edit().putString("deviceId", it).commit() }
             val pub = Base64.encodeToString(keys.getCertificate(alias).publicKey.encoded, Base64.NO_WRAP)
-            invoke.resolve(JSObject().put("deviceId", id).put("publicKey", pub))
+            invoke.resolve(JSObject().put("deviceId", id).put("publicKey", pub).put("deviceName", android.os.Build.MODEL))
         } catch (e: Exception) { invoke.reject(e.message ?: "Keystore unavailable") }
     }
     @Command fun sign(invoke: Invoke) {
@@ -285,6 +285,23 @@ class PanestraBridgePlugin(private val activity: Activity) : Plugin(activity) {
             cause = current.cause
         }
         return messages.joinToString(": ")
+    }
+    @Command fun probeEndpoint(invoke: Invoke) {
+        Thread {
+            try {
+                val url = java.net.URI(invoke.getArgs().getString("endpoint"))
+                require(url.scheme == "https" && url.host != null && url.userInfo == null &&
+                    (url.path.isNullOrEmpty() || url.path == "/") && url.query == null && url.fragment == null) {
+                    "地址只填写 HTTPS 主机和端口，不包含凭据或路径"
+                }
+                val port = if (url.port == -1) 443 else url.port
+                // The probe sends no TLS, HTTP, credentials or pairing data.
+                java.net.Socket(java.net.Proxy.NO_PROXY).use { socket ->
+                    socket.connect(java.net.InetSocketAddress(url.host.removePrefix("[").removeSuffix("]"), port), 8000)
+                }
+                invoke.resolve(JSObject())
+            } catch (e: Exception) { invoke.reject(connectionError(e)) }
+        }.start()
     }
     @Command fun request(invoke: Invoke) {
         executor.execute {

@@ -113,6 +113,7 @@ export interface Identity {
   fingerprint: string;
   apiVersion: number;
   coreVersion: string;
+  capabilities?: string[];
   publicKey?: string;
   proof?: string;
   signature?: string;

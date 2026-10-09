@@ -20,17 +20,19 @@ export function connectionFailure(
 }
 
 const phase = (path: string) =>
-  path.startsWith('/api/v1/identity')
-    ? '验证 Core 身份'
-    : path.endsWith('/auth/challenge')
-      ? '获取认证挑战'
-      : path.endsWith('/pairing/request')
-        ? '提交配对请求'
-        : path.includes('/pairing/status/')
-          ? '等待主机批准'
-          : path.endsWith('/auth/login')
-            ? '登录已配对设备'
-            : '读取 Core 数据';
+  path === '/probe-endpoint'
+    ? '检测地址端口'
+    : path.startsWith('/api/v1/identity')
+      ? '验证 Core 身份'
+      : path.endsWith('/auth/challenge')
+        ? '获取认证挑战'
+        : path.endsWith('/pairing/request')
+          ? '提交配对请求'
+          : path.includes('/pairing/status/')
+            ? '等待主机批准'
+            : path.endsWith('/auth/login')
+              ? '登录已配对设备'
+              : '读取 Core 数据';
 
 export function pairingRequired(error: unknown): boolean {
   const value = error as Partial<APIError> | null;
@@ -53,7 +55,9 @@ export function connectionErrorText(error: unknown): string {
   let text = message;
   if (/Core identity|certificate validity|身份指纹不匹配/i.test(message))
     text = 'Core 身份指纹不匹配或证书已失效，请核对目标主机的 SHA-256 与系统时间';
-  else if (/Connection refused|actively refused|ECONNREFUSED|os error 10061/i.test(message))
+  else if (
+    /Connection refused|actively refused|ECONNREFUSED|os error 10061|积极拒绝/i.test(message)
+  )
     text = '连接端口拒绝请求，请检查该端口是否有 Core 或映射服务监听';
   else if (/timed out|timeout|ETIMEDOUT/i.test(message))
     text = '连接 Core 超时，请检查远端主机和端口映射是否在线';
@@ -69,6 +73,11 @@ export function connectionErrorText(error: unknown): string {
     text = '无法连接 Core，请检查目标地址和端口映射';
   if (!value?.connection) return text;
   const { endpoint, path, browser } = value.connection;
+  const localRefusal =
+    /refused|ECONNREFUSED|10061|积极拒绝/i.test(message) &&
+    /^https:\/\/(127\.0\.0\.1|localhost|\[::1\])(?=:|\/|$)/i.test(endpoint)
+      ? '\n这个地址指当前设备，请先启动对应本地端口的映射；配对码和指纹尚未参与校验'
+      : '';
   const hint =
     browser && /Failed to fetch|NetworkError/i.test(message)
       ? '\n当前使用浏览器，请先打开目标地址检查证书；跨主机连接建议使用 Windows 安装版'
@@ -78,5 +87,5 @@ export function connectionErrorText(error: unknown): string {
     value.code === 'CONNECTION_FAILED' && text !== message && !browser
       ? '\n原因：' + message.slice(0, 800)
       : '';
-  return `${text}\n${phase(path)} · ${endpoint}${hint}${detail}`;
+  return `${text}\n${phase(path)} · ${endpoint}${localRefusal}${hint}${detail}`;
 }

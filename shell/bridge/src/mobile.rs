@@ -3,6 +3,18 @@ use std::collections::HashMap;
 use tauri::{plugin::PluginHandle, AppHandle, Runtime, State};
 pub struct Bridge<R: Runtime>(pub PluginHandle<R>);
 #[tauri::command]
+pub async fn probe_endpoint<R: Runtime>(
+    _app: AppHandle<R>,
+    bridge: State<'_, Bridge<R>>,
+    endpoint: String,
+) -> Result<Value, String> {
+    bridge
+        .0
+        .run_mobile_plugin_async("probeEndpoint", json!({"endpoint": endpoint}))
+        .await
+        .map_err(|e| e.to_string())
+}
+#[tauri::command]
 pub async fn install_app_update<R: Runtime>(
     _app: AppHandle<R>,
     bridge: State<'_, Bridge<R>>,

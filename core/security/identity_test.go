@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"math/big"
+	"panestra.local/panestra/core/protocol"
 	"testing"
 )
 
@@ -18,6 +19,9 @@ func TestCoreProofBindsNonceIdentityAndPinnedKey(t *testing.T) {
 	proof, err := id.PublicProof("fresh-client-nonce-1234")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if proof["coreVersion"] != protocol.CoreVersion || len(proof["capabilities"].([]string)) != 2 {
+		t.Fatal("Core reported stale version or missing device management capabilities")
 	}
 	if proof["fingerprint"] != id.Fingerprint() || proof["proof"] != "panestra:server:v1:fresh-client-nonce-1234:intended-core" {
 		t.Fatal("proof not bound to intended Core")

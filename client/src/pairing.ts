@@ -5,8 +5,13 @@ export type PairingCode = {
   code: string;
   expiresAt: string;
 };
-export const loopbackEndpoint = (uri: string) =>
-  ['localhost', '127.0.0.1', '[::1]', '::1'].includes(new URL(uri).hostname.toLowerCase());
+export const loopbackEndpoint = (uri: string) => {
+  try {
+    return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(new URL(uri).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+};
 export function parsePairingCode(text: string, now = Date.now()): PairingCode {
   if (text.length > 4096) throw new Error('不是有效的 Panestra 配对二维码');
   let value: Partial<PairingCode> & { schemaVersion?: number };

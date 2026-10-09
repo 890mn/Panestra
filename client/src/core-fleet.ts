@@ -1,9 +1,12 @@
 import { CoreClient, type CoreState } from './core';
 import type { Endpoint, SystemInfo } from '../../packages/protocol/src';
 import { connectionErrorText } from './connection-errors';
+import { coreName } from './core-names';
 
 export type CoreHost = { id: string; client: CoreClient; state: CoreState; active: boolean };
 export function hostName(state: CoreState) {
+  const name = coreName(state.endpoint?.serverId);
+  if (name) return name;
   const system = Object.values(state.telemetry).find(
     (item) => item.value && typeof item.value === 'object' && 'hostname' in item.value,
   )?.value as SystemInfo | undefined;

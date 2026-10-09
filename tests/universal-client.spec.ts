@@ -239,6 +239,28 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await desktop.getByRole('button', { name: '允许查看与编辑' }).click();
   await openWorkspace(tablet);
   await expect(tablet.getByTestId('widget-cpu')).toBeVisible({ timeout: 15000 });
+  // Rename and change permissions through the actual owner UI, preserving pairing.
+  await desktop.getByRole('button', { name: '编辑测试平板', exact: true }).click();
+  await desktop.getByLabel('设备名称', { exact: true }).fill('工作平板');
+  await desktop.getByLabel('设备权限', { exact: true }).selectOption('viewer');
+  await desktop.getByRole('button', { name: '保存设备信息', exact: true }).click();
+  await expect(desktop.getByRole('dialog', { name: '编辑设备' })).toHaveCount(0);
+  await expect(tablet.getByRole('button', { name: '编辑布局', exact: true })).toBeDisabled({
+    timeout: 15000,
+  });
+  await desktop.getByRole('button', { name: '编辑工作平板', exact: true }).click();
+  await desktop.getByLabel('设备名称', { exact: true }).fill('测试平板');
+  await desktop.getByLabel('设备权限', { exact: true }).selectOption('operator');
+  await desktop.getByRole('button', { name: '保存设备信息', exact: true }).click();
+  await expect(tablet.getByRole('button', { name: '编辑布局', exact: true })).toBeEnabled({
+    timeout: 15000,
+  });
+  await desktop.evaluate(() => scrollTo(0, 0));
+  await desktop.screenshot({ path: 'artifacts/devices-management-day.png', fullPage: true });
+  await desktop.getByRole('button', { name: '添加设备', exact: true }).click();
+  await expect(desktop.locator('.device-pairing')).toContainText('剩余');
+  await desktop.getByRole('button', { name: '关闭配对窗口', exact: true }).click();
+  await expect(desktop.locator('.device-pairing')).toHaveCount(0);
   await desktop.getByRole('button', { name: '主机工作区', exact: true }).click();
   await phone.getByRole('button', { name: '配置处理器', exact: true }).click();
   await phone.getByLabel('名称', { exact: true }).fill('共同的处理器');
@@ -285,7 +307,7 @@ test('真实 Core：三端配对、实时数据、独立布局、重启恢复与
   await expect(phone.getByTestId('widget-cpu')).toHaveCSS('top', '0px');
   await phone.getByRole('button', { name: '打开菜单', exact: true }).click();
   await phone.getByRole('button', { name: '设备与连接', exact: true }).click();
-  await phone.getByRole('button', { name: '连接其他 Core', exact: true }).click();
+  await phone.getByRole('button', { name: '管理 Core', exact: true }).click();
   await phone.getByRole('button', { name: '添加连接地址', exact: true }).click();
   await phone.getByLabel('HTTPS 地址', { exact: true }).fill(endpoint);
   await phone.getByRole('button', { name: '验证并连接', exact: true }).click();

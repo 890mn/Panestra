@@ -277,6 +277,36 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 		}
 		JSON(w, 200, devices)
 	}))
+	mux.HandleFunc("POST /api/v1/devices/{id}/update", protect(true, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
+		var p struct {
+			Name string `json:"name"`
+			Role string `json:"role"`
+		}
+		if !decode(w, r, &p) {
+			return
+		}
+		id := r.PathValue("id")
+		// An owner can rename itself, but cannot alter its own management role.
+		if id == d.ID && p.Role != d.Role {
+			JSON(w, 403, protocol.Error{Code: "FORBIDDEN", Message: "请在另一台管理设备修改当前设备权限"})
+			return
+		}
+		before, err := s.Auth.Device(id)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		updated, err := s.Auth.UpdateDevice(id, p.Name, p.Role)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		if before.Role != updated.Role {
+			s.Hub.Revoke(id)
+		}
+		s.Store.Audit(d.ID, "device.update", id, "success", r.Header.Get("X-Request-ID"))
+		JSON(w, 200, updated)
+	}))
 	mux.HandleFunc("POST /api/v1/devices/{id}/revoke", protect(true, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		id := r.PathValue("id")
 		if err := s.Auth.Revoke(id); err != nil {
@@ -304,6 +334,11 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 			security.Window
 			Endpoints []string `json:"endpoints"`
 		}{v, pairingEndpoints(s.ListenAddress)})
+	}))
+	mux.HandleFunc("POST /api/v1/pairing/close", protect(true, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
+		s.Auth.CloseWindow()
+		s.Store.Audit(d.ID, "pairing.close", "", "success", r.Header.Get("X-Request-ID"))
+		JSON(w, 200, map[string]bool{"ok": true})
 	}))
 	mux.HandleFunc("GET /api/v1/pairing/pending", protect(true, func(w http.ResponseWriter, r *http.Request, d protocol.Device) { JSON(w, 200, s.Auth.Pending()) }))
 	mux.HandleFunc("POST /api/v1/pairing/approve", protect(true, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {

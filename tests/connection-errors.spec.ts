@@ -20,6 +20,7 @@ test('连接失败显示真实阶段与原因，不把配对拒绝、TLS 错误�
   expect(refused).toContain('验证 Core 身份');
   expect(refused).toContain(endpoint);
   expect(refused).toContain('os error 10061');
+  expect(refused).toContain('先启动对应本地端口的映射');
   expect(refused).not.toContain('浏览器');
   const tls = connectionErrorText(
     connectionFailure(

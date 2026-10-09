@@ -20,6 +20,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         desktop::sign,
         desktop::discover,
         desktop::request,
+        desktop::probe_endpoint,
         desktop::connect,
         desktop::disconnect,
         desktop::open_github
@@ -31,6 +32,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         mobile::sign,
         mobile::discover,
         mobile::request,
+        mobile::probe_endpoint,
         mobile::connect,
         mobile::disconnect,
         mobile::open_github,

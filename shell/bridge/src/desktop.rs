@@ -96,6 +96,7 @@ struct StoredKey {
 pub struct Identity {
     device_id: String,
     public_key: String,
+    device_name: String,
 }
 
 #[cfg(windows)]
@@ -204,7 +205,36 @@ pub fn identity<R: Runtime>(app: AppHandle<R>) -> Result<Identity, String> {
     Ok(Identity {
         device_id,
         public_key,
+        device_name: std::env::var("COMPUTERNAME").unwrap_or_else(|_| "我的电脑".into()),
     })
+}
+/// Connectivity only: never sends a pairing code, credentials or application data.
+#[tauri::command]
+pub async fn probe_endpoint(endpoint: String) -> Result<(), String> {
+    let url = url::Url::parse(&endpoint).map_err(|_| "请填写完整的 HTTPS 地址")?;
+    if url.scheme() != "https"
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.path() != "/"
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err("地址只填写 HTTPS 主机和端口，不包含凭据或路径".into());
+    }
+    let host = url
+        .host_str()
+        .ok_or("地址缺少主机")?
+        .trim_matches(['[', ']']);
+    let port = url.port_or_known_default().ok_or("地址缺少端口")?;
+    let stream = tokio::time::timeout(
+        Duration::from_secs(8),
+        tokio::net::TcpStream::connect((host, port)),
+    )
+    .await
+    .map_err(|_| "连接端口超时，请检查网络和端口映射".to_string())?
+    .map_err(|e| e.to_string())?;
+    drop(stream);
+    Ok(())
 }
 #[tauri::command]
 pub fn sign<R: Runtime>(app: AppHandle<R>, message: String) -> Result<String, String> {

@@ -179,10 +179,13 @@ try {
   await page.getByRole('button', { name: '添加新 Core', exact: true }).click();
   await expect(page.getByLabel('Core 地址', { exact: true })).toHaveValue('');
   await page.getByLabel('Core 地址', { exact: true }).fill('https://127.0.0.1:19529');
+  await page.getByRole('button', { name: '检测地址端口', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('检测地址端口');
+  await expect(page.getByLabel('Core 身份指纹')).toHaveValue('');
   await page.getByLabel('Core 身份指纹').fill(target.fingerprint);
   await page.getByRole('button', { name: '测试连接', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('连接端口拒绝请求');
-  await expect(page.getByRole('alert')).toContainText('验证 Core 身份');
+  await expect(page.getByRole('alert')).toContainText('检测地址端口');
   await expect(page.getByRole('alert')).not.toContainText('当前使用浏览器');
   await page.getByLabel('Core 地址', { exact: true }).fill('https://127.0.0.1:19528');
   await page.getByLabel('Core 身份指纹').fill('0'.repeat(64));
