@@ -42,7 +42,7 @@ func setup(t *testing.T) (*Server, *httptest.Server, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = manager.Bootstrap("../../artifacts/plugin-seed"); err != nil {
+	if err = manager.Bootstrap("../../artifacts/build/plugin-seed"); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(manager.StopAll)

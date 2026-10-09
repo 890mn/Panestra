@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 const { version } = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
-const artifacts = path.join(root, 'artifacts');
+const artifacts = path.join(root, 'artifacts/archive/releases', version);
 const windowsName = `Panestra-${version}-windows-x64-setup.exe`;
 const signatureFile = path.join(
   root,

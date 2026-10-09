@@ -27,14 +27,14 @@ async function openWorkspace(surface: Page) {
 async function startCore() {
   stoppingCore = false;
   processCore = spawn(
-    path.join(root, 'artifacts/panestra-core.exe'),
+    path.join(root, 'artifacts/build/panestra-core.exe'),
     [
       '--data',
       coreData,
       '--listen',
       '127.0.0.1:19443',
       '--plugin-seed',
-      path.join(root, 'artifacts/plugin-seed'),
+      path.join(root, 'artifacts/build/plugin-seed'),
       '--parent-stdio',
     ],
     {
@@ -42,7 +42,7 @@ async function startCore() {
       windowsHide: true,
       env: {
         ...process.env,
-        PANESTRA_CODEX_EXECUTABLE: path.join(root, 'artifacts/codex-fixture.exe'),
+        PANESTRA_CODEX_EXECUTABLE: path.join(root, 'artifacts/build/codex-fixture.exe'),
       },
     },
   );

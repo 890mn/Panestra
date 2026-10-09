@@ -10,14 +10,14 @@ const root = path.resolve(import.meta.dirname, '..');
 mkdirSync(path.join(root, '.tools/native-tests'), { recursive: true });
 const data = mkdtempSync(path.join(root, '.tools/native-tests/fleet-'));
 const remote = spawn(
-  path.join(root, 'artifacts/panestra-core.exe'),
+  path.join(root, 'artifacts/build/panestra-core.exe'),
   [
     '--data',
     path.join(data, 'remote'),
     '--listen',
     '127.0.0.1:19527',
     '--plugin-seed',
-    path.join(root, 'artifacts/plugin-seed'),
+    path.join(root, 'artifacts/build/plugin-seed'),
     '--parent-stdio',
   ],
   { windowsHide: true },

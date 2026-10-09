@@ -15,8 +15,8 @@ if (-not (Test-Path -LiteralPath 'gen/android/gradlew.bat')) {
 node ../../scripts/prepare-android.mjs
 $arguments = @('exec', '--', 'tauri', 'android', 'build', '--target', 'aarch64', '--apk', '--config', '../android/tauri.conf.json')
 if ($Debug -and -not $OptimizedNative) { $arguments += '--debug' }
-New-Item -ItemType Directory -Force (Join-Path $workspace 'artifacts') | Out-Null
-$buildLog = Join-Path $workspace 'artifacts/android-build.log'
+New-Item -ItemType Directory -Force (Join-Path $workspace 'artifacts/archive/logs') | Out-Null
+$buildLog = Join-Path $workspace 'artifacts/archive/logs/android-build.log'
 & npm @arguments 2>&1 | Tee-Object -FilePath $buildLog
 $tauriBuildFailed = $LASTEXITCODE -ne 0
 if ($tauriBuildFailed) {

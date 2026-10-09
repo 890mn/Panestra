@@ -17,14 +17,14 @@ const origin = 'http://127.0.0.1:19523';
 async function startCore(port: number): Promise<TestCore> {
   mkdirSync('.tools/connection-tests', { recursive: true });
   const child = spawn(
-    path.resolve('artifacts/panestra-core.exe'),
+    path.resolve('artifacts/build/panestra-core.exe'),
     [
       '--data',
       mkdtempSync(path.resolve('.tools/connection-tests/core-')),
       '--listen',
       `127.0.0.1:${port}`,
       '--plugin-seed',
-      path.resolve('artifacts/plugin-seed'),
+      path.resolve('artifacts/build/plugin-seed'),
       '--origins',
       origin,
       '--parent-stdio',

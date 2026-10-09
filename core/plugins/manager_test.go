@@ -22,7 +22,7 @@ import (
 
 func fixture(t *testing.T) (backplane.Manifest, []byte) {
 	t.Helper()
-	archive, err := zip.OpenReader("../../artifacts/plugin-seed/codex.zip")
+	archive, err := zip.OpenReader("../../artifacts/build/plugin-seed/codex.zip")
 	if err != nil {
 		t.Fatal("prepare independent signed plugin packages before integration checks:", err)
 	}

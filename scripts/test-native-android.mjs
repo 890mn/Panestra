@@ -12,14 +12,14 @@ const run = (...args) =>
 mkdirSync(path.join(root, '.tools/native-tests'), { recursive: true });
 const data = mkdtempSync(path.join(root, '.tools/native-tests/android-core-'));
 const core = spawn(
-  path.join(root, 'artifacts/panestra-core.exe'),
+  path.join(root, 'artifacts/build/panestra-core.exe'),
   [
     '--data',
     data,
     '--listen',
     '0.0.0.0:19444',
     '--plugin-seed',
-    path.join(root, 'artifacts/plugin-seed'),
+    path.join(root, 'artifacts/build/plugin-seed'),
     '--parent-stdio',
   ],
   { cwd: root, windowsHide: true },

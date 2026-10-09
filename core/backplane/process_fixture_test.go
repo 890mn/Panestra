@@ -12,7 +12,7 @@ import (
 // No plugin source tree or stale pre-split executable is needed by host tests.
 func systemProcessFixture(t *testing.T) (string, []byte) {
 	t.Helper()
-	archive, err := zip.OpenReader("../../artifacts/plugin-seed/system.zip")
+	archive, err := zip.OpenReader("../../artifacts/build/plugin-seed/system.zip")
 	if err != nil {
 		t.Fatal("prepare independent plugin packages before runtime tests:", err)
 	}

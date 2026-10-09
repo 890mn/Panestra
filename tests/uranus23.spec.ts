@@ -13,7 +13,7 @@ const origin = 'http://127.0.0.1:19526';
 test.beforeAll(async () => {
   mkdirSync('.tools/uranus-tests', { recursive: true });
   child = spawn(
-    path.resolve('artifacts/panestra-core.exe'),
+    path.resolve('artifacts/build/panestra-core.exe'),
     [
       '--data',
       mkdtempSync(path.resolve('.tools/uranus-tests/core-')),
@@ -22,7 +22,7 @@ test.beforeAll(async () => {
       '--origins',
       origin,
       '--plugin-seed',
-      path.resolve('artifacts/plugin-seed'),
+      path.resolve('artifacts/build/plugin-seed'),
       '--parent-stdio',
     ],
     { windowsHide: true },

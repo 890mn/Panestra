@@ -229,6 +229,12 @@ npm ci</code></pre>
 
 APK 输出到 <code>shell/desktop/gen/android/app/build/outputs/apk/arm64/debug</code>。
 
+### 本地打包与产物整理
+
+运行 `scripts/package.ps1` 后，安装包的固定入口是 `artifacts/latest`，包含 Windows 安装包、便携 ZIP、Android 开发 APK、版本号与 SHA-256 校验文件。旧版本保存在 `artifacts/archive/releases/<版本号>`，截图、日志与验证记录分别收纳在 `archive` 下，构建程序和离线插件包位于 `artifacts/build`
+
+打包会自动更新最新完整版本；单独整理测试输出可运行 `scripts/organize-artifacts.ps1`，保留已有文件。整个 `artifacts` 目录均在 Git 忽略范围内
+
 ### Verify
 
 <pre><code>.\scripts\verify.ps1</code></pre>

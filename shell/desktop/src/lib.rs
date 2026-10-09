@@ -115,7 +115,7 @@ pub fn run() {
                 std::fs::create_dir_all(&data)?;
                 let packaged = resources.join("panestra-core.exe");
                 let development = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../../artifacts/panestra-core.exe");
+                    .join("../../artifacts/build/panestra-core.exe");
                 let core = if packaged.exists() {
                     packaged
                 } else {
@@ -125,7 +125,7 @@ pub fn run() {
                     resources.join("plugin-seed")
                 } else {
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../../artifacts/plugin-seed")
+                        .join("../../artifacts/build/plugin-seed")
                 };
                 let mut command = Command::new(core);
                 command.args([
