@@ -3,6 +3,8 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { createServer, connect } from 'node:net';
 import path from 'node:path';
+import { request as httpsRequest } from 'node:https';
+import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto';
 
 const root = path.resolve(import.meta.dirname, '..');
 mkdirSync(path.join(root, '.tools/native-tests'), { recursive: true });
@@ -56,6 +58,67 @@ try {
       reject(new Error('Isolated remote Core exited'));
     });
   });
+  // Independent owner of the isolated target; all keys/codes stay in memory.
+  const ownerKeys = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const ownerId = randomUUID();
+  const remoteAPI = (apiPath, body, token = '') =>
+    new Promise((resolve, reject) => {
+      const req = httpsRequest(
+        `https://127.0.0.1:19527/api/v1${apiPath}`,
+        {
+          method: body ? 'POST' : 'GET',
+          rejectUnauthorized: false,
+          agent: false,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        },
+        (response) => {
+          const certificate = response.socket.getPeerX509Certificate();
+          if (!certificate) {
+            response.destroy();
+            reject(new Error('Isolated fixture certificate missing'));
+            return;
+          }
+          const fingerprint = createHash('sha256')
+            .update(certificate.publicKey.export({ type: 'spki', format: 'der' }))
+            .digest('hex');
+          if (fingerprint !== target.fingerprint) {
+            response.destroy();
+            reject(new Error('Isolated fixture TLS pin mismatch'));
+            return;
+          }
+          let text = '';
+          response.on('data', (chunk) => {
+            text += chunk;
+          });
+          response.on('end', () => {
+            const value = JSON.parse(text);
+            if (response.statusCode >= 400) reject(new Error(value.message));
+            else resolve(value);
+          });
+        },
+      );
+      req.on('error', reject);
+      req.setTimeout(10000, () => req.destroy(new Error('Isolated fixture request timed out')));
+      req.end(body ? JSON.stringify(body) : undefined);
+    });
+  const challenge = await remoteAPI('/auth/challenge', {
+    deviceId: ownerId,
+    publicKey: ownerKeys.publicKey.export({ type: 'spki', format: 'der' }).toString('base64'),
+    purpose: 'bootstrap',
+  });
+  const owner = await remoteAPI('/auth/bootstrap', {
+    code: target.bootstrap,
+    name: 'Remote owner fixture',
+    challengeId: challenge.id,
+    signature: sign('sha256', Buffer.from(challenge.message), {
+      key: ownerKeys.privateKey,
+      dsaEncoding: 'ieee-p1363',
+    }).toString('base64'),
+  });
+  const pairing = await remoteAPI('/pairing/window', { remote: true }, owner.token);
   tunnel = createServer((local) => {
     const upstream = connect(19527, '127.0.0.1');
     for (const socket of [local, upstream]) {
@@ -115,12 +178,31 @@ try {
   await page.getByRole('button', { name: '管理 Core 连接', exact: true }).click();
   await page.getByRole('button', { name: '添加新 Core', exact: true }).click();
   await expect(page.getByLabel('Core 地址', { exact: true })).toHaveValue('');
-  await page.getByRole('button', { name: '建立主机', exact: true }).click();
-  await page.getByLabel('Core 地址', { exact: true }).fill('https://127.0.0.1:19528');
+  await page.getByLabel('Core 地址', { exact: true }).fill('https://127.0.0.1:19529');
   await page.getByLabel('Core 身份指纹').fill(target.fingerprint);
-  await page.getByLabel('首次认领码', { exact: true }).fill(target.bootstrap);
+  await page.getByRole('button', { name: '测试连接', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('连接端口拒绝请求');
+  await expect(page.getByRole('alert')).toContainText('验证 Core 身份');
+  await expect(page.getByRole('alert')).not.toContainText('当前使用浏览器');
+  await page.getByLabel('Core 地址', { exact: true }).fill('https://127.0.0.1:19528');
+  await page.getByLabel('Core 身份指纹').fill('0'.repeat(64));
+  await page.getByRole('button', { name: '测试连接', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('身份指纹不匹配');
+  await page.getByLabel('Core 身份指纹').fill(target.fingerprint);
+  await page.getByRole('button', { name: '测试连接', exact: true }).click();
+  await expect(page.locator('.connection-test-result')).toContainText('已连接并验证 Core 身份');
+  expect(await remoteAPI('/pairing/pending', undefined, owner.token)).toEqual([]);
+  await page.getByLabel('配对码', { exact: true }).fill(pairing.code);
   await page.getByLabel('此设备名称', { exact: true }).fill('Native fleet test');
-  await page.getByRole('button', { name: '建立并进入工作空间', exact: true }).click();
+  await page.getByRole('button', { name: '发送配对请求', exact: true }).click();
+  await expect(page.getByText('等待 Core 本机确认，请核对设备名称与指纹')).toBeVisible();
+  const pending = await remoteAPI('/pairing/pending', undefined, owner.token);
+  expect(pending).toHaveLength(1);
+  await remoteAPI(
+    '/pairing/approve',
+    { id: pending[0].id, approve: true, role: 'operator' },
+    owner.token,
+  );
   await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 20000 });
   await page.getByRole('button', { name: '总览', exact: true }).click();
   await expect(page.locator('.aggregate-host')).toHaveCount(2);
@@ -151,7 +233,7 @@ try {
     });
   expect(errors).toEqual([]);
   console.log(
-    'Native WebView2: distinct local and mapped remote Cores stay online, switches preserve aggregation, pinned TLS bypasses inherited proxy settings',
+    'Native WebView2: mapped remote pairing verifies identity, submits and waits for independent owner approval; tests preserve local pairing, report refused port and wrong pin, and maintain two connected Cores with invalid inherited proxies',
   );
 } finally {
   await browser?.close().catch(() => {});

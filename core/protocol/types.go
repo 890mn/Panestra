@@ -5,7 +5,7 @@ import "encoding/json"
 const APIVersion = 1
 const PluginProtocol = 1
 const ManifestSchema = 1
-const CoreVersion = "0.1.32"
+const CoreVersion = "0.1.33"
 
 type Entity struct {
 	ID      string          `json:"id"`

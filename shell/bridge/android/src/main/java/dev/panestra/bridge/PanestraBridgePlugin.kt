@@ -275,6 +275,17 @@ class PanestraBridgePlugin(private val activity: Activity) : Plugin(activity) {
         require(path.startsWith("/api/v1/") || path == "/ws/v1") { "Only Panestra API paths allowed" }
         return endpoint.trimEnd('/') + path
     }
+    private fun connectionError(error: Throwable): String {
+        val messages = mutableListOf<String>()
+        var cause: Throwable? = error
+        repeat(8) {
+            val current = cause ?: return@repeat
+            val message = current.message ?: current.javaClass.simpleName
+            if (messages.lastOrNull() != message) messages.add(message)
+            cause = current.cause
+        }
+        return messages.joinToString(": ")
+    }
     @Command fun request(invoke: Invoke) {
         executor.execute {
             try {
@@ -296,7 +307,7 @@ class PanestraBridgePlugin(private val activity: Activity) : Plugin(activity) {
                     require(bytes.size <= 8 * 1024 * 1024) { "Response too large" }
                     invoke.resolve(JSObject().put("status", response.code).put("body", bytes.toString(Charsets.UTF_8)))
                 }
-            } catch (e: Exception) { invoke.reject(e.message ?: "Core request failed") }
+            } catch (e: Exception) { invoke.reject(connectionError(e)) }
         }
     }
     private fun emit(name: String, value: JSONObject) { val js = "window.__PANESTRA_NATIVE_EVENT__(${JSONObject.quote(name)},${value});"; activity.runOnUiThread { surface.evaluateJavascript(js, null) } }

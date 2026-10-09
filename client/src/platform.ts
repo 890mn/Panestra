@@ -1,5 +1,6 @@
 import { get, set } from 'idb-keyval';
 import type { Endpoint } from '../../packages/protocol/src';
+import { connectionFailure } from './connection-errors';
 
 export const native = '__TAURI_INTERNALS__' in window;
 export const canScanPairing = native && /Android/i.test(navigator.userAgent);
@@ -87,30 +88,48 @@ export async function transport<T>(
   init: RequestInit = {},
   fingerprint = '',
 ): Promise<T> {
-  if (native) {
-    const headers = Object.fromEntries(new Headers(init.headers).entries());
-    const result = await invoke<{ status: number; body: string }>(
-      'plugin:panestra-bridge|request',
-      {
-        endpoint,
-        path,
-        method: init.method || 'GET',
-        body: typeof init.body === 'string' ? init.body : '',
-        headers,
-        fingerprint,
-      },
-    );
-    const data = JSON.parse(result.body);
-    if (result.status >= 400) throw data;
-    return data;
+  let status: number;
+  let body: string;
+  try {
+    if (native) {
+      const headers = Object.fromEntries(new Headers(init.headers).entries());
+      const result = await invoke<{ status: number; body: string }>(
+        'plugin:panestra-bridge|request',
+        {
+          endpoint,
+          path,
+          method: init.method || 'GET',
+          body: typeof init.body === 'string' ? init.body : '',
+          headers,
+          fingerprint,
+        },
+      );
+      status = result.status;
+      body = result.body;
+    } else {
+      const response = await fetch(endpoint + path, {
+        ...init,
+        credentials: 'omit',
+        signal: AbortSignal.timeout(10000),
+      });
+      status = response.status;
+      body = await response.text();
+    }
+  } catch (error) {
+    throw connectionFailure(error, endpoint, path, !native);
   }
-  const response = await fetch(endpoint + path, {
-    ...init,
-    credentials: 'omit',
-    signal: AbortSignal.timeout(10000),
-  });
-  const data = await response.json();
-  if (!response.ok) throw data;
+  let data: T;
+  try {
+    data = JSON.parse(body);
+  } catch {
+    throw connectionFailure(
+      { code: 'INVALID_CORE_RESPONSE', message: `HTTP ${status}` },
+      endpoint,
+      path,
+      !native,
+    );
+  }
+  if (status >= 400) throw connectionFailure(data, endpoint, path, !native);
   return data;
 }
 export async function realtime(

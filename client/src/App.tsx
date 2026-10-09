@@ -1030,6 +1030,27 @@ function ConnectForm({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState('');
+  const [connectionTest, setConnectionTest] = useState<{ key: string; text: string } | null>(null);
+  const connectionTestKey = uri.trim() + '|' + fingerprint.replace(/\s|:/g, '').toLowerCase();
+  const testConnection = async () => {
+    setError('');
+    setConnectionTest(null);
+    setBusy(true);
+    try {
+      const result = await core.identity(
+        uri.trim(),
+        fingerprint.replace(/\s|:/g, '').toLowerCase(),
+      );
+      setConnectionTest({
+        key: connectionTestKey,
+        text: `已连接并验证 Core 身份 · ID ${result.identity.serverId.slice(0, 8)}`,
+      });
+    } catch (error) {
+      setError(errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  };
   const [candidates, setCandidates] = useState<
     Array<{ uri: string; name: string; serverIdHint?: string }>
   >([]);
@@ -1223,6 +1244,21 @@ function ConnectForm({
           <input required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
       </div>
+      <Button
+        type="button"
+        className="secondary full"
+        disabled={busy || Boolean(pending) || !uri.trim() || !fingerprint.trim()}
+        onClick={() => void testConnection()}
+      >
+        <Wifi size={17} />
+        测试连接
+      </Button>
+      {connectionTest?.key === connectionTestKey ? (
+        <div className="connection-test-result" role="status">
+          {connectionTest.text}
+          <small>仅验证地址与身份，不提交配对请求</small>
+        </div>
+      ) : null}
       {error ? (
         <div className="form-error" role="alert">
           {error}

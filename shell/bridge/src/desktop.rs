@@ -313,6 +313,20 @@ pub struct Response {
     status: u16,
     body: String,
 }
+fn connection_error(error: reqwest::Error) -> String {
+    use std::error::Error;
+    let mut messages = vec![error.to_string()];
+    let mut cause = error.source();
+    for _ in 0..8 {
+        let Some(current) = cause else { break };
+        let message = current.to_string();
+        if messages.last() != Some(&message) {
+            messages.push(message);
+        }
+        cause = current.source();
+    }
+    messages.join(": ")
+}
 #[tauri::command]
 pub async fn request(
     endpoint: String,
@@ -342,7 +356,7 @@ pub async fn request(
             req = req.header(k, v);
         }
     }
-    let response = req.body(body).send().await.map_err(|e| format!("{e:#}"))?;
+    let response = req.body(body).send().await.map_err(connection_error)?;
     let status = response.status().as_u16();
     if response.content_length().unwrap_or(0) > 8 * 1024 * 1024 {
         return Err("Response too large".into());
