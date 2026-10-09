@@ -27,6 +27,10 @@
 }
 .aggregate-host {
   min-width: 0;
+  padding: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
 }
 .aggregate-host-heading {
   display: flex;
@@ -162,5 +166,211 @@
   }
   .aggregate-widget-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+.fleet-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.fleet-summary-cards > div {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  min-width: 0;
+}
+.fleet-summary-cards small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.fleet-summary-cards strong {
+  display: block;
+  font-size: 32px;
+  font-weight: 500;
+  margin: 14px 0 10px;
+}
+.fleet-summary-cards strong span {
+  font-size: 16px;
+  color: var(--muted);
+}
+.fleet-summary-cards .fleet-rate {
+  font-size: 26px;
+}
+.fleet-summary-cards p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.fleet-attention {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.aggregate-summary .toolbar-tabs {
+  margin-left: auto;
+}
+.host-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  margin: 20px 0;
+}
+.host-metrics > div {
+  min-width: 0;
+}
+.host-metrics small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.host-metrics strong {
+  display: block;
+  font-weight: 500;
+  font-size: 26px;
+  margin: 10px 0;
+}
+.host-metrics .host-network-rate {
+  font-size: 20px;
+}
+.host-metrics span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.host-metrics[data-stale='true'] {
+  opacity: 0.6;
+}
+.host-meter {
+  height: 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+.host-meter i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+.host-software {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.host-software div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+}
+.host-software small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.host-software span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host-issues {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 12px 0;
+}
+.host-page-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.host-page-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.host-page-list small {
+  width: 100%;
+}
+.workspace-core-switcher {
+  display: flex;
+  overflow-x: auto;
+  gap: 10px;
+  margin-bottom: 22px;
+  padding: 2px;
+}
+.workspace-core-switcher button {
+  min-width: 160px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 12px 16px;
+}
+.workspace-core-switcher button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.workspace-core-switcher button span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+}
+.workspace-core-switcher button small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.sidebar-host-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  margin: 18px 12px 8px;
+}
+.sidebar-host-label strong {
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-host-label small {
+  margin-left: auto;
+  font-size: 9px;
+}
+@media (max-width: 900px) {
+  .fleet-summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fleet-summary-cards > div:last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 600px) {
+  .aggregate-host {
+    padding: 18px;
+  }
+  .fleet-summary-cards {
+    gap: 10px;
+  }
+  .fleet-summary-cards > div {
+    padding: 16px;
+  }
+  .host-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .aggregate-summary .toolbar-tabs {
+    margin-left: 0;
+    width: 100%;
   }
 }

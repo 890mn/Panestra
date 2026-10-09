@@ -135,6 +135,7 @@ export function App() {
   const [activePage, setActivePage] = useState('page-overview');
   const [section, setSection] = useState('aggregate');
   const previousHost = useRef<string | undefined>(undefined);
+  const hostPages = useRef(new Map<string, string>());
   const [editing, setEditing] = useState(false);
   const [preview, setPreview] = useState<Breakpoint | 'auto'>('auto');
   const [width, setWidth] = useState(window.innerWidth);
@@ -210,7 +211,7 @@ export function App() {
     setRedo([]);
     setEditing(false);
     setConfiguration(null);
-    setActivePage('page-overview');
+    setActivePage(hostPages.current.get(state.endpoint?.serverId || '') || 'page-overview');
     if (previousHost.current && previousHost.current !== state.endpoint?.serverId)
       setSection('workspace');
     previousHost.current = state.endpoint?.serverId;
@@ -225,11 +226,16 @@ export function App() {
       setBusy(false);
     }
   };
-  const openHost = async (host: CoreHost) => {
+  const openHost = async (host: CoreHost, pageId?: string) => {
     await perform(async () => {
+      if (state.endpoint && currentPage)
+        hostPages.current.set(state.endpoint.serverId, currentPage.id);
+      if (pageId) hostPages.current.set(host.id, pageId);
       if (!host.active && host.state.endpoint) await core.switchEndpoint(host.state.endpoint);
       setSection('workspace');
-      setActivePage('page-overview');
+      setActivePage(pageId || hostPages.current.get(host.id) || 'page-overview');
+      setEditing(false);
+      sidebar.dismissMobile();
     });
   };
   const layoutEntity = (id: string) =>
@@ -465,26 +471,45 @@ export function App() {
             <span>总览</span>
             {section === 'aggregate' ? <span className="active-dot" /> : null}
           </Button>
-          {pages.map((page) => (
-            <Button
-              key={page.id}
-              className={
-                section === 'workspace' && currentPage?.id === page.id
-                  ? 'nav-item active'
-                  : 'nav-item'
-              }
-              onClick={() => {
-                setActivePage(page.id);
-                setSection('workspace');
-                sidebar.dismissMobile();
-              }}
-            >
-              <LayoutDashboard size={18} />
-              <span>{page.data.title === '总览' ? '主机工作区' : page.data.title}</span>
-              {section === 'workspace' && currentPage?.id === page.id ? (
-                <span className="active-dot" />
-              ) : null}
-            </Button>
+          {hosts.map((host) => (
+            <div key={host.id} className="sidebar-host-group">
+              <div className="sidebar-host-label">
+                <span className={`status-light ${host.state.online ? '' : 'offline'}`} />
+                <strong>{hostName(host.state)}</strong>
+                {host.state.endpoint?.relay ? <small>中转</small> : null}
+              </div>
+              {(host.state.snapshot?.entities || [])
+                .filter((entity) => entity.kind === 'page' && !entity.deleted)
+                .map((page) => (
+                  <Button
+                    key={page.id}
+                    aria-label={
+                      host.active
+                        ? page.data.title === '总览'
+                          ? '主机工作区'
+                          : String(page.data.title)
+                        : `打开${hostName(host.state)}的${page.data.title === '总览' ? '主机工作区' : page.data.title}`
+                    }
+                    disabled={!host.state.online && !host.active}
+                    className={
+                      section === 'workspace' && host.active && currentPage?.id === page.id
+                        ? 'nav-item active'
+                        : 'nav-item'
+                    }
+                    onClick={() => {
+                      void openHost(host, page.id);
+                    }}
+                  >
+                    <LayoutDashboard size={18} />
+                    <span>
+                      {page.data.title === '总览' ? '主机工作区' : String(page.data.title)}
+                    </span>
+                    {section === 'workspace' && host.active && currentPage?.id === page.id ? (
+                      <span className="active-dot" />
+                    ) : null}
+                  </Button>
+                ))}
+            </div>
           ))}
         </nav>
         <div className="nav-label spaced">管理</div>
@@ -517,7 +542,7 @@ export function App() {
           >
             <span className={`status-light ${state.online ? '' : 'offline'}`} />
             <div>
-              <strong>{system?.hostname || hostName(state)}</strong>
+              <strong>{hostName(state)}</strong>
               <small>
                 {state.online
                   ? '已连接 · HTTPS / WSS'
@@ -634,11 +659,41 @@ export function App() {
           ) : null}
           {section === 'workspace' ? (
             <>
+              <nav className="workspace-core-switcher" aria-label="切换主机工作区">
+                {hosts.map((host) => (
+                  <Button
+                    key={host.id}
+                    selected={host.active}
+                    disabled={busy || (!host.state.online && !host.active)}
+                    onClick={() => void openHost(host)}
+                    aria-label={'切换到' + hostName(host.state) + '工作区'}
+                  >
+                    <span>
+                      <Monitor size={16} />
+                      {hostName(host.state)}
+                    </span>
+                    <small>
+                      {host.state.online ? '在线' : '离线'} ·{' '}
+                      {host.state.endpoint?.relay ? '主机中转' : '直接连接'} ·{' '}
+                      {
+                        (host.state.snapshot?.entities || []).filter(
+                          (entity) => entity.kind === 'page' && !entity.deleted,
+                        ).length
+                      }{' '}
+                      个页面
+                    </small>
+                  </Button>
+                ))}
+              </nav>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">YOUR PERSONAL CONTROL PLANE</div>
+                  <div className="eyebrow">{hostName(state)} · WORKSPACE</div>
                   <h1>{workspaceTitle || '工作空间'}</h1>
-                  <p>一个核心，让每块屏幕各得其所</p>
+                  <p>
+                    {state.endpoint?.relay
+                      ? '经主机中转访问，页面与组件保存在远端 Core'
+                      : '页面与组件独立保存在这台 Core'}
+                  </p>
                 </div>
                 <div className="surface-orbit" title="同一工作空间支持不同屏幕">
                   <span>

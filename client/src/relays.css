@@ -1,0 +1,99 @@
+.relay-panel {
+  padding: 24px;
+}
+.relay-panel .section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.relay-panel h2 {
+  margin: 5px 0 8px;
+}
+.relay-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.relay-flow span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.relay-flow strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.relay-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.relay-row > div {
+  flex: 1;
+  min-width: 0;
+}
+.relay-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+}
+.relay-row .status-light {
+  display: inline-block;
+  margin-right: 6px;
+}
+.relay-help {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin-top: 18px;
+}
+.relay-gateway {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+}
+.relay-grants {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  min-width: 0;
+}
+.relay-grants legend {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 6px;
+}
+.relay-grants label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+}
+.relay-grants label span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.relay-grants select {
+  width: 138px;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .relay-panel {
+    padding: 18px;
+  }
+  .relay-grants label {
+    flex-wrap: wrap;
+  }
+}

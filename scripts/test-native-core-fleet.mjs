@@ -140,9 +140,9 @@ try {
     env: {
       ...process.env,
       PANESTRA_DATA_DIR: path.join(data, 'local'),
-      PANESTRA_CORE_LISTEN: '127.0.0.1:19525',
+      PANESTRA_CORE_LISTEN: '127.0.0.1:19541',
       WEBVIEW2_USER_DATA_FOLDER: path.join(data, 'webview'),
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=19526',
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=19542',
       HTTP_PROXY: 'http://127.0.0.1:19699',
       HTTPS_PROXY: 'http://127.0.0.1:19699',
       ALL_PROXY: 'http://127.0.0.1:19699',
@@ -151,7 +151,7 @@ try {
   });
   for (let attempt = 0; attempt < 60; attempt++) {
     try {
-      browser = await chromium.connectOverCDP('http://127.0.0.1:19526');
+      browser = await chromium.connectOverCDP('http://127.0.0.1:19542');
       break;
     } catch {
       if (app.exitCode !== null) throw new Error('Isolated native app exited');
@@ -213,14 +213,14 @@ try {
     timeout: 20000,
   });
   await expect(page.locator('.aggregate-host-name', { hasText: '19528' })).toBeVisible();
-  await expect(page.locator('.aggregate-host-name', { hasText: '19525' })).toBeVisible();
+  await expect(page.locator('.aggregate-host-name', { hasText: '19541' })).toBeVisible();
   await page.screenshot({
     path: path.join(root, 'artifacts/native-multi-core-overview.png'),
     fullPage: true,
   });
   await page.getByRole('button', { name: '管理 Core 连接', exact: true }).click();
   await page
-    .locator('.saved-core', { hasText: '19525' })
+    .locator('.saved-core', { hasText: '19541' })
     .getByRole('button', { name: '切换', exact: true })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

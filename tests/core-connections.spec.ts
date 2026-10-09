@@ -180,6 +180,9 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
     .toBe(2);
   await page.getByRole('button', { name: '总览', exact: true }).click();
   await expect(page.locator('.aggregate-host')).toHaveCount(2);
+  await expect(page.locator('.fleet-summary-cards')).toContainText('主机连接');
+  await expect(page.locator('.aggregate-widget')).toHaveCount(0);
+  await page.getByRole('button', { name: '全部组件', exact: true }).click();
   await expect(page.locator(`[data-host-id="${firstID}"]`)).toContainText('First Core workspace');
   await page.evaluate(async () => {
     const hosts = (window as any).connectionFleet.getSnapshot();
@@ -299,7 +302,13 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
     .getByRole('button', { name: '打开工作区', exact: true })
     .click();
   expect(firstID).not.toBe(secondID);
-  await expect(page.getByText('First Core workspace', { exact: true })).toHaveCount(0);
+  await expect(
+    page.locator('.sidebar-host-group', { hasText: 'First Core workspace' }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.sidebar-host-group', { hasText: 'Second Core workspace' }),
+  ).toHaveCount(1);
+  await expect(page.locator('main .page-heading h1')).toHaveText('Second Core workspace');
   const entry = page.getByRole('button', { name: '管理 Core 连接', exact: true });
   await entry.click();
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -425,7 +434,7 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
   expect(
     await page.evaluate(() => (window as any).connectionCore.state.history['old/private']),
   ).toBeUndefined();
-  await expect(page.getByText('First Core workspace', { exact: true })).toHaveCount(0);
+  await expect(page.locator('main .page-heading h1')).toHaveText('Second Core workspace');
   expect(errors).toEqual([]);
   await page.getByRole('button', { name: '总览', exact: true }).click();
   await expect(page.locator('.aggregate-host')).toHaveCount(2);
@@ -437,7 +446,7 @@ test('真实双 Core：连接入口、切换隔离、失败保留连接、TCP �
   }, firstID);
   await expect(page.locator(`[data-host-id="${firstID}"]`)).toHaveAttribute('data-online', 'false');
   await expect(page.locator(`[data-host-id="${secondID}"]`)).toHaveAttribute('data-online', 'true');
-  await expect(page.locator(`[data-host-id="${firstID}"]`)).toContainText('缓存');
+  await expect(page.locator(`[data-host-id="${firstID}"]`)).toContainText('最近快照');
   await page.screenshot({ path: 'artifacts/multi-core-overview-night.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

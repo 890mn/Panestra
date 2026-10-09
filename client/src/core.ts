@@ -16,6 +16,7 @@ import type { PluginManifest } from './plugin-schema';
 import { deviceKey, discover, native, realtime, sign, transport } from './platform';
 import { connectionErrorText, pairingRequired } from './connection-errors';
 import { loadCoreNames } from './core-names';
+import type { RelayInfo } from './relay-types';
 
 export type CoreState = {
   snapshot: Snapshot | null;
@@ -36,6 +37,8 @@ export type InstalledPlugin = Plugin & { manifest: PluginManifest; enabled: bool
 export class CoreClient {
   constructor(readonly persistActive = true) {}
   beforeActivate?: (endpoint: Endpoint) => void;
+  resolveHost?: (id: string) => CoreClient | undefined;
+  private relayTimer?: ReturnType<typeof setTimeout>;
   state: CoreState = {
     snapshot: null,
     device: null,
@@ -73,7 +76,9 @@ export class CoreClient {
     if (
       value.endpoint &&
       this.state.endpoint &&
-      value.endpoint.serverId !== this.state.endpoint.serverId
+      (value.endpoint.serverId !== this.state.endpoint.serverId ||
+        value.endpoint.relay?.gatewayId !== this.state.endpoint.relay?.gatewayId ||
+        value.endpoint.relay?.routeId !== this.state.endpoint.relay?.routeId)
     ) {
       ++this.generation;
       ++this.sessionEpoch;
@@ -81,6 +86,7 @@ export class CoreClient {
       clearTimeout(this.cacheTimer);
       clearTimeout(this.refreshTimer);
       clearTimeout(this.reconnectTimer);
+      clearTimeout(this.relayTimer);
       this.reconnectTimer = undefined;
       this.token = '';
       this.loginTask = undefined;
@@ -112,6 +118,11 @@ export class CoreClient {
     }
   }
   async connectSaved(endpoint: Endpoint) {
+    if (endpoint.relay) {
+      this.patch({ endpoint });
+      await this.startRelay();
+      return;
+    }
     const epoch = this.sessionEpoch;
     const [snapshot, plugins] = await Promise.all([
       get<Snapshot>('panestra.snapshot.v1:' + endpoint.serverId),
@@ -129,6 +140,38 @@ export class CoreClient {
   }
   async switchEndpoint(candidate: Endpoint) {
     if (this.state.switching) throw { message: '正在切换 Core，请稍后重试' };
+    if (candidate.relay) {
+      const trusted = this.resolveHost?.(candidate.serverId);
+      const gateway = this.resolveHost?.(candidate.relay.gatewayId);
+      if (
+        !trusted?.state.endpoint ||
+        trusted.state.endpoint.publicKeyHash !== candidate.publicKeyHash ||
+        !gateway ||
+        gateway.state.endpoint?.relay
+      )
+        throw { message: '该中转授权已失效，请重新连接中转主机' };
+      this.patch({ switching: true });
+      try {
+        const next = await gateway.api<RelayInfo>(
+          `/relays/${encodeURIComponent(candidate.relay.routeId)}/state`,
+        );
+        if (
+          next.serverId !== candidate.serverId ||
+          next.fingerprint !== candidate.publicKeyHash ||
+          !next.role ||
+          !next.online
+        )
+          throw { message: next.error || '中转 Core 尚未连接' };
+        this.beforeActivate?.(candidate);
+        this.disconnect();
+        this.patch({ endpoint: candidate });
+        this.applyRelay(next, gateway);
+        await this.startRelay();
+      } finally {
+        this.patch({ switching: false });
+      }
+      return;
+    }
     const known =
       this.state.knownEndpoints.find((item) => item.serverId === candidate.serverId) ||
       (this.state.endpoint?.serverId === candidate.serverId ? this.state.endpoint : undefined);
@@ -192,7 +235,12 @@ export class CoreClient {
     device: Device,
   ) {
     const old = this.state.endpoint;
-    if (old?.uri !== endpoint.uri || old?.serverId !== endpoint.serverId) {
+    if (
+      old?.uri !== endpoint.uri ||
+      old?.serverId !== endpoint.serverId ||
+      old?.relay?.gatewayId !== endpoint.relay?.gatewayId ||
+      old?.relay?.routeId !== endpoint.relay?.routeId
+    ) {
       if (old && this.state.snapshot)
         await set('panestra.snapshot.v1:' + old.serverId, this.state.snapshot);
       const [snapshot, plugins] = await Promise.all([
@@ -395,6 +443,7 @@ export class CoreClient {
     return result.status;
   }
   login() {
+    if (this.state.endpoint?.relay) return this.startRelay();
     // Resume, retry and the refresh timer can fire together. Share one handshake.
     if (this.loginTask) return this.loginTask;
     const task = this.authenticate(false, this.sessionEpoch).finally(() => {
@@ -516,6 +565,19 @@ export class CoreClient {
     const ep = this.state.endpoint;
     if (!ep) throw { message: '请先连接 Core' };
     const epoch = this.sessionEpoch;
+    if (ep.relay) {
+      const gateway = this.resolveHost?.(ep.relay.gatewayId);
+      if (gateway?.state.pairingRequired)
+        throw { code: 'UNAUTHORIZED', message: '中转主机需要重新配对' };
+      if (!gateway?.state.online || gateway.state.endpoint?.relay)
+        throw { message: '中转主机离线，请先恢复与它的连接' };
+      const result = await gateway.api<T>(
+        `/relays/${encodeURIComponent(ep.relay.routeId)}/request`,
+        { path, ...(body === undefined ? {} : { body }) },
+      );
+      if (epoch !== this.sessionEpoch) throw { message: 'Core 已切换，旧连接的操作已取消' };
+      return result;
+    }
     const result = await transport<T>(
       ep.uri,
       '/api/v1' + path,
@@ -690,6 +752,7 @@ export class CoreClient {
     this.cache();
   }
   cache() {
+    if (this.state.endpoint?.relay) return;
     clearTimeout(this.cacheTimer);
     this.cacheTimer = setTimeout(() => {
       if (this.state.endpoint && this.state.snapshot)
@@ -757,9 +820,77 @@ export class CoreClient {
     this.loginTask = undefined;
     clearTimeout(this.cacheTimer);
     clearTimeout(this.refreshTimer);
+    clearTimeout(this.relayTimer);
     this.stopSocket?.();
     this.token = '';
     this.patch({ online: false, connecting: false, device: null });
+  }
+  private applyRelay(next: RelayInfo, gateway: CoreClient) {
+    const history = { ...this.state.history };
+    for (const [topic, item] of Object.entries(next.telemetry || {})) {
+      const old = this.state.telemetry[topic];
+      if (old?.seq === item.seq && old?.ts === item.ts) continue;
+      if (typeof item.value === 'number')
+        history[topic] = [...(history[topic] || []), item.value].slice(-60);
+      if (typeof item.value === 'object' && item.value && 'download' in item.value) {
+        for (const field of ['download', 'upload'] as const) {
+          const value = (item.value as { download: number | null; upload: number | null })[field];
+          if (typeof value === 'number')
+            history[topic + '/' + field] = [...(history[topic + '/' + field] || []), value].slice(
+              -30,
+            );
+        }
+      }
+    }
+    this.patch({
+      online: next.online && gateway.state.online,
+      connecting: next.status === 'connecting',
+      pairingRequired: next.status === 'pairing-required',
+      error: next.error,
+      // Delegated clients deliberately expose no Core-management capabilities.
+      identity: next.identity ? { ...next.identity, capabilities: [] } : null,
+      device:
+        gateway.state.device && next.role ? { ...gateway.state.device, role: next.role } : null,
+      snapshot: next.snapshot || null,
+      plugins: next.plugins || [],
+      telemetry: next.telemetry || {},
+      history,
+    });
+  }
+  private async startRelay() {
+    clearTimeout(this.relayTimer);
+    const ep = this.state.endpoint;
+    if (!ep?.relay) return;
+    const epoch = this.sessionEpoch;
+    try {
+      const gateway = this.resolveHost?.(ep.relay.gatewayId);
+      if (gateway?.state.pairingRequired)
+        throw { code: 'UNAUTHORIZED', message: '中转主机需要重新配对' };
+      if (!gateway?.state.online || gateway.state.endpoint?.relay)
+        throw { message: '中转主机离线' };
+      const next = await gateway.api<RelayInfo>(
+        `/relays/${encodeURIComponent(ep.relay.routeId)}/state`,
+      );
+      if (epoch !== this.sessionEpoch) return;
+      if (next.serverId !== ep.serverId || next.fingerprint !== ep.publicKeyHash || !next.role)
+        throw { code: 'FORBIDDEN', message: '中转授权或 Core 身份已变化' };
+      this.applyRelay(next, gateway);
+    } catch (error) {
+      if (epoch !== this.sessionEpoch) return;
+      const denied = ['FORBIDDEN', 'DEVICE_REVOKED', 'UNAUTHORIZED'].includes(
+        (error as APIError).code,
+      );
+      this.patch({
+        online: false,
+        connecting: false,
+        error: connectionErrorText(error),
+        ...(denied
+          ? { snapshot: null, plugins: [], telemetry: {}, history: {}, device: null }
+          : {}),
+      });
+    }
+    if (epoch === this.sessionEpoch)
+      this.relayTimer = setTimeout(() => void this.startRelay(), 2000);
   }
 }
 export const core = new CoreClient();

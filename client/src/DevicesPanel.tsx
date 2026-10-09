@@ -9,6 +9,7 @@ import { connectionErrorText } from './connection-errors';
 import { localCoreInfo } from './platform';
 import { loopbackEndpoint } from './pairing';
 import './devices.css';
+import { RelayPanel } from './RelayPanel';
 
 const roles: Record<Role, string> = { owner: '管理', operator: '查看与编辑', viewer: '仅查看' };
 type PairingWindow = {
@@ -515,6 +516,7 @@ export function DevicesPanel({
           {error || pollError}
         </div>
       ) : null}
+      <RelayPanel notify={notify} />
       {edit ? (
         <Modal
           title="编辑设备"

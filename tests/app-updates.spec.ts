@@ -114,7 +114,7 @@ test('版本检查区分空发布、当前版本、旧版本、错误与离线�
   expect(await page.evaluate(() => 'unsafe' in window)).toBe(false);
   await page.getByRole('button', { name: '返回版本列表', exact: true }).click();
   await page.getByRole('button', { name: `查看 v${version} 更新说明`, exact: true }).click();
-  await expect(page.locator('.release-detail')).toContainText('重做设备与连接');
+  await expect(page.locator('.release-detail')).toContainText('新增 Windows Core 常驻中转');
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   await expect(page.getByRole('button', { name: '更新日志', exact: true })).toBeFocused();
   const compared = await page.evaluate(() => (window as any).compareVersions('0.1.10', '0.1.9'));
@@ -216,7 +216,7 @@ test('品牌打开关于菜单，日志原位切换，关闭恢复焦点；窄�
       await dialog.getByRole('button', { name: '更新日志', exact: true }).click();
       await expect(page.getByRole('dialog')).toHaveCount(1);
       await dialog.getByRole('button', { name: `查看 v${version} 更新说明`, exact: true }).click();
-      await expect(dialog.locator('.release-detail')).toContainText('重做设备与连接');
+      await expect(dialog.locator('.release-detail')).toContainText('新增 Windows Core 常驻中转');
       await dialog.getByRole('button', { name: '返回版本列表', exact: true }).click();
       await dialog.getByRole('button', { name: '返回关于', exact: true }).click();
       await expect(dialog.locator('.about-version')).toBeVisible();

@@ -20,7 +20,7 @@ func TestCoreProofBindsNonceIdentityAndPinnedKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proof["coreVersion"] != protocol.CoreVersion || len(proof["capabilities"].([]string)) != 2 {
+	if proof["coreVersion"] != protocol.CoreVersion || len(proof["capabilities"].([]string)) != 3 {
 		t.Fatal("Core reported stale version or missing device management capabilities")
 	}
 	if proof["fingerprint"] != id.Fingerprint() || proof["proof"] != "panestra:server:v1:fresh-client-nonce-1234:intended-core" {

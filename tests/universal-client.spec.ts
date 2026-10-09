@@ -428,7 +428,7 @@ test('触屏滚动不改变布局，左栏只响应横向收起，图标与键�
     await tablet.getByRole('button', { name: '收起侧栏', exact: true }).press('Enter');
     await expect(sidebar).toBeHidden();
     await tablet.reload();
-    await tablet.locator('.aggregate-widget').first().waitFor();
+    await tablet.locator('.aggregate-host').first().waitFor();
     await expect(sidebar).toBeHidden();
     await tablet.getByRole('button', { name: '打开菜单', exact: true }).click();
     await expect(sidebar).toBeVisible();

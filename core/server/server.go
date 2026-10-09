@@ -40,6 +40,7 @@ type Server struct {
 	Started        time.Time
 	pluginUpdateMu sync.Mutex
 	ListenAddress  string
+	Relays         *relayManager
 }
 
 func New(s *store.Store, a *security.Auth, p *backplane.Runtime, dir string, ctx context.Context) *Server {
@@ -48,6 +49,7 @@ func New(s *store.Store, a *security.Auth, p *backplane.Runtime, dir string, ctx
 	if p != nil {
 		p.Publish = srv.Hub.Telemetry
 	}
+	srv.Relays = newRelayManager(srv)
 	return srv
 }
 func JSON(w http.ResponseWriter, status int, v any) {
@@ -239,6 +241,7 @@ func (s *Server) Handler(assets http.Handler) http.Handler {
 	}
 	mux.HandleFunc("GET /api/v1/me", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) { JSON(w, 200, d) }))
 	s.pluginRoutes(mux, protect)
+	s.relayRoutes(mux, protect)
 	mux.HandleFunc("GET /api/v1/snapshot", protect(false, func(w http.ResponseWriter, r *http.Request, d protocol.Device) {
 		v, err := s.Store.Snapshot()
 		if err != nil {

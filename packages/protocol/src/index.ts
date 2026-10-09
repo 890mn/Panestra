@@ -107,6 +107,7 @@ export interface Endpoint {
   priority: number;
   lastSuccess?: string;
   lastRTT?: number;
+  relay?: { gatewayId: string; routeId: string; name: string };
 }
 export interface Identity {
   serverId: string;

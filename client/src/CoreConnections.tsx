@@ -116,6 +116,7 @@ export function CoreConnections({
                               : addressName(endpoint))}
                       </strong>
                       <small>
+                        {endpoint.relay ? '主机中转 · ' : ''}
                         {current
                           ? state.online
                             ? '当前 Core · 已连接'
@@ -145,7 +146,8 @@ export function CoreConnections({
                     >
                       <Pencil size={16} />
                     </Button>
-                    {(current && state.pairingRequired) || host?.state.pairingRequired ? (
+                    {!endpoint.relay &&
+                    ((current && state.pairingRequired) || host?.state.pairingRequired) ? (
                       <Button
                         className="secondary"
                         disabled={state.switching}
@@ -236,18 +238,24 @@ export function CoreConnections({
                           </div>
                         );
                       })}
-                      <Button
-                        className="core-add-address"
-                        disabled={state.switching}
-                        onClick={() => {
-                          setTarget(endpoint);
-                          setURI('');
-                          navigate('address');
-                        }}
-                      >
-                        <Plus size={16} />
-                        添加连接地址
-                      </Button>
+                      {!endpoint.relay ? (
+                        <Button
+                          className="core-add-address"
+                          disabled={state.switching}
+                          onClick={() => {
+                            setTarget(endpoint);
+                            setURI('');
+                            navigate('address');
+                          }}
+                        >
+                          <Plus size={16} />
+                          添加连接地址
+                        </Button>
+                      ) : (
+                        <small>
+                          此地址由中转主机访问，本设备不直接连接远端，可在设备与连接中调整授权
+                        </small>
+                      )}
                       <small className="core-pin">
                         <ShieldCheck size={13} />
                         身份指纹 {endpoint.publicKeyHash.slice(0, 12)}…
